@@ -58,7 +58,7 @@ impl DriveDetector {
     }
 
     /// Check if device should be skipped
-    fn should_skip_device(device_name: &str) -> bool {
+    pub(crate) fn should_skip_device(device_name: &str) -> bool {
         // Skip loop devices, ram disks, device mapper, etc.
         device_name.starts_with("loop") ||
             device_name.starts_with("ram") ||
@@ -158,7 +158,7 @@ impl DriveDetector {
     }
 
     /// Extract field from smartctl output
-    fn extract_field(output: &str, field_name: &str) -> Option<String> {
+    pub(crate) fn extract_field(output: &str, field_name: &str) -> Option<String> {
         output
             .lines()
             .find(|line| line.contains(field_name))?
@@ -180,7 +180,7 @@ impl DriveDetector {
     }
 
     /// Determine drive type from various indicators
-    fn determine_drive_type(device_path: &str, smartctl_output: &str) -> Result<DriveType> {
+    pub(crate) fn determine_drive_type(device_path: &str, smartctl_output: &str) -> Result<DriveType> {
         // Check for NVMe
         if device_path.contains("nvme") {
             return Ok(DriveType::NVMe);
@@ -347,7 +347,7 @@ impl DriveDetector {
     }
 
     /// Calculate Shannon entropy
-    fn calculate_entropy(data: &[u8]) -> f64 {
+    pub(crate) fn calculate_entropy(data: &[u8]) -> f64 {
         let mut counts = [0u64; 256];
         for &byte in data {
             counts[byte as usize] += 1;

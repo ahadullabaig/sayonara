@@ -215,7 +215,6 @@ impl Default for DegradedModeManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Algorithm;
 
     #[test]
     fn test_degraded_mode_properties() {

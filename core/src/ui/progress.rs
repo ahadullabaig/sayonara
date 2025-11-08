@@ -1,7 +1,7 @@
 use std::io::{self, Write};
 use std::time::{Instant};
 
-const CAT_FRAMES: [&str; 6] = [
+pub(crate) const CAT_FRAMES: [&str; 6] = [
     "ฅ(^･ω･^=)  ", // cat happy
     "ฅ(=^･ω･^ ) ",
     "ฅ(^･ᴥ･^=)  ",
@@ -10,7 +10,7 @@ const CAT_FRAMES: [&str; 6] = [
     "ฅ(=^･ω･^ ) ",
 ];
 
-const PAW_FRAMES: [&str; 4] = ["·", "˚", "•", "˚"];
+pub(crate) const PAW_FRAMES: [&str; 4] = ["·", "˚", "•", "˚"];
 
 pub struct ProgressBar {
     width: usize,
@@ -128,7 +128,7 @@ impl ProgressBar {
 }
 
 /// Convert bytes/sec to readable string
-fn human_bytes(bps: f64) -> String {
+pub(crate) fn human_bytes(bps: f64) -> String {
     let units = ["B", "KB", "MB", "GB", "TB"];
     if bps <= 0.0 {
         return "0B".to_string();
@@ -143,7 +143,7 @@ fn human_bytes(bps: f64) -> String {
 }
 
 /// Format seconds to H:MM:SS or M:SS
-fn format_duration(secs: u64) -> String {
+pub(crate) fn format_duration(secs: u64) -> String {
     let h = secs / 3600;
     let m = (secs % 3600) / 60;
     let s = secs % 60;

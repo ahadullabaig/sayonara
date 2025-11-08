@@ -159,7 +159,7 @@ mod tests {
 
         // Perform zero wipe
         let result = write_zeros(&mut io_handle, size);
-        assert!(result.is_ok(), "Zero wipe should succeed");
+        assert!(result.is_ok(), "Zero wipe should succeed: {:?}", result.err());
     }
 
     fn write_zeros(io_handle: &mut IOHandle, size: u64) -> Result<()> {

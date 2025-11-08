@@ -235,7 +235,7 @@ impl HPADCOManager {
     }
 
     /// Parse DCO output from hdparm
-    fn parse_dco_output(output: &str) -> DriveResult<Option<(u64, u64)>> {
+    pub(crate) fn parse_dco_output(output: &str) -> DriveResult<Option<(u64, u64)>> {
         let mut real_max = None;
         let mut dco_max = None;
 
@@ -259,7 +259,7 @@ impl HPADCOManager {
     }
 
     /// Extract number from a line of text
-    fn extract_number_from_line(line: &str) -> Option<u64> {
+    pub(crate) fn extract_number_from_line(line: &str) -> Option<u64> {
         // Find all numeric sequences in the line
         let parts: Vec<&str> = line.split(|c: char| !c.is_numeric())
             .filter(|s| !s.is_empty())

@@ -9,6 +9,8 @@ mod tests {
     use std::io::{Write, Read, Seek, SeekFrom};
     use crate::algorithms::gutmann::DriveEncoding;
     use crate::ui::progress::ProgressBar;
+    use crate::error::checkpoint::{CheckpointManager, Checkpoint};
+    use chrono::Utc;
 
     /// Test that patterns match the original Gutmann specification
     #[test]
@@ -125,28 +127,45 @@ mod tests {
         let test_size = 1024 * 1024 * 1024; // 1GB
         let encoding = DriveEncoding::PRML;
 
-        // Save checkpoint
-        GutmannWipe::save_checkpoint(test_device, test_pass, test_size, &encoding)?;
+        // Create temporary database for testing
+        let temp_dir = tempfile::TempDir::new()?;
+        let db_path = temp_dir.path().join("test_checkpoints.db");
+        let mut manager = CheckpointManager::new(Some(db_path.to_str().unwrap()))?;
+
+        // Create and save checkpoint
+        let mut checkpoint = Checkpoint::new(
+            test_device,
+            "Gutmann",
+            "test-op-123",
+            35,  // total passes
+            test_size,
+        );
+        checkpoint.update_progress(test_pass, (test_pass as u64) * test_size / 35);
+        checkpoint.state = serde_json::json!({
+            "encoding": format!("{:?}", encoding)
+        });
+
+        manager.save(&checkpoint)?;
 
         // Load checkpoint
-        let loaded = GutmannWipe::load_checkpoint(test_device);
+        let loaded = manager.load(test_device, "Gutmann")?;
         assert!(loaded.is_some(), "Checkpoint should be loaded");
 
-        let checkpoint = loaded.unwrap();
-        assert_eq!(checkpoint.device_path, test_device);
-        assert_eq!(checkpoint.current_pass, test_pass);
-        assert_eq!(checkpoint.total_size, test_size);
-        assert_eq!(checkpoint.encoding, "PRML");
+        let loaded_checkpoint = loaded.unwrap();
+        assert_eq!(loaded_checkpoint.device_path, test_device);
+        assert_eq!(loaded_checkpoint.current_pass, test_pass);
+        assert_eq!(loaded_checkpoint.total_size, test_size);
+        assert_eq!(loaded_checkpoint.state["encoding"], format!("{:?}", encoding));
 
         // Verify timestamp is recent
-        let age = chrono::Utc::now() - checkpoint.timestamp;
+        let age = Utc::now() - loaded_checkpoint.updated_at;
         assert!(age.num_seconds() < 5, "Checkpoint should be recent");
 
         // Clean up
-        GutmannWipe::delete_checkpoint(test_device);
+        manager.delete(&loaded_checkpoint.id)?;
 
         // Verify deletion
-        let deleted = GutmannWipe::load_checkpoint(test_device);
+        let deleted = manager.load(test_device, "Gutmann")?;
         assert!(deleted.is_none(), "Checkpoint should be deleted");
 
         Ok(())
@@ -288,18 +307,35 @@ mod tests {
         let test_size = 100 * 1024 * 1024; // 100MB
         let encoding = DriveEncoding::PRML;
 
+        // Create temporary database for testing
+        let temp_dir = tempfile::TempDir::new()?;
+        let db_path = temp_dir.path().join("test_resume.db");
+        let mut manager = CheckpointManager::new(Some(db_path.to_str().unwrap()))?;
+
         // Simulate interruption at pass 10
-        GutmannWipe::save_checkpoint(test_device, 10, test_size, &encoding)?;
+        let mut checkpoint = Checkpoint::new(
+            test_device,
+            "Gutmann",
+            "test-resume-op",
+            35,
+            test_size,
+        );
+        checkpoint.update_progress(10, (10 * test_size) / 35);
+        checkpoint.state = serde_json::json!({
+            "encoding": format!("{:?}", encoding)
+        });
+
+        manager.save(&checkpoint)?;
 
         // Load and verify resume point
-        let checkpoint = GutmannWipe::load_checkpoint(test_device);
-        assert!(checkpoint.is_some());
+        let loaded = manager.load(test_device, "Gutmann")?;
+        assert!(loaded.is_some(), "Checkpoint should exist");
 
-        let cp = checkpoint.unwrap();
+        let cp = loaded.unwrap();
         assert_eq!(cp.current_pass, 10, "Should resume from pass 10");
 
         // Clean up
-        GutmannWipe::delete_checkpoint(test_device);
+        manager.delete(&cp.id)?;
 
         Ok(())
     }

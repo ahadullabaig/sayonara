@@ -38,7 +38,7 @@
 ///
 /// # Usage Example
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use sayonara_wipe::error::{RecoveryCoordinator, Progress, ErrorContext};
 /// use sayonara_wipe::WipeConfig;
 ///

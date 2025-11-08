@@ -534,7 +534,7 @@ fn wipe_kv_namespace(
 // ==================== HELPER FUNCTIONS ====================
 
 /// Get device size using sysfs or ioctl
-fn get_device_size(device_path: &str) -> Result<u64> {
+pub(crate) fn get_device_size(device_path: &str) -> Result<u64> {
     use std::fs;
 
     // Try sysfs first (Linux)

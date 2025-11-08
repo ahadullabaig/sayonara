@@ -10,6 +10,13 @@
 // Core functionality
 pub mod detection;
 
+// Tests
+#[cfg(test)]
+mod detection_tests;
+
+#[cfg(test)]
+mod integrated_wipe_tests;
+
 // Drive types (organized by category)
 pub mod types;
 

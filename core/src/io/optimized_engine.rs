@@ -360,8 +360,9 @@ impl OptimizedIO {
             // Fill buffer with data
             fill_buffer(&mut buffer)?;
 
-            // Write to device
-            let written = handle.write_buffer(&buffer, offset)?;
+            // Write only the needed portion to device
+            let buffer_slice = &buffer.as_slice()[..write_size as usize];
+            let written = handle.write_at(buffer_slice, offset)?;
 
             if written as u64 != write_size {
                 return Err(IOError::OperationFailed(
