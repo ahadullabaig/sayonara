@@ -345,3 +345,6 @@ impl Default for SafetyConfig {
         }
     }
 }
+
+#[cfg(test)]
+mod lib_tests;

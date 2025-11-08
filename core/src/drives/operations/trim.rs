@@ -202,7 +202,7 @@ impl TrimOperations {
     }
 
     /// Check if buffer contains common TRIM patterns
-    fn is_trim_pattern(buffer: &[u8]) -> bool {
+    pub(crate) fn is_trim_pattern(buffer: &[u8]) -> bool {
         // Check for common TRIM patterns
         // Some SSDs return specific patterns after TRIM
 
@@ -290,7 +290,7 @@ impl TrimOperations {
     }
 
     /// Get NVMe namespace ID
-    fn get_nvme_nsid(device_path: &str) -> DriveResult<String> {
+    pub(crate) fn get_nvme_nsid(device_path: &str) -> DriveResult<String> {
         // Extract namespace from path like /dev/nvme0n1
         if let Some(n_pos) = device_path.rfind('n') {
             let after_n = &device_path[n_pos + 1..];

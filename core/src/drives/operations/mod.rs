@@ -12,3 +12,13 @@ pub use hpa_dco::HPADCOManager;
 pub use sed::SEDManager;
 pub use trim::TrimOperations;
 pub use smart::SMARTMonitor;
+
+// Tests
+#[cfg(test)]
+mod smart_tests;
+
+#[cfg(test)]
+mod hpa_dco_tests;
+
+#[cfg(test)]
+mod trim_tests;

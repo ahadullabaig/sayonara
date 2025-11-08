@@ -138,7 +138,7 @@ impl SMARTMonitor {
     }
 
     /// Parse ATA SMART output
-    fn parse_ata_smart(output: &str) -> DriveResult<SMARTHealth> {
+    pub(crate) fn parse_ata_smart(output: &str) -> DriveResult<SMARTHealth> {
         let mut health = SMARTHealth {
             overall_health: HealthStatus::Unknown,
             temperature_celsius: None,
@@ -323,7 +323,7 @@ impl SMARTMonitor {
     }
 
     /// Parse NVMe SMART from smartctl output
-    fn parse_nvme_smart_smartctl(output: &str) -> DriveResult<SMARTHealth> {
+    pub(crate) fn parse_nvme_smart_smartctl(output: &str) -> DriveResult<SMARTHealth> {
         let mut health = SMARTHealth {
             overall_health: HealthStatus::Unknown,
             temperature_celsius: None,
@@ -382,7 +382,7 @@ impl SMARTMonitor {
     }
 
     /// Determine overall health status based on attributes
-    fn determine_health_status(health: &SMARTHealth) -> HealthStatus {
+    pub(crate) fn determine_health_status(health: &SMARTHealth) -> HealthStatus {
         // Critical checks
         if let Some(reallocated) = health.reallocated_sectors {
             if reallocated > 100 {
@@ -622,7 +622,7 @@ impl SMARTMonitor {
     }
 
     /// Parse raw value from SMART attribute
-    fn parse_raw_value(raw_str: &str) -> u64 {
+    pub(crate) fn parse_raw_value(raw_str: &str) -> u64 {
         // Handle different raw value formats
         if let Ok(val) = raw_str.parse::<u64>() {
             return val;
@@ -646,7 +646,7 @@ impl SMARTMonitor {
     }
 
     /// Extract number from a line
-    fn extract_number(line: &str) -> Option<u64> {
+    pub(crate) fn extract_number(line: &str) -> Option<u64> {
         let parts: Vec<&str> = line.split_whitespace().collect();
         for part in parts.iter().rev() {
             if let Ok(num) = part.replace(",", "").parse::<u64>() {
@@ -657,7 +657,7 @@ impl SMARTMonitor {
     }
 
     /// Extract hex value
-    fn extract_hex_value(line: &str) -> Option<u64> {
+    pub(crate) fn extract_hex_value(line: &str) -> Option<u64> {
         if let Some(hex_start) = line.find("0x") {
             let hex_str = &line[hex_start + 2..];
             let end = hex_str.find(|c: char| !c.is_ascii_hexdigit()).unwrap_or(hex_str.len());
@@ -668,7 +668,7 @@ impl SMARTMonitor {
     }
 
     /// Extract percentage value
-    fn extract_percentage(line: &str) -> Option<u64> {
+    pub(crate) fn extract_percentage(line: &str) -> Option<u64> {
         if let Some(percent_pos) = line.find('%') {
             let before_percent = &line[..percent_pos];
             let number_start = before_percent.rfind(|c: char| !c.is_numeric()).map(|i| i + 1).unwrap_or(0);
@@ -679,7 +679,7 @@ impl SMARTMonitor {
     }
 
     /// Extract temperature from line
-    fn extract_temperature(line: &str) -> Option<u32> {
+    pub(crate) fn extract_temperature(line: &str) -> Option<u32> {
         // Look for patterns like "45 Celsius" or "45 C"
         let parts: Vec<&str> = line.split_whitespace().collect();
         for i in 0..parts.len() - 1 {
@@ -694,7 +694,7 @@ impl SMARTMonitor {
     }
 
     /// Extract number from a line with colon separator
-    fn extract_number_from_line(line: &str) -> Option<u64> {
+    pub(crate) fn extract_number_from_line(line: &str) -> Option<u64> {
         if let Some(colon_pos) = line.find(':') {
             let after_colon = &line[colon_pos + 1..].trim();
             let number_end = after_colon.find(|c: char| !c.is_numeric() && c != ',').unwrap_or(after_colon.len());
@@ -705,7 +705,7 @@ impl SMARTMonitor {
     }
 
     /// Extract percentage from line with colon
-    fn extract_percentage_from_line(line: &str) -> Option<u64> {
+    pub(crate) fn extract_percentage_from_line(line: &str) -> Option<u64> {
         if let Some(colon_pos) = line.find(':') {
             let after_colon = &line[colon_pos + 1..].trim();
             if let Some(percent_pos) = after_colon.find('%') {

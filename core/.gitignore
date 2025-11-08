@@ -36,4 +36,6 @@ ata_unfreeze.mod.o
 #Claude Code init
 CLAUDE.md
 phase1.md
-phase1_report.md
+PHASE1_COMPLETION_ROADMAP.md
+TESTING.md
+coverage_baseline.md
