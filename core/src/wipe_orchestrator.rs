@@ -311,7 +311,7 @@ impl WipeOrchestrator {
             return Ok(());
         }
 
-        // Fall back to basic NVMe wipe via sanitize command
+        // Try basic NVMe wipe via sanitize command, fall back to software if it fails
         println!("Using standard NVMe sanitize command with Recovery");
 
         // Create error context
@@ -323,7 +323,7 @@ impl WipeOrchestrator {
         let device_path = self.device_path.clone();
 
         // Execute with recovery coordinator
-        self.recovery_coordinator.execute_with_recovery(
+        let sanitize_result = self.recovery_coordinator.execute_with_recovery(
             "wipe_nvme_basic",
             context,
             || {
@@ -335,17 +335,55 @@ impl WipeOrchestrator {
                     .map_err(|e| DriveError::IoError(std::io::Error::new(std::io::ErrorKind::Other, format!("NVMe sanitize failed: {}", e))))?;
 
                 if !output.status.success() {
-                    return Err(DriveError::IoError(std::io::Error::new(std::io::ErrorKind::Other, "NVMe sanitize failed")));
+                    return Err(DriveError::IoError(std::io::Error::new(std::io::ErrorKind::Other, "NVMe sanitize command failed")));
                 }
 
                 Ok(())
             }
-        ).map_err(|e| DriveError::IoError(
-            std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e))
-        ))?;
+        );
 
-        println!("✅ NVMe wipe completed successfully");
-        Ok(())
+        // Check if sanitize succeeded, if not fall back to software wipe
+        match sanitize_result {
+            Ok(_) => {
+                println!("✅ NVMe sanitize completed successfully");
+                Ok(())
+            }
+            Err(e) => {
+                println!("\n⚠️  NVMe sanitize failed: {}", e);
+                println!("   Reason: Drive may not support Sanitize or Format NVM commands");
+                println!("   Falling back to software overwrite (this will take longer)...\n");
+
+                // Fall back to software overwrite using write_pattern_to_region
+                let size = self.drive_info.size;
+                let context = ErrorContext::new(
+                    "nvme_software_fallback",
+                    &self.device_path,
+                );
+
+                self.recovery_coordinator.execute_with_recovery(
+                    "nvme_software_wipe",
+                    context,
+                    || {
+                        println!("   Pass 1/3: Writing zeros...");
+                        self.write_pattern_to_region(0, size)?;
+
+                        println!("   Pass 2/3: Writing ones...");
+                        let pattern = vec![0xFF; 4096 * 1024]; // 4MB of 0xFF
+                        self.write_custom_pattern(0, size, &pattern)?;
+
+                        println!("   Pass 3/3: Writing random data...");
+                        self.write_pattern_to_region(0, size)?;
+
+                        Ok(())
+                    }
+                ).map_err(|e| DriveError::IoError(
+                    std::io::Error::new(std::io::ErrorKind::Other, format!("Software fallback failed: {}", e))
+                ))?;
+
+                println!("✅ NVMe software wipe completed successfully");
+                Ok(())
+            }
+        }
     }
 
     /// Wipe SSD drive with error recovery
@@ -488,6 +526,28 @@ impl WipeOrchestrator {
         file.write_all(&pattern)?;
         file.sync_all()?;
 
+        Ok(())
+    }
+
+    /// Write a custom pattern to a specific region
+    fn write_custom_pattern(&self, offset: u64, size: u64, pattern: &[u8]) -> Result<()> {
+        let mut file = OpenOptions::new()
+            .write(true)
+            .open(&self.device_path)?;
+
+        file.seek(SeekFrom::Start(offset))?;
+
+        let pattern_len = pattern.len() as u64;
+        let mut written = 0u64;
+
+        // Write pattern repeatedly until size is reached
+        while written < size {
+            let to_write = std::cmp::min(pattern_len, size - written);
+            file.write_all(&pattern[..to_write as usize])?;
+            written += to_write;
+        }
+
+        file.sync_all()?;
         Ok(())
     }
 

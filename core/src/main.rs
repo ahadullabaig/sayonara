@@ -1564,28 +1564,97 @@ async fn select_and_execute_wipe(
             DoDWipe::wipe_drive(device, drive_info.size, drive_info.drive_type.clone(), &config)?; // Reuse with zero pattern
         }
         Algorithm::SecureErase => {
+            // Try hardware secure erase with graceful fallback to software methods
             match drive_info.drive_type {
-                DriveType::SSD => SSDWipe::secure_erase(device)?,
-                DriveType::NVMe => NVMeWipe::secure_erase(device)?,
-                DriveType::HDD => HDDWipe::secure_erase(device)?,
+                DriveType::SSD => {
+                    match SSDWipe::secure_erase(device) {
+                        Ok(_) => {
+                            println!("✅ Hardware secure erase completed successfully");
+                        }
+                        Err(e) => {
+                            println!("\n⚠️  Hardware secure erase failed: {}", e);
+                            println!("   Reason: Drive may not support ATA secure erase or is frozen");
+                            println!("   Falling back to DoD 5220.22-M (3-pass software wipe)...");
+                            println!("   This will take longer but will securely wipe the drive.\n");
+                            DoDWipe::wipe_drive(device, drive_info.size, drive_info.drive_type.clone(), &config)?;
+                        }
+                    }
+                }
+                DriveType::NVMe => {
+                    match NVMeWipe::secure_erase(device) {
+                        Ok(_) => {
+                            println!("✅ Hardware secure erase completed successfully");
+                        }
+                        Err(e) => {
+                            println!("\n⚠️  Hardware secure erase failed: {}", e);
+                            println!("   Reason: Drive may not support Format NVM or Sanitize commands");
+                            println!("   Falling back to DoD 5220.22-M (3-pass software wipe)...");
+                            println!("   This will take longer but will securely wipe the drive.\n");
+                            DoDWipe::wipe_drive(device, drive_info.size, drive_info.drive_type.clone(), &config)?;
+                        }
+                    }
+                }
+                DriveType::HDD => {
+                    match HDDWipe::secure_erase(device) {
+                        Ok(_) => {
+                            println!("✅ Hardware secure erase completed successfully");
+                        }
+                        Err(e) => {
+                            println!("\n⚠️  Hardware secure erase failed: {}", e);
+                            println!("   Reason: Drive may not support ATA secure erase or is frozen");
+                            println!("   Falling back to DoD 5220.22-M (3-pass software wipe)...");
+                            println!("   This will take longer but will securely wipe the drive.\n");
+                            DoDWipe::wipe_drive(device, drive_info.size, drive_info.drive_type.clone(), &config)?;
+                        }
+                    }
+                }
                 _ => {
-                    println!("Hardware secure erase not available, falling back to DoD");
+                    println!("ℹ️  Hardware secure erase not available for this drive type");
+                    println!("   Using DoD 5220.22-M (3-pass software wipe)...\n");
                     DoDWipe::wipe_drive(device, drive_info.size, drive_info.drive_type.clone(), &config)?;
                 }
             }
         }
         Algorithm::CryptoErase => {
+            // Try crypto erase with fallback to DoD
             if let Ok(sed_info) = SEDManager::detect_sed(device) {
-                SEDManager::crypto_erase(device, &sed_info)?;
+                match SEDManager::crypto_erase(device, &sed_info) {
+                    Ok(_) => {
+                        println!("✅ Cryptographic erase completed successfully");
+                    }
+                    Err(e) => {
+                        println!("\n⚠️  Cryptographic erase failed: {}", e);
+                        println!("   Reason: Drive may be locked or does not support crypto erase");
+                        println!("   Falling back to DoD 5220.22-M (3-pass software wipe)...");
+                        println!("   This will take longer but will securely wipe the drive.\n");
+                        DoDWipe::wipe_drive(device, drive_info.size, drive_info.drive_type.clone(), &config)?;
+                    }
+                }
             } else {
-                return Err(anyhow::anyhow!("Crypto erase not available for this drive"));
+                println!("\n⚠️  Self-Encrypting Drive (SED) not detected");
+                println!("   Falling back to DoD 5220.22-M (3-pass software wipe)...\n");
+                DoDWipe::wipe_drive(device, drive_info.size, drive_info.drive_type.clone(), &config)?;
             }
         }
         Algorithm::Sanitize => {
+            // Try NVMe sanitize with fallback to DoD
             if drive_info.drive_type == DriveType::NVMe {
-                NVMeWipe::secure_erase(device)?;
+                match NVMeWipe::secure_erase(device) {
+                    Ok(_) => {
+                        println!("✅ NVMe sanitize completed successfully");
+                    }
+                    Err(e) => {
+                        println!("\n⚠️  NVMe sanitize failed: {}", e);
+                        println!("   Reason: Drive may not support Sanitize or Format NVM commands");
+                        println!("   Falling back to DoD 5220.22-M (3-pass software wipe)...");
+                        println!("   This will take longer but will securely wipe the drive.\n");
+                        DoDWipe::wipe_drive(device, drive_info.size, drive_info.drive_type.clone(), &config)?;
+                    }
+                }
             } else {
-                return Err(anyhow::anyhow!("Sanitize only available for NVMe drives"));
+                println!("\n⚠️  Sanitize command only available for NVMe drives");
+                println!("   Falling back to DoD 5220.22-M (3-pass software wipe)...\n");
+                DoDWipe::wipe_drive(device, drive_info.size, drive_info.drive_type.clone(), &config)?;
             }
         }
         Algorithm::TrimOnly => {
