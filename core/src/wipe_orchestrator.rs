@@ -407,7 +407,7 @@ impl WipeOrchestrator {
                         self.write_custom_pattern(0, size, &pattern)?;
 
                         println!("   Pass 3/3: Writing random data...");
-                        self.write_pattern_to_region(0, size)?;
+                        self.write_random_data_to_region(0, size)?;
 
                         Ok(())
                     }
@@ -585,6 +585,36 @@ impl WipeOrchestrator {
             let to_write = std::cmp::min(pattern_len, size - written);
             file.write_all(&pattern[..to_write as usize])?;
             written += to_write;
+        }
+
+        file.sync_all()?;
+        Ok(())
+    }
+
+    /// Write cryptographically secure random data to a specific region
+    /// This method explicitly uses SecureRNG regardless of the configured algorithm
+    fn write_random_data_to_region(&self, offset: u64, size: u64) -> Result<()> {
+        use crate::crypto::secure_rng::SecureRNG;
+
+        let mut file = OpenOptions::new()
+            .write(true)
+            .open(&self.device_path)?;
+
+        file.seek(SeekFrom::Start(offset))?;
+
+        let mut rng = SecureRNG::new()?;
+        let chunk_size = 4 * 1024 * 1024; // 4MB chunks
+        let mut written = 0u64;
+
+        while written < size {
+            let to_write = std::cmp::min(chunk_size, (size - written) as usize);
+            let mut buffer = vec![0u8; to_write];
+
+            // Fill with cryptographically secure random data
+            rng.fill_bytes(&mut buffer)?;
+
+            file.write_all(&buffer)?;
+            written += to_write as u64;
         }
 
         file.sync_all()?;
