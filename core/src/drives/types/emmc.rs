@@ -2,13 +2,13 @@
 //
 // Support for embedded storage found in phones, tablets, and embedded systems
 
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
+use serde::{Deserialize, Serialize};
 use std::process::Command;
-use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BootPartition {
-    pub partition_number: u8,  // Boot1, Boot2
+    pub partition_number: u8, // Boot1, Boot2
     pub size: u64,
     pub is_write_protected: bool,
 }
@@ -78,7 +78,7 @@ impl EMMCDevice {
             boot_partitions: vec![
                 BootPartition {
                     partition_number: 1,
-                    size: 4 * 1024 * 1024,  // Typical 4MB
+                    size: 4 * 1024 * 1024, // Typical 4MB
                     is_write_protected: false,
                 },
                 BootPartition {
@@ -88,7 +88,7 @@ impl EMMCDevice {
                 },
             ],
             rpmb: Some(RPMBPartition {
-                size: 128 * 1024,  // Typical 128KB
+                size: 128 * 1024, // Typical 128KB
                 key_programmed: false,
                 counter: 0,
             }),
@@ -125,9 +125,7 @@ impl EMMCDevice {
     pub fn trim(&self) -> Result<()> {
         println!("Performing TRIM on eMMC");
 
-        let output = Command::new("blkdiscard")
-            .arg(&self.device_path)
-            .output();
+        let output = Command::new("blkdiscard").arg(&self.device_path).output();
 
         if let Ok(output) = output {
             if output.status.success() {
@@ -220,9 +218,7 @@ impl UFSDevice {
         // UFS devices typically appear as SCSI devices
         // Check for UFS-specific attributes
 
-        let output = Command::new("sg_inq")
-            .arg(device_path)
-            .output();
+        let output = Command::new("sg_inq").arg(device_path).output();
 
         if let Ok(output) = output {
             let stdout = String::from_utf8_lossy(&output.stdout);
@@ -264,9 +260,7 @@ impl UFSDevice {
             self.purge()?;
         } else {
             // Fallback to standard SCSI UNMAP
-            let _ = Command::new("blkdiscard")
-                .arg(&self.device_path)
-                .output();
+            let _ = Command::new("blkdiscard").arg(&self.device_path).output();
         }
 
         println!("UFS wipe completed");

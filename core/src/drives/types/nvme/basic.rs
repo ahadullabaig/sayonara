@@ -1,8 +1,8 @@
-use anyhow::{Result, anyhow};
+use crate::ui::progress::ProgressBar;
+use anyhow::{anyhow, Result};
 use std::process::Command;
 use std::thread;
 use std::time::Duration;
-use crate::ui::progress::ProgressBar;
 
 pub struct NVMeWipe;
 
@@ -21,7 +21,9 @@ impl NVMeWipe {
             cmd.args(["sanitize", device_path, "--crypto-erase", "--force"]);
             Self::run_command_with_bar(&mut cmd, "Sanitize crypto erase")
         } else {
-            Err(anyhow!("No secure erase method available for this NVMe device"))
+            Err(anyhow!(
+                "No secure erase method available for this NVMe device"
+            ))
         }
     }
 

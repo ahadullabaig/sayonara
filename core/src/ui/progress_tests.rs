@@ -11,7 +11,6 @@ use super::progress::*;
 fn test_progress_bar_new() {
     let _bar = ProgressBar::new(50);
     // Can't access private fields directly, but verify no panic
-    assert!(true);
 }
 
 #[test]
@@ -235,7 +234,7 @@ fn test_format_duration_padding_single_digit_minutes() {
 
 #[test]
 fn test_format_duration_padding_hours() {
-    let result = format_duration(1 * 3600 + 5 * 60 + 7); // 1:05:07
+    let result = format_duration(3600 + 5 * 60 + 7); // 1:05:07
     assert_eq!(result, "1:05:07");
 }
 
@@ -379,7 +378,7 @@ fn test_eta_calculation_zero_speed() {
 fn test_remaining_bytes_calculation() {
     let total = 1000u64;
     let written = 300u64;
-    let remaining = if total > written { total - written } else { 0 };
+    let remaining = total.saturating_sub(written);
 
     assert_eq!(remaining, 700);
 }
@@ -388,7 +387,7 @@ fn test_remaining_bytes_calculation() {
 fn test_remaining_bytes_when_written_exceeds_total() {
     let total = 1000u64;
     let written = 1200u64;
-    let remaining = if total > written { total - written } else { 0 };
+    let remaining = total.saturating_sub(written);
 
     assert_eq!(remaining, 0);
 }
@@ -397,15 +396,13 @@ fn test_remaining_bytes_when_written_exceeds_total() {
 
 #[test]
 fn test_cat_frames_defined() {
-    // Verify CAT_FRAMES is not empty
-    assert!(CAT_FRAMES.len() > 0);
+    // Verify CAT_FRAMES has the expected number of frames
     assert_eq!(CAT_FRAMES.len(), 6);
 }
 
 #[test]
 fn test_paw_frames_defined() {
-    // Verify PAW_FRAMES is not empty
-    assert!(PAW_FRAMES.len() > 0);
+    // Verify PAW_FRAMES has the expected number of frames
     assert_eq!(PAW_FRAMES.len(), 4);
 }
 

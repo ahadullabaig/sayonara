@@ -4,7 +4,7 @@
 // These tests focus on testable logic, helper functions, and algorithm conversions.
 
 use super::*;
-use crate::{Algorithm, WipeConfig, DriveType};
+use crate::{Algorithm, DriveType, WipeConfig};
 use anyhow::Result;
 
 // ==================== ALGORITHM CONVERSION TESTS ====================
@@ -197,7 +197,11 @@ fn test_generate_pattern_different_sizes() -> Result<()> {
 
     for size in sizes {
         let pattern = orchestrator.generate_pattern(size)?;
-        assert_eq!(pattern.len(), size, "Pattern size should match requested size");
+        assert_eq!(
+            pattern.len(),
+            size,
+            "Pattern size should match requested size"
+        );
     }
 
     Ok(())
@@ -281,7 +285,11 @@ fn test_orchestrator_creation_with_different_algorithms() -> Result<()> {
         };
 
         let result = WipeOrchestrator::new("/dev/null".to_string(), config);
-        assert!(result.is_ok(), "Should create orchestrator with algorithm {:?}", algo);
+        assert!(
+            result.is_ok(),
+            "Should create orchestrator with algorithm {:?}",
+            algo
+        );
     }
 
     Ok(())
@@ -300,37 +308,42 @@ fn test_drive_type_detection_nvme_patterns() {
 
     for path in nvme_paths {
         let info = WipeOrchestrator::create_basic_drive_info(path).unwrap();
-        assert_eq!(info.drive_type, DriveType::NVMe, "Should detect {} as NVMe", path);
+        assert_eq!(
+            info.drive_type,
+            DriveType::NVMe,
+            "Should detect {} as NVMe",
+            path
+        );
     }
 }
 
 #[test]
 fn test_drive_type_detection_emmc_patterns() {
-    let emmc_paths = vec![
-        "/dev/mmcblk0",
-        "/dev/mmcblk1",
-        "/dev/mmcblk0p1",
-    ];
+    let emmc_paths = vec!["/dev/mmcblk0", "/dev/mmcblk1", "/dev/mmcblk0p1"];
 
     for path in emmc_paths {
         let info = WipeOrchestrator::create_basic_drive_info(path).unwrap();
-        assert_eq!(info.drive_type, DriveType::EMMC, "Should detect {} as EMMC", path);
+        assert_eq!(
+            info.drive_type,
+            DriveType::EMMC,
+            "Should detect {} as EMMC",
+            path
+        );
     }
 }
 
 #[test]
 fn test_drive_type_detection_hdd_patterns() {
-    let hdd_paths = vec![
-        "/dev/sda",
-        "/dev/sdb",
-        "/dev/sdc",
-        "/dev/hda",
-        "/dev/vda",
-    ];
+    let hdd_paths = vec!["/dev/sda", "/dev/sdb", "/dev/sdc", "/dev/hda", "/dev/vda"];
 
     for path in hdd_paths {
         let info = WipeOrchestrator::create_basic_drive_info(path).unwrap();
-        assert_eq!(info.drive_type, DriveType::HDD, "Should detect {} as HDD (default)", path);
+        assert_eq!(
+            info.drive_type,
+            DriveType::HDD,
+            "Should detect {} as HDD (default)",
+            path
+        );
     }
 }
 
@@ -362,7 +375,10 @@ fn test_orchestrator_with_custom_config() -> Result<()> {
     let orchestrator = WipeOrchestrator::new("/dev/null".to_string(), config)?;
 
     assert_eq!(orchestrator.config.algorithm, Algorithm::Gutmann);
-    assert_eq!(orchestrator.config.handle_hpa_dco, crate::HPADCOHandling::TemporaryRemove);
+    assert_eq!(
+        orchestrator.config.handle_hpa_dco,
+        crate::HPADCOHandling::TemporaryRemove
+    );
 
     Ok(())
 }
@@ -371,11 +387,7 @@ fn test_orchestrator_with_custom_config() -> Result<()> {
 
 #[test]
 fn test_create_drive_info_with_special_paths() -> Result<()> {
-    let special_paths = vec![
-        "/dev/null",
-        "/dev/zero",
-        "/dev/random",
-    ];
+    let special_paths = vec!["/dev/null", "/dev/zero", "/dev/random"];
 
     for path in special_paths {
         let result = WipeOrchestrator::create_basic_drive_info(path);
@@ -445,69 +457,21 @@ fn test_all_algorithm_variants_supported() -> Result<()> {
     Ok(())
 }
 
-// ==================== INTEGRATION TEST STUBS ====================
-// These tests are marked with #[ignore] and should be run manually
-// in a hardware test environment with actual drives
-
-#[test]
-#[ignore] // Requires actual hardware
-fn integration_test_wipe_smr_drive() {
-    println!("SMR drive wipe integration test - requires SMR hardware");
-}
-
-#[test]
-#[ignore] // Requires actual hardware
-fn integration_test_wipe_optane_drive() {
-    println!("Optane drive wipe integration test - requires Optane hardware");
-}
-
-#[test]
-#[ignore] // Requires actual hardware
-fn integration_test_wipe_hybrid_drive() {
-    println!("Hybrid SSHD wipe integration test - requires hybrid hardware");
-}
-
-#[test]
-#[ignore] // Requires actual hardware
-fn integration_test_wipe_emmc_drive() {
-    println!("eMMC wipe integration test - requires eMMC hardware");
-}
-
-#[test]
-#[ignore] // Requires actual hardware
-fn integration_test_wipe_ufs_drive() {
-    println!("UFS wipe integration test - requires UFS hardware");
-}
-
-#[test]
-#[ignore] // Requires actual hardware
-fn integration_test_wipe_nvme_basic() {
-    println!("NVMe basic wipe integration test - requires NVMe hardware");
-}
-
-#[test]
-#[ignore] // Requires actual hardware
-fn integration_test_wipe_nvme_advanced() {
-    println!("NVMe advanced wipe integration test - requires advanced NVMe hardware");
-}
-
-#[test]
-#[ignore] // Requires actual hardware
-fn integration_test_wipe_ssd_drive() {
-    println!("SSD wipe integration test - requires SATA SSD hardware");
-}
-
-#[test]
-#[ignore] // Requires actual hardware
-fn integration_test_wipe_hdd_drive() {
-    println!("HDD wipe integration test - requires HDD hardware");
-}
-
-#[test]
-#[ignore] // Requires actual hardware
-fn integration_test_wipe_raid_array() {
-    println!("RAID array wipe integration test - requires RAID hardware");
-}
+// ==================== INTEGRATION TESTS ====================
+// Integration tests have been moved to: tests/hardware_integration.rs
+// These tests use mock drives and can run without physical hardware:
+// - test_wipe_hdd_drive
+// - test_wipe_ssd_drive
+// - test_wipe_nvme_basic
+// - test_wipe_nvme_advanced
+// - test_wipe_smr_drive
+// - test_wipe_optane_drive
+// - test_wipe_hybrid_drive
+// - test_wipe_emmc_drive
+// - test_wipe_ufs_drive
+// - test_wipe_raid_array
+// - test_orchestrator_execute_basic
+// - test_orchestrator_multiple_algorithms
 
 // ==================== WIPE ALGORITHM ENUM TESTS ====================
 
@@ -540,36 +504,6 @@ fn test_orchestrator_handles_invalid_device() {
     let _ = result;
 }
 
-// ==================== ASYNC EXECUTION STUB TESTS ====================
-
-#[tokio::test]
-#[ignore] // Requires runtime and hardware
-async fn integration_test_execute_orchestrator() {
-    let config = WipeConfig {
-        algorithm: Algorithm::Zero,
-        ..Default::default()
-    };
-
-    let _orchestrator = WipeOrchestrator::new("/dev/null".to_string(), config).unwrap();
-
-    // This would execute the actual wipe
-    // let result = orchestrator.execute().await;
-    // assert!(result.is_ok());
-
-    println!("Orchestrator execute integration test - requires hardware");
-}
-
-#[tokio::test]
-#[ignore] // Requires runtime and hardware
-async fn integration_test_wipe_drive_convenience_function() {
-    let _config = WipeConfig {
-        algorithm: Algorithm::Zero,
-        ..Default::default()
-    };
-
-    // This would execute the actual wipe using convenience function
-    // let result = wipe_drive("/dev/null", config).await;
-    // assert!(result.is_ok());
-
-    println!("wipe_drive() convenience function integration test - requires hardware");
-}
+// ==================== ASYNC EXECUTION TESTS ====================
+// Async execution tests have been moved to: tests/hardware_integration.rs
+// See: test_orchestrator_execute_basic, test_orchestrator_multiple_algorithms

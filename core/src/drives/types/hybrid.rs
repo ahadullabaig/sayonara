@@ -3,9 +3,9 @@
 // Hybrid drives combine HDD (magnetic) and SSD (flash) cache
 // Both portions must be wiped separately to ensure complete data destruction
 
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
+use serde::{Deserialize, Serialize};
 use std::process::Command;
-use serde::{Serialize, Deserialize};
 
 /// HDD portion information
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -19,7 +19,7 @@ pub struct HDDInfo {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SSDCacheInfo {
     pub cache_size: u64,
-    pub cache_algorithm: String,  // LRU, LFU, adaptive
+    pub cache_algorithm: String, // LRU, LFU, adaptive
     pub is_pinned_data_present: bool,
     pub cache_enabled: bool,
 }
@@ -29,7 +29,7 @@ pub struct SSDCacheInfo {
 pub struct PinnedRegion {
     pub start_lba: u64,
     pub length: u64,
-    pub pinned_by: String,  // firmware, OS, etc.
+    pub pinned_by: String, // firmware, OS, etc.
 }
 
 /// Hybrid drive configuration
@@ -53,10 +53,11 @@ impl HybridDrive {
         let stdout = String::from_utf8_lossy(&output.stdout);
 
         // Look for hybrid indicators
-        if stdout.contains("Hybrid") ||
-           stdout.contains("SSHD") ||
-           stdout.contains("SSD Cache") ||
-           (stdout.contains("rpm") && stdout.contains("NAND")) {
+        if stdout.contains("Hybrid")
+            || stdout.contains("SSHD")
+            || stdout.contains("SSD Cache")
+            || (stdout.contains("rpm") && stdout.contains("NAND"))
+        {
             return Ok(true);
         }
 
@@ -115,7 +116,7 @@ impl HybridDrive {
         for line in output.lines() {
             if line.contains("Rotation Rate") {
                 if let Some(rpm_str) = line.split(':').nth(1) {
-                    if let Some(rpm) = rpm_str.trim().split_whitespace().next() {
+                    if let Some(rpm) = rpm_str.split_whitespace().next() {
                         if let Ok(val) = rpm.parse::<u32>() {
                             return Ok(val);
                         }
@@ -159,7 +160,7 @@ impl HybridDrive {
 
         // Send SYNCHRONIZE CACHE command
         let output = Command::new("hdparm")
-            .arg("-F")  // Flush cache
+            .arg("-F") // Flush cache
             .arg(&self.device_path)
             .output()?;
 
@@ -202,7 +203,7 @@ impl HybridDrive {
         }
 
         println!("⚠️  Warning: Unable to disable cache completely");
-        Ok(())  // Non-fatal, continue anyway
+        Ok(()) // Non-fatal, continue anyway
     }
 
     /// Try Seagate-specific cache disable
@@ -210,7 +211,7 @@ impl HybridDrive {
         // Seagate uses SCT commands
         let output = Command::new("smartctl")
             .arg("-t")
-            .arg("offline,0")  // Disable SMART cache
+            .arg("offline,0") // Disable SMART cache
             .arg(&self.device_path)
             .output()?;
 
@@ -231,7 +232,7 @@ impl HybridDrive {
 
         // Then issue WD-specific flush
         let _ = Command::new("hdparm")
-            .arg("-F")  // Flush
+            .arg("-F") // Flush
             .arg(&self.device_path)
             .output();
 
@@ -242,7 +243,7 @@ impl HybridDrive {
     fn try_generic_cache_disable(&self) -> Result<()> {
         let output = Command::new("hdparm")
             .arg("-W")
-            .arg("0")  // Disable write caching
+            .arg("0") // Disable write caching
             .arg(&self.device_path)
             .output()?;
 
@@ -257,7 +258,7 @@ impl HybridDrive {
     pub fn enable_cache(&self) -> Result<()> {
         let _ = Command::new("hdparm")
             .arg("-W")
-            .arg("1")  // Enable write caching
+            .arg("1") // Enable write caching
             .arg(&self.device_path)
             .output();
 
@@ -272,7 +273,7 @@ impl HybridDrive {
         // Boot sector often pinned
         self.pinned_data.push(PinnedRegion {
             start_lba: 0,
-            length: 63,  // First 63 sectors (MBR + boot area)
+            length: 63, // First 63 sectors (MBR + boot area)
             pinned_by: "Firmware".to_string(),
         });
 
@@ -302,8 +303,10 @@ impl HybridDrive {
     where
         F: FnMut(u64, u64) -> Result<()>,
     {
-        println!("Wiping HDD portion ({} GB)...",
-                 self.hdd_portion.capacity / (1024 * 1024 * 1024));
+        println!(
+            "Wiping HDD portion ({} GB)...",
+            self.hdd_portion.capacity / (1024 * 1024 * 1024)
+        );
 
         // Use standard wipe methods for HDD
         // This would integrate with existing HDD wipe code
@@ -314,8 +317,10 @@ impl HybridDrive {
 
     /// Wipe SSD cache
     pub fn wipe_ssd_cache(&self) -> Result<()> {
-        println!("Wiping SSD cache ({} GB)...",
-                 self.ssd_cache.cache_size / (1024 * 1024 * 1024));
+        println!(
+            "Wiping SSD cache ({} GB)...",
+            self.ssd_cache.cache_size / (1024 * 1024 * 1024)
+        );
 
         // Send vendor-specific command to wipe cache
         // Most hybrid drives support TRIM for cache
@@ -352,11 +357,15 @@ impl HybridDrive {
     /// Wipe entire hybrid drive
     pub fn wipe_hybrid_drive(&self) -> Result<()> {
         println!("Starting hybrid drive wipe: {}", self.device_path);
-        println!("HDD: {} GB @ {} RPM",
-                 self.hdd_portion.capacity / (1024 * 1024 * 1024),
-                 self.hdd_portion.rpm);
-        println!("SSD Cache: {} GB",
-                 self.ssd_cache.cache_size / (1024 * 1024 * 1024));
+        println!(
+            "HDD: {} GB @ {} RPM",
+            self.hdd_portion.capacity / (1024 * 1024 * 1024),
+            self.hdd_portion.rpm
+        );
+        println!(
+            "SSD Cache: {} GB",
+            self.ssd_cache.cache_size / (1024 * 1024 * 1024)
+        );
 
         // Step 1: Detect and unpin data
         let mut drive_copy = self.clone();

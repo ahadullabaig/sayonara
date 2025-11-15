@@ -1,11 +1,10 @@
 // Platform-specific I/O implementations
 
-use super::{IOResult, IOError};
+use super::{IOError, IOResult};
 use std::fs::File;
 use std::os::unix::fs::OpenOptionsExt;
 
 #[cfg(target_os = "linux")]
-
 /// Platform-specific I/O handler
 pub trait PlatformIO: Send + Sync {
     /// Open file with platform-specific optimizations
@@ -31,7 +30,12 @@ pub trait PlatformIO: Send + Sync {
     }
 
     /// Scatter-gather read (readv)
-    fn readv_optimized(&self, file: &File, buffers: &mut [&mut [u8]], offset: u64) -> IOResult<usize> {
+    fn readv_optimized(
+        &self,
+        file: &File,
+        buffers: &mut [&mut [u8]],
+        offset: u64,
+    ) -> IOResult<usize> {
         // Default implementation: sequential reads
         let mut total = 0;
         let mut current_offset = offset;
@@ -40,7 +44,7 @@ pub trait PlatformIO: Send + Sync {
             total += read;
             current_offset += read as u64;
             if read < buffer.len() {
-                break;  // EOF or partial read
+                break; // EOF or partial read
             }
         }
         Ok(total)
@@ -59,6 +63,12 @@ pub trait PlatformIO: Send + Sync {
 pub struct LinuxIO;
 
 #[cfg(target_os = "linux")]
+impl Default for LinuxIO {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LinuxIO {
     pub fn new() -> Self {
         Self
@@ -69,8 +79,7 @@ impl LinuxIO {
         // Check kernel version - io_uring requires 5.1+
         if let Ok(uname) = std::fs::read_to_string("/proc/version") {
             // Simple check - production code should parse version properly
-            uname.contains("Linux version 5.") ||
-                uname.contains("Linux version 6.")
+            uname.contains("Linux version 5.") || uname.contains("Linux version 6.")
         } else {
             false
         }
@@ -90,9 +99,8 @@ impl PlatformIO for LinuxIO {
             opts.custom_flags(libc::O_DIRECT | libc::O_SYNC);
         }
 
-        opts.open(path).map_err(|e| {
-            IOError::OperationFailed(format!("Failed to open {}: {}", path, e))
-        })
+        opts.open(path)
+            .map_err(|e| IOError::OperationFailed(format!("Failed to open {}: {}", path, e)))
     }
 
     fn write_optimized(&self, file: &File, data: &[u8], offset: u64) -> IOResult<usize> {
@@ -113,12 +121,13 @@ impl PlatformIO for LinuxIO {
         use std::os::unix::io::AsRawFd;
 
         // Build iovec array
-        let iovecs: Vec<libc::iovec> = buffers.iter().map(|buf| {
-            libc::iovec {
+        let iovecs: Vec<libc::iovec> = buffers
+            .iter()
+            .map(|buf| libc::iovec {
                 iov_base: buf.as_ptr() as *mut libc::c_void,
                 iov_len: buf.len(),
-            }
-        }).collect();
+            })
+            .collect();
 
         unsafe {
             let result = libc::pwritev(
@@ -136,16 +145,22 @@ impl PlatformIO for LinuxIO {
         }
     }
 
-    fn readv_optimized(&self, file: &File, buffers: &mut [&mut [u8]], offset: u64) -> IOResult<usize> {
+    fn readv_optimized(
+        &self,
+        file: &File,
+        buffers: &mut [&mut [u8]],
+        offset: u64,
+    ) -> IOResult<usize> {
         use std::os::unix::io::AsRawFd;
 
         // Build iovec array
-        let iovecs: Vec<libc::iovec> = buffers.iter_mut().map(|buf| {
-            libc::iovec {
+        let iovecs: Vec<libc::iovec> = buffers
+            .iter_mut()
+            .map(|buf| libc::iovec {
                 iov_base: buf.as_mut_ptr() as *mut libc::c_void,
                 iov_len: buf.len(),
-            }
-        }).collect();
+            })
+            .collect();
 
         unsafe {
             let result = libc::preadv(
@@ -199,12 +214,11 @@ impl PlatformIO for WindowsIO {
 
         if direct_io {
             // FILE_FLAG_NO_BUFFERING for Direct I/O on Windows
-            opts.custom_flags(0x20000000);  // FILE_FLAG_NO_BUFFERING
+            opts.custom_flags(0x20000000); // FILE_FLAG_NO_BUFFERING
         }
 
-        opts.open(path).map_err(|e| {
-            IOError::OperationFailed(format!("Failed to open {}: {}", path, e))
-        })
+        opts.open(path)
+            .map_err(|e| IOError::OperationFailed(format!("Failed to open {}: {}", path, e)))
     }
 
     fn write_optimized(&self, file: &File, data: &[u8], _offset: u64) -> IOResult<usize> {
@@ -250,9 +264,9 @@ impl PlatformIO for MacOSIO {
         let mut opts = OpenOptions::new();
         opts.write(true).read(true);
 
-        let file = opts.open(path).map_err(|e| {
-            IOError::OperationFailed(format!("Failed to open {}: {}", path, e))
-        })?;
+        let file = opts
+            .open(path)
+            .map_err(|e| IOError::OperationFailed(format!("Failed to open {}: {}", path, e)))?;
 
         if direct_io {
             // F_NOCACHE to bypass buffer cache on macOS
@@ -282,9 +296,7 @@ impl PlatformIO for MacOSIO {
         unsafe {
             let fd = file.as_raw_fd();
             if libc::fcntl(fd, libc::F_FULLFSYNC) != 0 {
-                return Err(IOError::OperationFailed(
-                    "F_FULLFSYNC failed".to_string()
-                ));
+                return Err(IOError::OperationFailed("F_FULLFSYNC failed".to_string()));
             }
         }
         Ok(())
@@ -319,9 +331,8 @@ impl PlatformIO for FreeBSDIO {
             opts.custom_flags(libc::O_DIRECT);
         }
 
-        opts.open(path).map_err(|e| {
-            IOError::OperationFailed(format!("Failed to open {}: {}", path, e))
-        })
+        opts.open(path)
+            .map_err(|e| IOError::OperationFailed(format!("Failed to open {}: {}", path, e)))
     }
 
     fn write_optimized(&self, file: &File, data: &[u8], offset: u64) -> IOResult<usize> {

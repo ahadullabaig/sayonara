@@ -3,9 +3,9 @@
 // SMR drives overlap magnetic tracks like roof shingles to increase capacity.
 // They require special handling during wipe operations due to sequential write requirements.
 
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
+use serde::{Deserialize, Serialize};
 use std::process::Command;
-use serde::{Serialize, Deserialize};
 
 /// SMR Zone Model types
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -86,20 +86,18 @@ pub struct Zone {
 impl Zone {
     /// Check if zone needs to be reset before writing
     pub fn needs_reset(&self) -> bool {
-        match self.zone_condition {
-            ZoneCondition::Full | ZoneCondition::Closed => true,
-            _ => false,
-        }
+        matches!(
+            self.zone_condition,
+            ZoneCondition::Full | ZoneCondition::Closed
+        )
     }
 
     /// Check if zone can be written to
     pub fn is_writable(&self) -> bool {
-        match self.zone_condition {
-            ZoneCondition::Empty |
-            ZoneCondition::ImplicitlyOpen |
-            ZoneCondition::ExplicitlyOpen => true,
-            _ => false,
-        }
+        matches!(
+            self.zone_condition,
+            ZoneCondition::Empty | ZoneCondition::ImplicitlyOpen | ZoneCondition::ExplicitlyOpen
+        )
     }
 }
 
@@ -160,7 +158,7 @@ impl SMRDrive {
     fn check_via_sg_inq(device_path: &str) -> Result<bool> {
         let output = Command::new("sg_inq")
             .arg("-p")
-            .arg("0xb1")  // Block device characteristics VPD page
+            .arg("0xb1") // Block device characteristics VPD page
             .arg(device_path)
             .output();
 
@@ -168,9 +166,10 @@ impl SMRDrive {
             let stdout = String::from_utf8_lossy(&output.stdout);
 
             // Look for "Zoned block device extension"
-            if stdout.contains("host managed") ||
-               stdout.contains("host aware") ||
-               stdout.contains("Zoned") {
+            if stdout.contains("host managed")
+                || stdout.contains("host aware")
+                || stdout.contains("Zoned")
+            {
                 return Ok(true);
             }
         }
@@ -180,19 +179,17 @@ impl SMRDrive {
 
     /// Check via smartctl
     fn check_via_smartctl(device_path: &str) -> Result<bool> {
-        let output = Command::new("smartctl")
-            .arg("-a")
-            .arg(device_path)
-            .output();
+        let output = Command::new("smartctl").arg("-a").arg(device_path).output();
 
         if let Ok(output) = output {
             let stdout = String::from_utf8_lossy(&output.stdout);
 
             // Look for SMR indicators
-            if stdout.contains("Shingled") ||
-               stdout.contains("SMR") ||
-               stdout.contains("Host Managed") ||
-               stdout.contains("Host Aware") {
+            if stdout.contains("Shingled")
+                || stdout.contains("SMR")
+                || stdout.contains("Host Managed")
+                || stdout.contains("Host Aware")
+            {
                 return Ok(true);
             }
         }
@@ -233,11 +230,13 @@ impl SMRDrive {
         }
 
         // Calculate statistics
-        let conventional_zone_count = zones.iter()
+        let conventional_zone_count = zones
+            .iter()
             .filter(|z| z.zone_type == ZoneType::Conventional)
             .count() as u32;
 
-        let sequential_zone_count = zones.iter()
+        let sequential_zone_count = zones
+            .iter()
             .filter(|z| z.zone_type != ZoneType::Conventional)
             .count() as u32;
 
@@ -283,9 +282,7 @@ impl SMRDrive {
 
     /// Report zones using sg_rep_zones command
     fn report_zones(device_path: &str) -> Result<Vec<Zone>> {
-        let output = Command::new("sg_rep_zones")
-            .arg(device_path)
-            .output();
+        let output = Command::new("sg_rep_zones").arg(device_path).output();
 
         if let Ok(output) = output {
             if output.status.success() {
@@ -324,9 +321,9 @@ impl SMRDrive {
                 let zone = Zone {
                     zone_number,
                     zone_type,
-                    write_pointer: 0,  // Will be updated
+                    write_pointer: 0, // Will be updated
                     zone_start_lba: 0,
-                    zone_size: 256 * 1024 * 1024,  // Default 256MB
+                    zone_size: 256 * 1024 * 1024, // Default 256MB
                     zone_condition: ZoneCondition::Empty,
                     zone_length: 0,
                 };
@@ -422,7 +419,10 @@ impl SMRDrive {
             return Ok(());
         }
 
-        Err(anyhow!("Failed to reset zone {} after trying all methods", zone_number))
+        Err(anyhow!(
+            "Failed to reset zone {} after trying all methods",
+            zone_number
+        ))
     }
 
     /// Try resetting zone via blkzone command
@@ -493,12 +493,9 @@ impl SMRDrive {
     }
 
     /// Wipe SMR drive with proper zone handling
-    pub fn wipe_smr_drive<F>(
-        &self,
-        mut write_data_fn: F,
-    ) -> Result<()>
+    pub fn wipe_smr_drive<F>(&self, mut write_data_fn: F) -> Result<()>
     where
-        F: FnMut(u64, u64) -> Result<()>,  // (offset, size) -> Result
+        F: FnMut(u64, u64) -> Result<()>, // (offset, size) -> Result
     {
         println!("Starting SMR-aware wipe of {}", self.device_path);
         println!("Zone model: {:?}", self.zone_model);
@@ -519,8 +516,7 @@ impl SMRDrive {
                     write_data_fn(zone.zone_start_lba * 512, zone.zone_size)?;
                 }
 
-                ZoneType::SequentialWriteRequired |
-                ZoneType::SequentialWritePreferred => {
+                ZoneType::SequentialWriteRequired | ZoneType::SequentialWritePreferred => {
                     // MUST write sequentially from start
                     write_data_fn(zone.zone_start_lba * 512, zone.zone_size)?;
                 }
@@ -555,7 +551,7 @@ mod tests {
     #[test]
     fn test_zone_model_detection() {
         // Test that zone models are correctly identified
-        assert_eq!(ZoneModel::HostManaged != ZoneModel::HostAware, true);
+        assert!(ZoneModel::HostManaged != ZoneModel::HostAware);
     }
 
     #[test]

@@ -1,12 +1,12 @@
 #![allow(dead_code)]
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
+use ring::rand::{SecureRandom, SystemRandom};
+use sha2::{Digest, Sha256, Sha512};
 use std::fs::File;
 use std::io::Read;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::{SystemTime, UNIX_EPOCH, Instant};
-use ring::rand::{SecureRandom, SystemRandom};
-use sha2::{Sha256, Sha512, Digest};
-use std::sync::atomic::{AtomicU64, AtomicBool, Ordering};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 /// FIPS 140-2 compliant secure random number generator with multiple entropy sources
 pub struct SecureRNG {
@@ -47,6 +47,12 @@ pub struct HardwareRNG {
     available: bool,
 }
 
+impl Default for HardwareRNG {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HardwareRNG {
     pub fn new() -> Self {
         // Check if hardware RNG is available
@@ -76,8 +82,8 @@ impl EntropySource for HardwareRNG {
             return Err(anyhow!("Hardware RNG not available"));
         }
 
-        let mut file = File::open("/dev/hwrng")
-            .map_err(|e| anyhow!("Failed to open /dev/hwrng: {}", e))?;
+        let mut file =
+            File::open("/dev/hwrng").map_err(|e| anyhow!("Failed to open /dev/hwrng: {}", e))?;
 
         // Robust read: loop until we've filled the requested buffer
         let mut total_read = 0usize;
@@ -95,7 +101,11 @@ impl EntropySource for HardwareRNG {
     }
 
     fn quality(&self) -> f64 {
-        if self.available { 1.0 } else { 0.0 }
+        if self.available {
+            1.0
+        } else {
+            0.0
+        }
     }
 
     fn is_available(&self) -> bool {
@@ -112,6 +122,12 @@ pub struct RingSystemRNG {
     rng: SystemRandom,
 }
 
+impl Default for RingSystemRNG {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RingSystemRNG {
     pub fn new() -> Self {
         Self {
@@ -122,7 +138,8 @@ impl RingSystemRNG {
 
 impl EntropySource for RingSystemRNG {
     fn fill_bytes(&self, dest: &mut [u8]) -> Result<()> {
-        self.rng.fill(dest)
+        self.rng
+            .fill(dest)
             .map_err(|_| anyhow!("Ring SystemRandom failed"))?;
         Ok(())
     }
@@ -143,6 +160,12 @@ impl EntropySource for RingSystemRNG {
 /// OS urandom entropy source
 pub struct URandom {
     available: bool,
+}
+
+impl Default for URandom {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl URandom {
@@ -168,7 +191,11 @@ impl EntropySource for URandom {
     }
 
     fn quality(&self) -> f64 {
-        if self.available { 0.9 } else { 0.0 }
+        if self.available {
+            0.9
+        } else {
+            0.0
+        }
     }
 
     fn is_available(&self) -> bool {
@@ -183,6 +210,12 @@ impl EntropySource for URandom {
 /// Jitter entropy source (CPU timing variations)
 pub struct JitterEntropy {
     last_value: Arc<Mutex<u64>>,
+}
+
+impl Default for JitterEntropy {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl JitterEntropy {
@@ -256,7 +289,7 @@ impl EntropySource for JitterEntropy {
             while offset < dest.len() {
                 let mut hasher = Sha512::new();
                 hasher.update(&raw_entropy);
-                hasher.update(&counter.to_le_bytes());
+                hasher.update(counter.to_le_bytes());
                 let hash = hasher.finalize();
 
                 let copy_len = std::cmp::min(64, dest.len() - offset);
@@ -306,14 +339,14 @@ fn hmac_sha256(key: &[u8], data: &[u8]) -> [u8; 32] {
 
     // inner = SHA256(ipad || data)
     let mut inner = Sha256::new();
-    inner.update(&ipad);
+    inner.update(ipad);
     inner.update(data);
     let inner_res = inner.finalize();
 
     // outer = SHA256(opad || inner)
     let mut outer = Sha256::new();
-    outer.update(&opad);
-    outer.update(&inner_res);
+    outer.update(opad);
+    outer.update(inner_res);
     let out = outer.finalize();
 
     let mut ret = [0u8; 32];
@@ -324,8 +357,8 @@ fn hmac_sha256(key: &[u8], data: &[u8]) -> [u8; 32] {
 /// Minimal HMAC-DRBG (HMAC-SHA256) implementation (NIST SP800-90A style),
 /// implemented using the local `hmac_sha256` helper (no external hmac crate).
 pub(crate) struct HmacDrbg {
-    k: Vec<u8>,       // Key (K) - 32 bytes
-    v: Vec<u8>,       // Value (V) - 32 bytes
+    k: Vec<u8>, // Key (K) - 32 bytes
+    v: Vec<u8>, // Value (V) - 32 bytes
     pub(crate) reseed_counter: u64,
 }
 
@@ -380,7 +413,10 @@ impl HmacDrbg {
     pub(crate) fn generate(&mut self, out: &mut [u8]) -> Result<()> {
         // Check if reseed is required
         if self.reseed_counter >= Self::MAX_REQUESTS {
-            return Err(anyhow!("DRBG requires reseeding after {} requests", Self::MAX_REQUESTS));
+            return Err(anyhow!(
+                "DRBG requires reseeding after {} requests",
+                Self::MAX_REQUESTS
+            ));
         }
 
         let mut generated = Vec::with_capacity(out.len());
@@ -438,20 +474,21 @@ impl EntropyPool {
         // Build seed material from pool + position + time
         let mut hasher = Sha256::new();
         hasher.update(&self.pool);
-        hasher.update(&self.position.to_le_bytes());
+        hasher.update(self.position.to_le_bytes());
         let time_bytes = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos()
             .to_le_bytes();
-        hasher.update(&time_bytes);
+        hasher.update(time_bytes);
         let seed = hasher.finalize();
 
         // Instantiate HMAC-DRBG seeded with the hashed pool
         let mut drbg = HmacDrbg::new(&seed);
 
         // Generate requested bytes
-        drbg.generate(dest).expect("Fresh DRBG should not need reseed");
+        drbg.generate(dest)
+            .expect("Fresh DRBG should not need reseed");
 
         // Fold some of the output back into the pool to mix state (whitening)
         let mut fold_hasher = Sha256::new();
@@ -548,9 +585,11 @@ impl SecureRNG {
         let request_len = dest.len() as u64;
 
         // Also check if DRBG needs reseeding
-        let drbg_needs_reseed = self.drbg.as_ref().map_or(false, |d| d.needs_reseed());
+        let drbg_needs_reseed = self.drbg.as_ref().is_some_and(|d| d.needs_reseed());
 
-        if bytes_generated.saturating_add(request_len) >= self.max_bytes_before_reseed || drbg_needs_reseed {
+        if bytes_generated.saturating_add(request_len) >= self.max_bytes_before_reseed
+            || drbg_needs_reseed
+        {
             // Reseed before generating so post-call counter reflects only this request.
             self.reseed()?;
         }
@@ -611,7 +650,8 @@ impl SecureRNG {
         }
 
         // Update byte counter
-        self.bytes_since_reseed.fetch_add(dest.len() as u64, Ordering::SeqCst);
+        self.bytes_since_reseed
+            .fetch_add(dest.len() as u64, Ordering::SeqCst);
 
         Ok(())
     }
@@ -671,14 +711,14 @@ impl SecureRNG {
         {
             let pool = self.entropy_pool.lock().unwrap();
             hasher.update(&pool.pool);
-            hasher.update(&pool.position.to_le_bytes());
+            hasher.update(pool.position.to_le_bytes());
         }
         let time_bytes = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos()
             .to_le_bytes();
-        hasher.update(&time_bytes);
+        hasher.update(time_bytes);
         let seed = hasher.finalize();
 
         // Replace or create persistent DRBG
@@ -708,9 +748,7 @@ impl SecureRNG {
         let tertiary_quality = self.tertiary_source.quality();
 
         // Weighted average with primary source having most weight
-        (primary_quality * 0.5 + secondary_quality * 0.3 + tertiary_quality * 0.2)
-            .min(1.0)
-            .max(0.0)
+        (primary_quality * 0.5 + secondary_quality * 0.3 + tertiary_quality * 0.2).clamp(0.0, 1.0)
     }
 
     /// Check if RNG is healthy
@@ -800,14 +838,20 @@ pub fn verify_randomness(data: &[u8]) -> Result<bool> {
     let expected_diff = (2.0 * (data.len() * 8) as f64).sqrt();
 
     if diff > expected_diff * 3.0 {
-        println!("Failed monobit test: too many {}s", if ones > zeros { "1" } else { "0" });
+        println!(
+            "Failed monobit test: too many {}s",
+            if ones > zeros { "1" } else { "0" }
+        );
         return Ok(false);
     }
 
     // Test 2: Entropy test
     let entropy = SecureRNG::calculate_entropy(data);
     if entropy < 7.0 {
-        println!("Failed entropy test: {:.2} bits/byte (minimum 7.0)", entropy);
+        println!(
+            "Failed entropy test: {:.2} bits/byte (minimum 7.0)",
+            entropy
+        );
         return Ok(false);
     }
 
@@ -833,6 +877,9 @@ pub fn verify_randomness(data: &[u8]) -> Result<bool> {
         return Ok(false);
     }
 
-    println!("✓ Randomness tests passed (entropy: {:.2} bits/byte)", entropy);
+    println!(
+        "✓ Randomness tests passed (entropy: {:.2} bits/byte)",
+        entropy
+    );
     Ok(true)
 }

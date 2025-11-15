@@ -6,14 +6,13 @@
 /// - Random wipe algorithm
 /// - Zero wipe algorithm
 /// - Gutmann 35-pass wipe (pattern generation and helpers)
-
 #[cfg(test)]
 mod algorithm_functional_tests {
     use crate::algorithms::gutmann::GutmannWipe;
+    use crate::io::{IOConfig, OptimizedIO};
     use crate::{DriveType, WipeConfig};
-    use crate::io::{OptimizedIO, IOConfig};
-    use tempfile::NamedTempFile;
     use std::io::Write;
+    use tempfile::NamedTempFile;
 
     /// Helper to create a test file with initial data
     fn create_test_file(size: usize) -> NamedTempFile {
@@ -31,8 +30,10 @@ mod algorithm_functional_tests {
         let size = 1024 * 1024u64;
 
         // Open with buffered I/O for testing
-        let mut io_config = IOConfig::default();
-        io_config.use_direct_io = false;
+        let io_config = IOConfig {
+            use_direct_io: false,
+            ..Default::default()
+        };
         let mut io_handle = OptimizedIO::open(path, io_config.clone())?;
 
         // Write zeros using DoD's write_pattern method (we'll call via sequential_write)
@@ -59,8 +60,10 @@ mod algorithm_functional_tests {
         let path = temp_file.path().to_str().unwrap();
         let size = 1024 * 1024u64;
 
-        let mut io_config = IOConfig::default();
-        io_config.use_direct_io = false;
+        let io_config = IOConfig {
+            use_direct_io: false,
+            ..Default::default()
+        };
         let mut io_handle = OptimizedIO::open(path, io_config.clone())?;
 
         // Write 0xFF pattern
@@ -87,8 +90,10 @@ mod algorithm_functional_tests {
         let path = temp_file.path().to_str().unwrap();
         let size = 512 * 1024u64;
 
-        let mut io_config = IOConfig::default();
-        io_config.use_direct_io = false;
+        let io_config = IOConfig {
+            use_direct_io: false,
+            ..Default::default()
+        };
         let mut io_handle = OptimizedIO::open(path, io_config.clone())?;
 
         // Write random data using RandomWipe approach
@@ -121,7 +126,11 @@ mod algorithm_functional_tests {
             }
         }
 
-        assert!(entropy > 7.0, "Random data should have high entropy (got {:.2})", entropy);
+        assert!(
+            entropy > 7.0,
+            "Random data should have high entropy (got {:.2})",
+            entropy
+        );
 
         Ok(())
     }
@@ -132,8 +141,10 @@ mod algorithm_functional_tests {
         let path = temp_file.path().to_str().unwrap();
         let size = 256 * 1024u64;
 
-        let mut io_config = IOConfig::default();
-        io_config.use_direct_io = false;
+        let io_config = IOConfig {
+            use_direct_io: false,
+            ..Default::default()
+        };
         let mut io_handle = OptimizedIO::open(path, io_config.clone())?;
 
         // Write zeros using ZeroWipe approach
@@ -167,18 +178,26 @@ mod algorithm_functional_tests {
         assert_eq!(patterns.len(), 35, "Should have exactly 35 patterns");
 
         // First 4 should be random (None)
-        for i in 0..4 {
-            assert!(patterns[i].0.is_none(), "Pattern {} should be random", i + 1);
+        for (i, pattern) in patterns.iter().take(4).enumerate() {
+            assert!(pattern.0.is_none(), "Pattern {} should be random", i + 1);
         }
 
         // Last 4 should be random (None)
-        for i in 31..35 {
-            assert!(patterns[i].0.is_none(), "Pattern {} should be random", i + 1);
+        for (i, pattern) in patterns.iter().skip(31).enumerate() {
+            assert!(
+                pattern.0.is_none(),
+                "Pattern {} should be random",
+                31 + i + 1
+            );
         }
 
         // Middle patterns should have specific byte sequences
-        for i in 4..31 {
-            assert!(patterns[i].0.is_some(), "Pattern {} should have specific bytes", i + 1);
+        for (i, pattern) in patterns.iter().skip(4).take(27).enumerate() {
+            assert!(
+                pattern.0.is_some(),
+                "Pattern {} should have specific bytes",
+                4 + i + 1
+            );
         }
     }
 
@@ -193,9 +212,21 @@ mod algorithm_functional_tests {
         assert_eq!(patterns[24].0, Some(&[0xFF][..]), "Pass 25 should be 0xFF");
 
         // Test MFM patterns
-        assert_eq!(patterns[6].0, Some(&[0x92, 0x49, 0x24][..]), "Pass 7 MFM pattern");
-        assert_eq!(patterns[7].0, Some(&[0x49, 0x24, 0x92][..]), "Pass 8 MFM pattern");
-        assert_eq!(patterns[8].0, Some(&[0x24, 0x92, 0x49][..]), "Pass 9 MFM pattern");
+        assert_eq!(
+            patterns[6].0,
+            Some(&[0x92, 0x49, 0x24][..]),
+            "Pass 7 MFM pattern"
+        );
+        assert_eq!(
+            patterns[7].0,
+            Some(&[0x49, 0x24, 0x92][..]),
+            "Pass 8 MFM pattern"
+        );
+        assert_eq!(
+            patterns[8].0,
+            Some(&[0x24, 0x92, 0x49][..]),
+            "Pass 9 MFM pattern"
+        );
     }
 
     #[test]
@@ -204,7 +235,11 @@ mod algorithm_functional_tests {
 
         // All patterns should have descriptions
         for (i, (_, description)) in patterns.iter().enumerate() {
-            assert!(!description.is_empty(), "Pattern {} should have description", i + 1);
+            assert!(
+                !description.is_empty(),
+                "Pattern {} should have description",
+                i + 1
+            );
         }
 
         // Check specific descriptions
@@ -223,10 +258,16 @@ mod algorithm_functional_tests {
         // Perfectly random should have ~8.0 entropy
         let random_data: Vec<u8> = (0..4096).map(|i| ((i * 31) % 256) as u8).collect();
         let entropy = GutmannWipe::calculate_entropy(&random_data);
-        assert!(entropy > 6.0, "Varied data should have entropy > 6.0 (got {:.2})", entropy);
+        assert!(
+            entropy > 6.0,
+            "Varied data should have entropy > 6.0 (got {:.2})",
+            entropy
+        );
 
         // Two values alternating should have 1.0 entropy
-        let alternating: Vec<u8> = (0..4096).map(|i| if i % 2 == 0 { 0x00 } else { 0xFF }).collect();
+        let alternating: Vec<u8> = (0..4096)
+            .map(|i| if i % 2 == 0 { 0x00 } else { 0xFF })
+            .collect();
         let entropy = GutmannWipe::calculate_entropy(&alternating);
         assert!(
             (entropy - 1.0).abs() < 0.1,
@@ -244,7 +285,10 @@ mod algorithm_functional_tests {
 
         // Should return one of the valid encoding types
         match encoding {
-            DriveEncoding::MFM | DriveEncoding::RLL | DriveEncoding::PRML | DriveEncoding::Unknown => {
+            DriveEncoding::MFM
+            | DriveEncoding::RLL
+            | DriveEncoding::PRML
+            | DriveEncoding::Unknown => {
                 // Valid encoding detected
             }
         }
@@ -318,7 +362,7 @@ mod algorithm_functional_tests {
     fn test_pattern_repeatability() {
         // Ensure patterns repeat correctly across buffer boundaries
         let pattern = &[0xAB, 0xCD, 0xEF];
-        let mut buffer = vec![0u8; 10];
+        let mut buffer = [0u8; 10];
 
         for (i, byte) in buffer.iter_mut().enumerate() {
             *byte = pattern[i % pattern.len()];
@@ -350,8 +394,16 @@ mod algorithm_functional_tests {
             };
 
             // Config should be created successfully
-            assert!(config.max_buffer_size > 0, "{} config should have buffer size", name);
-            assert!(config.queue_depth > 0, "{} config should have queue depth", name);
+            assert!(
+                config.max_buffer_size > 0,
+                "{} config should have buffer size",
+                name
+            );
+            assert!(
+                config.queue_depth > 0,
+                "{} config should have queue depth",
+                name
+            );
         }
     }
 
@@ -364,7 +416,7 @@ mod algorithm_functional_tests {
             assert!(max_temp <= 70, "Max temperature should be reasonable");
         }
         // Config structure exists and is valid
-        assert!(config.verify || !config.verify); // Basic sanity check
+        // Just creating the default config is sufficient to test it compiles
     }
 
     #[test]

@@ -2,7 +2,6 @@
 ///
 /// This module provides various recovery mechanisms that can be used
 /// to handle different types of failures during wipe operations.
-
 pub mod alternative_io;
 pub mod bad_sector;
 pub mod degraded_mode;

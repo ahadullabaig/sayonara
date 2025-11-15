@@ -81,7 +81,6 @@
 /// coordinator.delete_checkpoint()?;
 /// # Ok::<(), anyhow::Error>(())
 /// ```
-
 pub mod checkpoint;
 pub mod classification;
 pub mod mechanisms;

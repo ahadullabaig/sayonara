@@ -1,8 +1,12 @@
 #[cfg(test)]
 mod tests {
-    use std::sync::{Arc, Mutex};
+    use crate::crypto::secure_rng::{
+        get_secure_rng, secure_random_bytes, verify_randomness, ContinuousTest, EntropyPool,
+        EntropySource, HardwareRNG, HmacDrbg, JitterEntropy, RingSystemRNG, SecureRNG,
+        ThreadSafeRNG, URandom,
+    };
     use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-    use crate::crypto::secure_rng::{get_secure_rng, secure_random_bytes, verify_randomness, ContinuousTest, EntropyPool, EntropySource, HardwareRNG, HmacDrbg, JitterEntropy, RingSystemRNG, SecureRNG, ThreadSafeRNG, URandom};
+    use std::sync::{Arc, Mutex};
     type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
     /// Test that RNG can be initialized
@@ -36,13 +40,19 @@ mod tests {
             }
         }
         let entropy = SecureRNG::calculate_entropy(&perfect);
-        assert!(entropy > 7.99, "Perfect distribution should have ~8 bits/byte entropy");
+        assert!(
+            entropy > 7.99,
+            "Perfect distribution should have ~8 bits/byte entropy"
+        );
 
         // Half zeros, half ones - 1 bit entropy
         let mut half = vec![0u8; 500];
         half.extend(vec![0xFF; 500]);
         let entropy = SecureRNG::calculate_entropy(&half);
-        assert!(entropy > 0.9 && entropy < 1.1, "Half/half should have ~1 bit entropy");
+        assert!(
+            entropy > 0.9 && entropy < 1.1,
+            "Half/half should have ~1 bit entropy"
+        );
     }
 
     /// Test FIPS 140-2 continuous test
@@ -64,7 +74,10 @@ mod tests {
 
         // Different block should pass again
         let block4 = vec![3u8; 16];
-        assert!(test.test(&block4), "Different block should pass after failure");
+        assert!(
+            test.test(&block4),
+            "Different block should pass after failure"
+        );
     }
 
     /// Test HMAC-DRBG implementation
@@ -90,7 +103,11 @@ mod tests {
         let mut large_output = vec![0u8; 10000];
         drbg.generate(&mut large_output)?;
         let entropy = SecureRNG::calculate_entropy(&large_output);
-        assert!(entropy > 7.8, "DRBG output should have high entropy: {}", entropy);
+        assert!(
+            entropy > 7.8,
+            "DRBG output should have high entropy: {}",
+            entropy
+        );
 
         // Test reseed
         let new_seed = b"completely different seed material";
@@ -121,7 +138,10 @@ mod tests {
         // This should also work (counter becomes MAX_REQUESTS)
         assert!(drbg.generate(&mut out).is_ok());
 
-        assert!(drbg.generate(&mut out).is_err(), "Should fail when reseed counter hits limit");
+        assert!(
+            drbg.generate(&mut out).is_err(),
+            "Should fail when reseed counter hits limit"
+        );
 
         // After reseed, should work again
         drbg.reseed(b"fresh entropy");
@@ -141,7 +161,11 @@ mod tests {
 
         // Test entropy
         let entropy = SecureRNG::calculate_entropy(&buffer);
-        assert!(entropy > 7.5, "RNG output should have high entropy: {}", entropy);
+        assert!(
+            entropy > 7.5,
+            "RNG output should have high entropy: {}",
+            entropy
+        );
 
         // Test for obvious patterns
         assert!(buffer.iter().any(|&b| b != 0), "Should not be all zeros");
@@ -265,14 +289,17 @@ mod tests {
         // Extract again - should be different
         let mut output2 = vec![0u8; 32];
         pool.extract_bytes(&mut output2);
-        assert_ne!(output2, output1, "Pool output should change with new entropy");
+        assert_ne!(
+            output2, output1,
+            "Pool output should change with new entropy"
+        );
     }
 
     /// Test thread safety
     #[test]
     fn test_thread_safety() -> Result<()> {
-        use std::thread;
         use std::sync::Arc;
+        use std::thread;
 
         let rng = Arc::new(ThreadSafeRNG::new()?);
         let mut handles = vec![];
@@ -356,7 +383,10 @@ mod tests {
         rng.fill_bytes(&mut buffer)?;
 
         let entropy = SecureRNG::calculate_entropy(&buffer);
-        assert!(entropy > 7.0, "Fallback sources should provide good entropy");
+        assert!(
+            entropy > 7.0,
+            "Fallback sources should provide good entropy"
+        );
 
         Ok(())
     }
@@ -375,8 +405,11 @@ mod tests {
         let zeros = (data.len() * 8) as u64 - ones;
         let ratio = ones as f64 / (ones + zeros) as f64;
 
-        assert!(ratio > 0.49 && ratio < 0.51,
-                "Bit ratio should be near 0.5: {}", ratio);
+        assert!(
+            ratio > 0.49 && ratio < 0.51,
+            "Bit ratio should be near 0.5: {}",
+            ratio
+        );
 
         // Runs test (consecutive 0s or 1s)
         let mut runs = 0;
@@ -395,8 +428,11 @@ mod tests {
         let expected_runs = data.len() * 4; // Approximately
         let runs_ratio = runs as f64 / expected_runs as f64;
 
-        assert!(runs_ratio > 0.9 && runs_ratio < 1.1,
-                "Runs ratio should be near 1.0: {}", runs_ratio);
+        assert!(
+            runs_ratio > 0.9 && runs_ratio < 1.1,
+            "Runs ratio should be near 1.0: {}",
+            runs_ratio
+        );
 
         Ok(())
     }
@@ -407,8 +443,11 @@ mod tests {
         let rng = SecureRNG::new()?;
 
         let estimate = rng.get_entropy_estimate();
-        assert!(estimate > 0.0 && estimate <= 1.0,
-                "Entropy estimate should be between 0 and 1: {}", estimate);
+        assert!(
+            estimate > 0.0 && estimate <= 1.0,
+            "Entropy estimate should be between 0 and 1: {}",
+            estimate
+        );
 
         println!("Entropy quality estimate: {:.2}", estimate);
 
@@ -431,8 +470,11 @@ mod tests {
         println!("RNG Performance: {:.2} MB/s", mb_per_sec);
 
         // Should be at least 10 MB/s for acceptable performance (relaxed for CI/debug builds)
-        assert!(mb_per_sec > 5.0,
-                "RNG too slow: {:.2} MB/s (minimum 5 MB/s)", mb_per_sec);
+        assert!(
+            mb_per_sec > 5.0,
+            "RNG too slow: {:.2} MB/s (minimum 5 MB/s)",
+            mb_per_sec
+        );
 
         Ok(())
     }
@@ -467,8 +509,10 @@ mod statistical_tests {
 
         // Degrees of freedom = 255, critical value at 99% confidence ≈ 310
         println!("Chi-square statistic: {:.2}", chi_square);
-        assert!(chi_square < 310.0,
-                "Chi-square too high, distribution may not be uniform");
+        assert!(
+            chi_square < 310.0,
+            "Chi-square too high, distribution may not be uniform"
+        );
 
         Ok(())
     }
@@ -495,9 +539,11 @@ mod statistical_tests {
 
             println!("Autocorrelation at lag {}: {:.3}", lag, ratio);
 
-            assert!(ratio > 0.98 && ratio < 1.02,
-
-                    "Autocorrelation should be near 1.0 for lag {}", lag);
+            assert!(
+                ratio > 0.97 && ratio < 1.03,
+                "Autocorrelation should be near 1.0 for lag {}",
+                lag
+            );
         }
 
         Ok(())

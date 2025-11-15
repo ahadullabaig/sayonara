@@ -1,11 +1,13 @@
 // Comprehensive tests for advanced freeze mitigation
 
 #[cfg(test)]
-mod tests {
-    use tempfile::TempDir;
-    use crate::drives::{AdvancedFreezeMitigation, FreezeDetector, FreezeInfo,
-                        FreezeMitigationConfig, FreezeReason, UnfreezeResult};
+mod freeze_tests {
     use crate::drives::freeze::advanced::SuccessHistory;
+    use crate::drives::{
+        AdvancedFreezeMitigation, FreezeDetector, FreezeInfo, FreezeMitigationConfig, FreezeReason,
+        UnfreezeResult,
+    };
+    use tempfile::TempDir;
 
     #[test]
     fn test_config_default_values() {
@@ -92,7 +94,8 @@ mod tests {
         let mitigation = AdvancedFreezeMitigation::new(config);
 
         // Strategies should be ordered by historical success
-        let strategy_names: Vec<String> = mitigation.strategies
+        let strategy_names: Vec<String> = mitigation
+            .strategies
             .iter()
             .map(|s| s.name().to_string())
             .collect();
@@ -112,10 +115,7 @@ mod tests {
         let info = FreezeInfo {
             status: crate::FreezeStatus::Frozen,
             reason: Some(FreezeReason::BiosSetFrozen),
-            compatible_strategies: vec![
-                "SATA Link Reset".to_string(),
-                "ACPI Sleep".to_string(),
-            ],
+            compatible_strategies: vec!["SATA Link Reset".to_string(), "ACPI Sleep".to_string()],
             estimated_success_rate: 0.85,
         };
 
@@ -231,20 +231,16 @@ mod tests {
         let mitigation = AdvancedFreezeMitigation::new(config);
 
         // Test with different freeze reasons
-        let bios_prob = mitigation.calculate_success_probability(
-            &Some(FreezeReason::BiosSetFrozen)
-        );
-        let raid_prob = mitigation.calculate_success_probability(
-            &Some(FreezeReason::RaidController)
-        );
-        let unknown_prob = mitigation.calculate_success_probability(
-            &Some(FreezeReason::Unknown)
-        );
+        let bios_prob =
+            mitigation.calculate_success_probability(&Some(FreezeReason::BiosSetFrozen));
+        let raid_prob =
+            mitigation.calculate_success_probability(&Some(FreezeReason::RaidController));
+        let unknown_prob = mitigation.calculate_success_probability(&Some(FreezeReason::Unknown));
 
         // All should be valid probabilities
-        assert!(bios_prob >= 0.0 && bios_prob <= 1.0);
-        assert!(raid_prob >= 0.0 && raid_prob <= 1.0);
-        assert!(unknown_prob >= 0.0 && unknown_prob <= 1.0);
+        assert!((0.0..=1.0).contains(&bios_prob));
+        assert!((0.0..=1.0).contains(&raid_prob));
+        assert!((0.0..=1.0).contains(&unknown_prob));
 
         // Not frozen should have 100% success
         let not_frozen = mitigation.calculate_success_probability(&None);
@@ -260,10 +256,7 @@ mod tests {
         assert_eq!(success.message, "Test passed");
         assert!(success.warning.is_none());
 
-        let warning = StrategyResult::success_with_warning(
-            "Completed",
-            "Minor issue"
-        );
+        let warning = StrategyResult::success_with_warning("Completed", "Minor issue");
         assert!(warning.success);
         assert_eq!(warning.warning.unwrap(), "Minor issue");
 
@@ -273,44 +266,10 @@ mod tests {
     }
 }
 
-// Integration tests (require root and actual hardware)
-#[cfg(all(test, feature = "integration-tests"))]
-mod integration_tests {
-    use super::*;
-
-    #[test]
-    #[ignore] // Run with --ignored flag
-    fn test_real_drive_unfreeze() {
-        // This test requires:
-        // 1. Root privileges
-        // 2. A frozen drive
-        // 3. Run with: cargo test --features integration-tests -- --ignored
-
-        if unsafe { libc::geteuid() } != 0 {
-            println!("Skipping: Requires root");
-            return;
-        }
-
-        // Test on /dev/sdb (adjust as needed)
-        let test_device = "/dev/sdb";
-
-        if !std::path::Path::new(test_device).exists() {
-            println!("Skipping: Test device not found");
-            return;
-        }
-
-        let config = FreezeMitigationConfig::default();
-        let mut mitigation = AdvancedFreezeMitigation::new(config);
-
-        match mitigation.unfreeze_drive(test_device) {
-            Ok(result) => {
-                println!("✅ Unfreeze result: {:?}", result);
-                assert!(result.success || result.attempts_made > 0);
-            }
-            Err(e) => {
-                println!("❌ Unfreeze failed: {}", e);
-                // Don't fail test - drive might not be frozen
-            }
-        }
-    }
-}
+// ==================== INTEGRATION TESTS ====================
+// Freeze mitigation integration test has been moved to:
+// tests/hardware_integration.rs::test_freeze_mitigation_disabled
+// This test uses mock drives and can run without physical hardware or root
+//
+// Note: Full freeze mitigation testing with frozen drives requires hardware
+// The mock-based test validates that freeze mitigation can be disabled/enabled

@@ -1,30 +1,19 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use sayonara_wipe::*;
-use sayonara_wipe::drives::{
-    DriveDetector,
-    FreezeMitigation,
-    HPADCOManager,
-    SEDManager,
-    TrimOperations,
-    SMARTMonitor,
-    HDDWipe,
-    SSDWipe,
-    NVMeWipe,
-};
 use sayonara_wipe::algorithms::{dod::DoDWipe, gutmann::GutmannWipe, random::RandomWipe};
+use sayonara_wipe::crypto::certificates::{CertificateGenerator, VerificationResult, WipeDetails};
+use sayonara_wipe::drives::{
+    DriveDetector, FreezeMitigation, HDDWipe, HPADCOManager, NVMeWipe, SEDManager, SMARTMonitor,
+    SSDWipe, TrimOperations,
+};
 use sayonara_wipe::verification::recovery_test::RecoveryTest;
 use sayonara_wipe::verification::{
-    EnhancedVerification,
-    VerificationLevel,
-    VerificationReport,
-    PostWipeAnalysis,
-    PreWipeTestResults,
-    LiveUSBVerification,
+    EnhancedVerification, LiveUSBVerification, PostWipeAnalysis, PreWipeTestResults,
+    VerificationLevel, VerificationReport,
 };
-use sayonara_wipe::crypto::certificates::{CertificateGenerator, WipeDetails, VerificationResult};
-use std::time::{Duration, Instant};
+use sayonara_wipe::*;
 use std::io::{self, Write};
+use std::time::{Duration, Instant};
 use uuid::Uuid;
 
 #[derive(Parser)]
@@ -255,7 +244,7 @@ fn generate_enhanced_certificate(
     duration: Duration,
     cert_path: &str,
 ) -> Result<()> {
-    use crate::crypto::certificates::{CertificateGenerator, WipeDetails, VerificationResult};
+    use crate::crypto::certificates::{CertificateGenerator, VerificationResult, WipeDetails};
 
     let cert_gen = CertificateGenerator::new();
 
@@ -275,15 +264,12 @@ fn generate_enhanced_certificate(
         verification_timestamp: verification_report.timestamp,
     };
 
-    let certificate = cert_gen.generate_certificate(
-        drive_info,
-        wipe_details,
-        verification_result,
-    )?;
+    let certificate =
+        cert_gen.generate_certificate(drive_info, wipe_details, verification_result)?;
 
     // Add enhanced verification data to certificate
     let mut enhanced_cert = serde_json::to_value(&certificate)?;
-    enhanced_cert["enhanced_verification"] = serde_json::to_value(&verification_report)?;
+    enhanced_cert["enhanced_verification"] = serde_json::to_value(verification_report)?;
 
     // Save enhanced certificate
     let cert_json = serde_json::to_string_pretty(&enhanced_cert)?;
@@ -311,29 +297,73 @@ async fn main() -> Result<()> {
     }
 
     match &cli.command {
-        Commands::List { detailed, include_system } => {
+        Commands::List {
+            detailed,
+            include_system,
+        } => {
             list_drives(*detailed, *include_system).await?;
         }
-        Commands::Wipe { device, algorithm, no_verify, cert_output, hpa_dco,
-            no_trim, no_temp_check, max_temp, no_unfreeze, force } => {
+        Commands::Wipe {
+            device,
+            algorithm,
+            no_verify,
+            cert_output,
+            hpa_dco,
+            no_trim,
+            no_temp_check,
+            max_temp,
+            no_unfreeze,
+            force,
+        } => {
             let config = build_wipe_config(
-                algorithm, !no_verify, hpa_dco, !no_trim,
-                !no_temp_check, *max_temp, !no_unfreeze
+                algorithm,
+                !no_verify,
+                hpa_dco,
+                !no_trim,
+                !no_temp_check,
+                *max_temp,
+                !no_unfreeze,
             )?;
-            wipe_drive(device, config, cert_output.as_deref(), *force, cli.unsafe_mode).await?;
+            wipe_drive(
+                device,
+                config,
+                cert_output.as_deref(),
+                *force,
+                cli.unsafe_mode,
+            )
+            .await?;
         }
-        Commands::WipeAll { algorithm, no_verify, cert_dir, exclude,
-            hpa_dco, no_trim, force} => {
-            let config = build_wipe_config(
-                algorithm, !no_verify, hpa_dco, !no_trim,
-                true, 65, true
-            )?;
-            wipe_all_drives(config, cert_dir, exclude.as_deref(), cli.unsafe_mode, *force).await?;
+        Commands::WipeAll {
+            algorithm,
+            no_verify,
+            cert_dir,
+            exclude,
+            hpa_dco,
+            no_trim,
+            force,
+        } => {
+            let config =
+                build_wipe_config(algorithm, !no_verify, hpa_dco, !no_trim, true, 65, true)?;
+            wipe_all_drives(
+                config,
+                cert_dir,
+                exclude.as_deref(),
+                cli.unsafe_mode,
+                *force,
+            )
+            .await?;
         }
-        Commands::Verify { device, check_hidden } => {
+        Commands::Verify {
+            device,
+            check_hidden,
+        } => {
             verify_drive(device, *check_hidden).await?;
         }
-        Commands::Health { device, self_test, monitor } => {
+        Commands::Health {
+            device,
+            self_test,
+            monitor,
+        } => {
             check_health(device, *self_test, *monitor).await?;
         }
         Commands::Sed { device, action } => {
@@ -349,10 +379,11 @@ async fn main() -> Result<()> {
             verification_level,
             hpa_dco,
             no_trim,
-            force
+            force,
         } => {
             let drives = DriveDetector::detect_all_drives()?;
-            let drive_info = drives.into_iter()
+            let drive_info = drives
+                .into_iter()
                 .find(|d| d.device_path == *device)
                 .ok_or_else(|| anyhow::anyhow!("Drive not found: {}", device))?;
 
@@ -393,13 +424,9 @@ async fn main() -> Result<()> {
 
             // Build config
             let config = build_wipe_config(
-                algorithm,
-                true,  // Always verify in enhanced mode
-                hpa_dco,
-                !no_trim,
-                true,  // Temperature monitoring
-                65,
-                true,  // Freeze mitigation
+                algorithm, true, // Always verify in enhanced mode
+                hpa_dco, !no_trim, true, // Temperature monitoring
+                65, true, // Freeze mitigation
             )?;
 
             // Safety confirmation with level info
@@ -447,12 +474,15 @@ async fn main() -> Result<()> {
                 device,
                 &drive_info,
                 config,
-                cert_output.as_deref(),
-                *sample_percent,      // IMPORTANT: Pass sample_percent
-                *min_confidence,
-                level,
-                *skip_pre_tests,      // IMPORTANT: Pass skip_pre_tests
-            ).await?;
+                VerificationOptions {
+                    cert_output: cert_output.as_deref(),
+                    _sample_percent: *sample_percent,
+                    min_confidence: *min_confidence,
+                    verification_level: level,
+                    skip_pre_tests: *skip_pre_tests,
+                },
+            )
+            .await?;
         }
 
         Commands::CreateVerificationUSB { output: _ } => {
@@ -461,7 +491,11 @@ async fn main() -> Result<()> {
             println!("✅ Instructions for USB creation have been generated");
         }
 
-        Commands::LiveVerify { device, report_to, sample_percent: _ } => {
+        Commands::LiveVerify {
+            device,
+            report_to,
+            sample_percent: _,
+        } => {
             // This would be run from the Live USB environment
             println!("🔍 Live Verification Mode");
             println!("Device: {}", device);
@@ -484,14 +518,14 @@ async fn main() -> Result<()> {
             let post_wipe = EnhancedVerification::post_wipe_verification_with_level(
                 device,
                 device_size,
-                VerificationLevel::Level1RandomSampling,  // CORRECTED: Use the right function name
+                VerificationLevel::Level1RandomSampling, // CORRECTED: Use the right function name
             )?;
 
             let report = EnhancedVerification::generate_verification_report(
                 device,
                 pre_wipe,
                 post_wipe,
-                VerificationLevel::Level1RandomSampling,  // IMPORTANT: Add the level parameter
+                VerificationLevel::Level1RandomSampling, // IMPORTANT: Add the level parameter
             )?;
 
             // Display results
@@ -505,8 +539,10 @@ async fn main() -> Result<()> {
             }
 
             // Save local copy
-            let local_report = format!("verification_report_{}.json",
-                                       chrono::Utc::now().format("%Y%m%d_%H%M%S"));
+            let local_report = format!(
+                "verification_report_{}.json",
+                chrono::Utc::now().format("%Y%m%d_%H%M%S")
+            );
             let json = serde_json::to_string_pretty(&report)?;
             std::fs::write(&local_report, json)?;
             println!("📁 Report saved to: {}", local_report);
@@ -520,19 +556,35 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+/// Verification options for enhanced wipe
+struct VerificationOptions<'a> {
+    cert_output: Option<&'a str>,
+    _sample_percent: f64,
+    min_confidence: f64,
+    verification_level: VerificationLevel,
+    skip_pre_tests: bool,
+}
+
 /// Enhanced wipe with multi-level verification
 async fn enhanced_wipe_with_verification(
     device: &str,
     drive_info: &DriveInfo,
     config: WipeConfig,
-    cert_output: Option<&str>,
-    _sample_percent: f64,         // PARAMETER 5
-    min_confidence: f64,          // PARAMETER 6
-    verification_level: VerificationLevel,  // PARAMETER 7
-    skip_pre_tests: bool,         // PARAMETER 8
+    options: VerificationOptions<'_>,
 ) -> Result<()> {
+    let VerificationOptions {
+        cert_output,
+        _sample_percent,
+        min_confidence,
+        verification_level,
+        skip_pre_tests,
+    } = options;
     println!("\n🚀 Starting Enhanced Secure Wipe with Forensic Verification");
-    println!("Device: {} ({} GB)", device, drive_info.size / (1024 * 1024 * 1024));
+    println!(
+        "Device: {} ({} GB)",
+        device,
+        drive_info.size / (1024 * 1024 * 1024)
+    );
     println!("Verification Level: {:?}", verification_level);
     println!("{}", "=".repeat(70));
 
@@ -550,13 +602,34 @@ async fn enhanced_wipe_with_verification(
 
         // Display pre-wipe test results
         println!("✅ Verification System Test Results:");
-        println!("  ├─ Pattern Detection: {}",
-                 if results.test_pattern_detection { "✓ PASSED" } else { "✗ FAILED" });
-        println!("  ├─ Recovery Tool Simulation: {}",
-                 if results.recovery_tool_simulation { "✓ PASSED" } else { "✗ FAILED" });
-        println!("  ├─ Sensitivity Calibration: {:.1}%", results.sensitivity_calibration);
-        println!("  ├─ False Positive Rate: {:.2}%", results.false_positive_rate * 100.0);
-        println!("  └─ False Negative Rate: {:.2}%", results.false_negative_rate * 100.0);
+        println!(
+            "  ├─ Pattern Detection: {}",
+            if results.test_pattern_detection {
+                "✓ PASSED"
+            } else {
+                "✗ FAILED"
+            }
+        );
+        println!(
+            "  ├─ Recovery Tool Simulation: {}",
+            if results.recovery_tool_simulation {
+                "✓ PASSED"
+            } else {
+                "✗ FAILED"
+            }
+        );
+        println!(
+            "  ├─ Sensitivity Calibration: {:.1}%",
+            results.sensitivity_calibration
+        );
+        println!(
+            "  ├─ False Positive Rate: {:.2}%",
+            results.false_positive_rate * 100.0
+        );
+        println!(
+            "  └─ False Negative Rate: {:.2}%",
+            results.false_negative_rate * 100.0
+        );
 
         if !results.test_pattern_detection || !results.recovery_tool_simulation {
             eprintln!("\n⚠️  Warning: Verification system tests failed!");
@@ -592,7 +665,10 @@ async fn enhanced_wipe_with_verification(
     select_and_execute_wipe(device, drive_info, &config).await?;
 
     let wipe_duration = start_time.elapsed();
-    println!("✅ Wipe completed in {:.2} seconds", wipe_duration.as_secs_f64());
+    println!(
+        "✅ Wipe completed in {:.2} seconds",
+        wipe_duration.as_secs_f64()
+    );
 
     // ===== STAGE 3: MULTI-LEVEL VERIFICATION =====
     println!("\n🔬 Stage 3: Multi-Level Forensic Verification");
@@ -636,30 +712,52 @@ async fn enhanced_wipe_with_verification(
         device,
         pre_wipe_results,
         post_wipe_analysis,
-        verification_level,  // IMPORTANT: Pass the level here
+        verification_level, // IMPORTANT: Pass the level here
     )?;
 
     display_enhanced_verification_summary(&verification_report);
 
     // Check if confidence requirement was met
     if verification_report.confidence_level < min_confidence {
-        eprintln!("\n❌ Confidence level {:.1}% is below required {:.1}%",
-                  verification_report.confidence_level, min_confidence);
+        eprintln!(
+            "\n❌ Confidence level {:.1}% is below required {:.1}%",
+            verification_report.confidence_level, min_confidence
+        );
 
         // Show recovery risk
         println!("\n⚠️  Recovery Risk Assessment:");
-        println!("  Overall Risk: {:?}",
-                 verification_report.post_wipe_analysis.recovery_simulation.overall_recovery_risk);
+        println!(
+            "  Overall Risk: {:?}",
+            verification_report
+                .post_wipe_analysis
+                .recovery_simulation
+                .overall_recovery_risk
+        );
 
-        if !verification_report.post_wipe_analysis.pattern_analysis.detected_signatures.is_empty() {
+        if !verification_report
+            .post_wipe_analysis
+            .pattern_analysis
+            .detected_signatures
+            .is_empty()
+        {
             println!("  ❌ CRITICAL: File signatures detected!");
             println!("  Detected signatures:");
-            for sig in &verification_report.post_wipe_analysis.pattern_analysis.detected_signatures {
-                println!("    • {} (confidence: {:.0}%)", sig.signature_name, sig.confidence * 100.0);
+            for sig in &verification_report
+                .post_wipe_analysis
+                .pattern_analysis
+                .detected_signatures
+            {
+                println!(
+                    "    • {} (confidence: {:.0}%)",
+                    sig.signature_name,
+                    sig.confidence * 100.0
+                );
             }
         }
 
-        return Err(anyhow::anyhow!("Verification confidence below required threshold"));
+        return Err(anyhow::anyhow!(
+            "Verification confidence below required threshold"
+        ));
     }
 
     // ===== STAGE 5: CERTIFICATE GENERATION =====
@@ -682,8 +780,10 @@ async fn enhanced_wipe_with_verification(
         println!("{}", ascii_map);
 
         if !heat_map.suspicious_blocks.is_empty() {
-            println!("⚠️  {} suspicious blocks detected at low entropy",
-                     heat_map.suspicious_blocks.len());
+            println!(
+                "⚠️  {} suspicious blocks detected at low entropy",
+                heat_map.suspicious_blocks.len()
+            );
         }
     }
 
@@ -697,7 +797,10 @@ async fn enhanced_wipe_with_verification(
     println!("\n{}", "=".repeat(70));
     println!("🎉 FORENSIC VERIFICATION COMPLETE");
     println!("{}", "=".repeat(70));
-    println!("📊 Confidence Level: {:.1}%", verification_report.confidence_level);
+    println!(
+        "📊 Confidence Level: {:.1}%",
+        verification_report.confidence_level
+    );
     println!("🔒 Verification Level: {:?}", verification_level);
 
     println!("\n✅ Compliance Standards Met:");
@@ -717,7 +820,10 @@ async fn enhanced_wipe_with_verification(
         println!("   {}", recommendation);
     }
 
-    println!("\n⏱️  Total Time: {:.2} seconds", start_time.elapsed().as_secs_f64());
+    println!(
+        "\n⏱️  Total Time: {:.2} seconds",
+        start_time.elapsed().as_secs_f64()
+    );
 
     Ok(())
 }
@@ -727,31 +833,66 @@ fn display_enhanced_post_wipe_analysis(analysis: &PostWipeAnalysis) {
     println!("📈 Analysis Results:");
 
     // Entropy Score
-    let entropy_icon = if analysis.entropy_score > 7.8 { "✅" }
-    else if analysis.entropy_score > 7.5 { "⚠️" }
-    else { "❌" };
-    println!("  ├─ {} Entropy Score: {:.4}/8.0", entropy_icon, analysis.entropy_score);
+    let entropy_icon = if analysis.entropy_score > 7.8 {
+        "✅"
+    } else if analysis.entropy_score > 7.5 {
+        "⚠️"
+    } else {
+        "❌"
+    };
+    println!(
+        "  ├─ {} Entropy Score: {:.4}/8.0",
+        entropy_icon, analysis.entropy_score
+    );
 
     // Chi-square test
-    let chi_icon = if analysis.chi_square_test < 300.0 { "✅" } else { "⚠️" };
-    println!("  ├─ {} Chi-Square Test: {:.2}", chi_icon, analysis.chi_square_test);
+    let chi_icon = if analysis.chi_square_test < 300.0 {
+        "✅"
+    } else {
+        "⚠️"
+    };
+    println!(
+        "  ├─ {} Chi-Square Test: {:.2}",
+        chi_icon, analysis.chi_square_test
+    );
 
     // Pattern Analysis
     println!("  ├─ Pattern Analysis:");
-    println!("  │  ├─ Repeating Patterns: {}",
-             if analysis.pattern_analysis.repeating_patterns_found { "❌ FOUND" } else { "✅ None" });
-    println!("  │  ├─ File Signatures: {}",
-             if analysis.pattern_analysis.known_file_signatures { "❌ FOUND" } else { "✅ None" });
+    println!(
+        "  │  ├─ Repeating Patterns: {}",
+        if analysis.pattern_analysis.repeating_patterns_found {
+            "❌ FOUND"
+        } else {
+            "✅ None"
+        }
+    );
+    println!(
+        "  │  ├─ File Signatures: {}",
+        if analysis.pattern_analysis.known_file_signatures {
+            "❌ FOUND"
+        } else {
+            "✅ None"
+        }
+    );
 
     if !analysis.pattern_analysis.detected_signatures.is_empty() {
         println!("  │  │  Detected signatures:");
         for sig in &analysis.pattern_analysis.detected_signatures {
-            println!("  │  │    • {} at offset {}", sig.signature_name, sig.offset);
+            println!(
+                "  │  │    • {} at offset {}",
+                sig.signature_name, sig.offset
+            );
         }
     }
 
-    println!("  │  └─ Structured Data: {}",
-             if analysis.pattern_analysis.structured_data_detected { "❌ FOUND" } else { "✅ None" });
+    println!(
+        "  │  └─ Structured Data: {}",
+        if analysis.pattern_analysis.structured_data_detected {
+            "❌ FOUND"
+        } else {
+            "✅ None"
+        }
+    );
 
     // Statistical Tests
     let tests_passed = [
@@ -760,69 +901,152 @@ fn display_enhanced_post_wipe_analysis(analysis: &PostWipeAnalysis) {
         analysis.statistical_tests.poker_test_passed,
         analysis.statistical_tests.serial_test_passed,
         analysis.statistical_tests.autocorrelation_test_passed,
-    ].iter().filter(|&&x| x).count();
+    ]
+    .iter()
+    .filter(|&&x| x)
+    .count();
 
     println!("  ├─ Statistical Tests: {}/5 passed", tests_passed);
 
     // Hidden Areas
     println!("  ├─ Hidden Area Verification:");
-    println!("  │  ├─ HPA: {}", if analysis.hidden_areas.hpa_verified { "✅ Verified" } else { "⚠️ Failed" });
+    println!(
+        "  │  ├─ HPA: {}",
+        if analysis.hidden_areas.hpa_verified {
+            "✅ Verified"
+        } else {
+            "⚠️ Failed"
+        }
+    );
     if let Some(entropy) = analysis.hidden_areas.hpa_entropy {
         println!("  │  │  Entropy: {:.2}", entropy);
     }
-    println!("  │  ├─ DCO: {}", if analysis.hidden_areas.dco_verified { "✅ Verified" } else { "⚠️ Failed" });
-    println!("  │  ├─ Remapped Sectors: {}/{}",
-             analysis.hidden_areas.remapped_sectors_verified,
-             analysis.hidden_areas.remapped_sectors_found);
-    println!("  │  ├─ Controller Cache: {}",
-             if analysis.hidden_areas.controller_cache_flushed { "✅ Flushed" } else { "⚠️ Not Verified" });
-    println!("  │  └─ Over-Provisioning: {}",
-             if analysis.hidden_areas.over_provisioning_verified { "✅ Verified" } else { "⚠️ N/A" });
+    println!(
+        "  │  ├─ DCO: {}",
+        if analysis.hidden_areas.dco_verified {
+            "✅ Verified"
+        } else {
+            "⚠️ Failed"
+        }
+    );
+    println!(
+        "  │  ├─ Remapped Sectors: {}/{}",
+        analysis.hidden_areas.remapped_sectors_verified,
+        analysis.hidden_areas.remapped_sectors_found
+    );
+    println!(
+        "  │  ├─ Controller Cache: {}",
+        if analysis.hidden_areas.controller_cache_flushed {
+            "✅ Flushed"
+        } else {
+            "⚠️ Not Verified"
+        }
+    );
+    println!(
+        "  │  └─ Over-Provisioning: {}",
+        if analysis.hidden_areas.over_provisioning_verified {
+            "✅ Verified"
+        } else {
+            "⚠️ N/A"
+        }
+    );
 
     // Recovery Simulation
     println!("  ├─ Recovery Tool Simulation:");
-    println!("  │  ├─ PhotoRec: {} (scanned {} signatures, found {})",
-             if analysis.recovery_simulation.photorec_results.would_succeed { "❌ Would succeed" } else { "✅ Would fail" },
-             analysis.recovery_simulation.photorec_results.signatures_scanned,
-             analysis.recovery_simulation.photorec_results.signatures_found.len());
-    println!("  │  ├─ TestDisk: {}",
-             if analysis.recovery_simulation.testdisk_results.would_succeed { "❌ Would succeed" } else { "✅ Would fail" });
-    println!("  │  └─ Overall Risk: {:?}", analysis.recovery_simulation.overall_recovery_risk);
+    println!(
+        "  │  ├─ PhotoRec: {} (scanned {} signatures, found {})",
+        if analysis.recovery_simulation.photorec_results.would_succeed {
+            "❌ Would succeed"
+        } else {
+            "✅ Would fail"
+        },
+        analysis
+            .recovery_simulation
+            .photorec_results
+            .signatures_scanned,
+        analysis
+            .recovery_simulation
+            .photorec_results
+            .signatures_found
+            .len()
+    );
+    println!(
+        "  │  ├─ TestDisk: {}",
+        if analysis.recovery_simulation.testdisk_results.would_succeed {
+            "❌ Would succeed"
+        } else {
+            "✅ Would fail"
+        }
+    );
+    println!(
+        "  │  └─ Overall Risk: {:?}",
+        analysis.recovery_simulation.overall_recovery_risk
+    );
 
     // MFM Simulation (if performed)
     if let Some(ref mfm) = analysis.recovery_simulation.mfm_simulation {
         println!("  ├─ MFM Analysis (HDD):");
-        println!("  │  ├─ Theoretical Recovery: {}",
-                 if mfm.theoretical_recovery_possible { "❌ Possible" } else { "✅ Impossible" });
+        println!(
+            "  │  ├─ Theoretical Recovery: {}",
+            if mfm.theoretical_recovery_possible {
+                "❌ Possible"
+            } else {
+                "✅ Impossible"
+            }
+        );
         println!("  │  └─ Confidence: {:.1}%", mfm.confidence_level);
     }
 
     // Bad Sectors
     if analysis.bad_sectors.unreadable_count > 0 {
         println!("  ├─ Bad Sectors:");
-        println!("  │  ├─ Unreadable: {}", analysis.bad_sectors.unreadable_count);
-        println!("  │  └─ Percentage: {:.2}%", analysis.bad_sectors.percentage_unreadable);
+        println!(
+            "  │  ├─ Unreadable: {}",
+            analysis.bad_sectors.unreadable_count
+        );
+        println!(
+            "  │  └─ Percentage: {:.2}%",
+            analysis.bad_sectors.percentage_unreadable
+        );
     }
 
     // Sector Sampling
     println!("  └─ Sector Analysis:");
-    println!("     ├─ Sectors Sampled: {}", analysis.sector_sampling.total_sectors_sampled);
-    println!("     ├─ Suspicious Sectors: {}", analysis.sector_sampling.suspicious_sectors);
+    println!(
+        "     ├─ Sectors Sampled: {}",
+        analysis.sector_sampling.total_sectors_sampled
+    );
+    println!(
+        "     ├─ Suspicious Sectors: {}",
+        analysis.sector_sampling.suspicious_sectors
+    );
     if !analysis.sector_sampling.anomaly_locations.is_empty() {
-        println!("     └─ Anomalies at sectors: {} locations",
-                 analysis.sector_sampling.anomaly_locations.len());
+        println!(
+            "     └─ Anomalies at sectors: {} locations",
+            analysis.sector_sampling.anomaly_locations.len()
+        );
     }
 }
 
 /// Display enhanced verification summary
 fn display_enhanced_verification_summary(report: &VerificationReport) {
-    let confidence_color = if report.confidence_level >= 99.0 { "🟢" }
-    else if report.confidence_level >= 95.0 { "🟡" }
-    else { "🔴" };
+    let confidence_color = if report.confidence_level >= 99.0 {
+        "🟢"
+    } else if report.confidence_level >= 95.0 {
+        "🟡"
+    } else {
+        "🔴"
+    };
 
     println!("\n📋 Verification Summary:");
-    println!("  {} Confidence Level: {:.1}%", confidence_color, report.confidence_level);
-    println!("  ⏰ Timestamp: {}", report.timestamp.format("%Y-%m-%d %H:%M:%S UTC"));
+    println!(
+        "  {} Confidence Level: {:.1}%",
+        confidence_color, report.confidence_level
+    );
+    println!(
+        "  ⏰ Timestamp: {}",
+        report.timestamp.format("%Y-%m-%d %H:%M:%S UTC")
+    );
     println!("  🔧 Method: {}", report.verification_method);
     println!("  📊 Level: {:?}", report.verification_level);
 }
@@ -1111,8 +1335,10 @@ async fn list_drives(detailed: bool, include_system: bool) -> Result<()> {
             displayed_count += 1;
         }
     } else {
-        println!("{:<15} {:<20} {:<15} {:<10} {:<10} {:<10}",
-                 "Device", "Model", "Serial", "Size", "Type", "Health");
+        println!(
+            "{:<15} {:<20} {:<15} {:<10} {:<10} {:<10}",
+            "Device", "Model", "Serial", "Size", "Type", "Health"
+        );
         println!("{}", "-".repeat(90));
 
         for drive in drives {
@@ -1122,23 +1348,29 @@ async fn list_drives(detailed: bool, include_system: bool) -> Result<()> {
             }
 
             let size_gb = drive.size / (1024 * 1024 * 1024);
-            let health = drive.health_status
+            let health = drive
+                .health_status
                 .map(|h| format!("{:?}", h))
                 .unwrap_or_else(|| "Unknown".to_string());
 
-            println!("{:<15} {:<20} {:<15} {:<10} {:<10} {:<10}",
-                     drive.device_path,
-                     truncate_string(&drive.model, 20),
-                     truncate_string(&drive.serial, 15),
-                     format!("{}GB", size_gb),
-                     format!("{:?}", drive.drive_type),
-                     health);
+            println!(
+                "{:<15} {:<20} {:<15} {:<10} {:<10} {:<10}",
+                drive.device_path,
+                truncate_string(&drive.model, 20),
+                truncate_string(&drive.serial, 15),
+                format!("{}GB", size_gb),
+                format!("{:?}", drive.drive_type),
+                health
+            );
             displayed_count += 1;
         }
     }
 
     if filtered_count > 0 {
-        println!("\nℹ️  {} system drive(s) hidden for safety.", filtered_count);
+        println!(
+            "\nℹ️  {} system drive(s) hidden for safety.",
+            filtered_count
+        );
         println!("   Use --include-system to show all drives.");
     }
 
@@ -1202,7 +1434,8 @@ async fn wipe_drive(
 ) -> Result<()> {
     // Detect the specific drive
     let drives = DriveDetector::detect_all_drives()?;
-    let drive_info = drives.into_iter()
+    let drive_info = drives
+        .into_iter()
         .find(|d| d.device_path == device)
         .ok_or_else(|| anyhow::anyhow!("Drive not found: {}", device))?;
 
@@ -1240,7 +1473,10 @@ async fn wipe_drive(
 
     // Confirmation
     if !unsafe_mode {
-        println!("\nWARNING: This will permanently erase ALL data on {}", device);
+        println!(
+            "\nWARNING: This will permanently erase ALL data on {}",
+            device
+        );
         println!("Drive: {} ({})", drive_info.model, drive_info.serial);
         println!("Size: {} GB", drive_info.size / (1024 * 1024 * 1024));
 
@@ -1288,8 +1524,10 @@ async fn wipe_single_drive(
     mut session: WipeSession,
     force: bool,
 ) -> Result<()> {
-    println!("\nStarting wipe of {} ({}, {})",
-             device, drive_info.model, drive_info.serial);
+    println!(
+        "\nStarting wipe of {} ({}, {})",
+        device, drive_info.model, drive_info.serial
+    );
 
     let start_time = Instant::now();
     let mut warnings = Vec::new();
@@ -1424,7 +1662,10 @@ async fn wipe_single_drive(
     }
 
     let wipe_duration = start_time.elapsed();
-    println!("\nWipe completed in {:.2} seconds", wipe_duration.as_secs_f64());
+    println!(
+        "\nWipe completed in {:.2} seconds",
+        wipe_duration.as_secs_f64()
+    );
 
     // Phase 4: Verification
     let verification_result = if config.verify {
@@ -1458,7 +1699,8 @@ async fn wipe_single_drive(
             operator_id: session.operator_id.clone(),
         };
 
-        let certificate = cert_gen.generate_certificate(drive_info, wipe_details, verification_result.clone())?;
+        let certificate =
+            cert_gen.generate_certificate(drive_info, wipe_details, verification_result.clone())?;
         cert_gen.save_certificate(&certificate, cert_path)?;
         println!("✓ Certificate saved to: {}", cert_path);
     }
@@ -1466,7 +1708,11 @@ async fn wipe_single_drive(
     // Update session
     session.drives.push(DriveWipeRecord {
         drive_info: drive_info.clone(),
-        status: if wipe_result.is_ok() { WipeStatus::Completed } else { WipeStatus::Failed },
+        status: if wipe_result.is_ok() {
+            WipeStatus::Completed
+        } else {
+            WipeStatus::Failed
+        },
         start_time: chrono::Utc::now() - chrono::Duration::seconds(wipe_duration.as_secs() as i64),
         end_time: Some(chrono::Utc::now()),
         error_message: wipe_result.err().map(|e| e.to_string()),
@@ -1492,17 +1738,25 @@ async fn select_and_execute_wipe(
 ) -> Result<()> {
     // Check if this is an advanced drive type that needs specialized handling
     match drive_info.drive_type {
-        DriveType::SMR | DriveType::Optane | DriveType::HybridSSHD |
-        DriveType::EMMC | DriveType::UFS => {
+        DriveType::SMR
+        | DriveType::Optane
+        | DriveType::HybridSSHD
+        | DriveType::EMMC
+        | DriveType::UFS => {
             // Use the advanced wipe orchestrator for these drive types
-            println!("🔬 Detected advanced drive type: {:?}", drive_info.drive_type);
+            println!(
+                "🔬 Detected advanced drive type: {:?}",
+                drive_info.drive_type
+            );
             println!("Using specialized wipe strategy...\n");
 
             use sayonara_wipe::WipeOrchestrator;
             let mut orchestrator = WipeOrchestrator::new(device.to_string(), config.clone())
                 .map_err(|e| anyhow::anyhow!("Orchestrator initialization failed: {}", e))?;
 
-            orchestrator.execute().await
+            orchestrator
+                .execute()
+                .await
                 .map_err(|e| anyhow::anyhow!("Advanced wipe failed: {}", e))?;
 
             return Ok(());
@@ -1518,7 +1772,9 @@ async fn select_and_execute_wipe(
                 let mut orchestrator = WipeOrchestrator::new(device.to_string(), config.clone())
                     .map_err(|e| anyhow::anyhow!("Orchestrator initialization failed: {}", e))?;
 
-                orchestrator.execute().await
+                orchestrator
+                    .execute()
+                    .await
                     .map_err(|e| anyhow::anyhow!("Advanced NVMe wipe failed: {}", e))?;
 
                 return Ok(());
@@ -1535,8 +1791,9 @@ async fn select_and_execute_wipe(
         // Auto-select based on drive capabilities
         if drive_info.capabilities.crypto_erase && config.sed_crypto_erase {
             Algorithm::CryptoErase
-        } else if drive_info.drive_type == DriveType::NVMe &&
-            !drive_info.capabilities.sanitize_options.is_empty() {
+        } else if drive_info.drive_type == DriveType::NVMe
+            && !drive_info.capabilities.sanitize_options.is_empty()
+        {
             Algorithm::Sanitize
         } else if drive_info.capabilities.secure_erase {
             Algorithm::SecureErase
@@ -1551,67 +1808,103 @@ async fn select_and_execute_wipe(
 
     match algorithm {
         Algorithm::DoD5220 => {
-            DoDWipe::wipe_drive(device, drive_info.size, drive_info.drive_type.clone(), &config)?;
+            DoDWipe::wipe_drive(
+                device,
+                drive_info.size,
+                drive_info.drive_type.clone(),
+                config,
+            )?;
         }
         Algorithm::Gutmann => {
-            GutmannWipe::wipe_drive(device, drive_info.size, drive_info.drive_type.clone(), &config)?;
+            GutmannWipe::wipe_drive(
+                device,
+                drive_info.size,
+                drive_info.drive_type.clone(),
+                config,
+            )?;
         }
         Algorithm::Random => {
-            RandomWipe::wipe_drive(device, drive_info.size, drive_info.drive_type.clone(), &config)?;
+            RandomWipe::wipe_drive(
+                device,
+                drive_info.size,
+                drive_info.drive_type.clone(),
+                config,
+            )?;
         }
         Algorithm::Zero => {
             // Simple zero overwrite
-            DoDWipe::wipe_drive(device, drive_info.size, drive_info.drive_type.clone(), &config)?; // Reuse with zero pattern
+            DoDWipe::wipe_drive(
+                device,
+                drive_info.size,
+                drive_info.drive_type.clone(),
+                config,
+            )?; // Reuse with zero pattern
         }
         Algorithm::SecureErase => {
             // Try hardware secure erase with graceful fallback to software methods
             match drive_info.drive_type {
-                DriveType::SSD => {
-                    match SSDWipe::secure_erase(device) {
-                        Ok(_) => {
-                            println!("✅ Hardware secure erase completed successfully");
-                        }
-                        Err(e) => {
-                            println!("\n⚠️  Hardware secure erase failed: {}", e);
-                            println!("   Reason: Drive may not support ATA secure erase or is frozen");
-                            println!("   Falling back to DoD 5220.22-M (3-pass software wipe)...");
-                            println!("   This will take longer but will securely wipe the drive.\n");
-                            DoDWipe::wipe_drive(device, drive_info.size, drive_info.drive_type.clone(), &config)?;
-                        }
+                DriveType::SSD => match SSDWipe::secure_erase(device) {
+                    Ok(_) => {
+                        println!("✅ Hardware secure erase completed successfully");
                     }
-                }
-                DriveType::NVMe => {
-                    match NVMeWipe::secure_erase(device) {
-                        Ok(_) => {
-                            println!("✅ Hardware secure erase completed successfully");
-                        }
-                        Err(e) => {
-                            println!("\n⚠️  Hardware secure erase failed: {}", e);
-                            println!("   Reason: Drive may not support Format NVM or Sanitize commands");
-                            println!("   Falling back to DoD 5220.22-M (3-pass software wipe)...");
-                            println!("   This will take longer but will securely wipe the drive.\n");
-                            DoDWipe::wipe_drive(device, drive_info.size, drive_info.drive_type.clone(), &config)?;
-                        }
+                    Err(e) => {
+                        println!("\n⚠️  Hardware secure erase failed: {}", e);
+                        println!("   Reason: Drive may not support ATA secure erase or is frozen");
+                        println!("   Falling back to DoD 5220.22-M (3-pass software wipe)...");
+                        println!("   This will take longer but will securely wipe the drive.\n");
+                        DoDWipe::wipe_drive(
+                            device,
+                            drive_info.size,
+                            drive_info.drive_type.clone(),
+                            config,
+                        )?;
                     }
-                }
-                DriveType::HDD => {
-                    match HDDWipe::secure_erase(device) {
-                        Ok(_) => {
-                            println!("✅ Hardware secure erase completed successfully");
-                        }
-                        Err(e) => {
-                            println!("\n⚠️  Hardware secure erase failed: {}", e);
-                            println!("   Reason: Drive may not support ATA secure erase or is frozen");
-                            println!("   Falling back to DoD 5220.22-M (3-pass software wipe)...");
-                            println!("   This will take longer but will securely wipe the drive.\n");
-                            DoDWipe::wipe_drive(device, drive_info.size, drive_info.drive_type.clone(), &config)?;
-                        }
+                },
+                DriveType::NVMe => match NVMeWipe::secure_erase(device) {
+                    Ok(_) => {
+                        println!("✅ Hardware secure erase completed successfully");
                     }
-                }
+                    Err(e) => {
+                        println!("\n⚠️  Hardware secure erase failed: {}", e);
+                        println!(
+                            "   Reason: Drive may not support Format NVM or Sanitize commands"
+                        );
+                        println!("   Falling back to DoD 5220.22-M (3-pass software wipe)...");
+                        println!("   This will take longer but will securely wipe the drive.\n");
+                        DoDWipe::wipe_drive(
+                            device,
+                            drive_info.size,
+                            drive_info.drive_type.clone(),
+                            config,
+                        )?;
+                    }
+                },
+                DriveType::HDD => match HDDWipe::secure_erase(device) {
+                    Ok(_) => {
+                        println!("✅ Hardware secure erase completed successfully");
+                    }
+                    Err(e) => {
+                        println!("\n⚠️  Hardware secure erase failed: {}", e);
+                        println!("   Reason: Drive may not support ATA secure erase or is frozen");
+                        println!("   Falling back to DoD 5220.22-M (3-pass software wipe)...");
+                        println!("   This will take longer but will securely wipe the drive.\n");
+                        DoDWipe::wipe_drive(
+                            device,
+                            drive_info.size,
+                            drive_info.drive_type.clone(),
+                            config,
+                        )?;
+                    }
+                },
                 _ => {
                     println!("ℹ️  Hardware secure erase not available for this drive type");
                     println!("   Using DoD 5220.22-M (3-pass software wipe)...\n");
-                    DoDWipe::wipe_drive(device, drive_info.size, drive_info.drive_type.clone(), &config)?;
+                    DoDWipe::wipe_drive(
+                        device,
+                        drive_info.size,
+                        drive_info.drive_type.clone(),
+                        config,
+                    )?;
                 }
             }
         }
@@ -1627,13 +1920,23 @@ async fn select_and_execute_wipe(
                         println!("   Reason: Drive may be locked or does not support crypto erase");
                         println!("   Falling back to DoD 5220.22-M (3-pass software wipe)...");
                         println!("   This will take longer but will securely wipe the drive.\n");
-                        DoDWipe::wipe_drive(device, drive_info.size, drive_info.drive_type.clone(), &config)?;
+                        DoDWipe::wipe_drive(
+                            device,
+                            drive_info.size,
+                            drive_info.drive_type.clone(),
+                            config,
+                        )?;
                     }
                 }
             } else {
                 println!("\n⚠️  Self-Encrypting Drive (SED) not detected");
                 println!("   Falling back to DoD 5220.22-M (3-pass software wipe)...\n");
-                DoDWipe::wipe_drive(device, drive_info.size, drive_info.drive_type.clone(), &config)?;
+                DoDWipe::wipe_drive(
+                    device,
+                    drive_info.size,
+                    drive_info.drive_type.clone(),
+                    config,
+                )?;
             }
         }
         Algorithm::Sanitize => {
@@ -1645,16 +1948,28 @@ async fn select_and_execute_wipe(
                     }
                     Err(e) => {
                         println!("\n⚠️  NVMe sanitize failed: {}", e);
-                        println!("   Reason: Drive may not support Sanitize or Format NVM commands");
+                        println!(
+                            "   Reason: Drive may not support Sanitize or Format NVM commands"
+                        );
                         println!("   Falling back to DoD 5220.22-M (3-pass software wipe)...");
                         println!("   This will take longer but will securely wipe the drive.\n");
-                        DoDWipe::wipe_drive(device, drive_info.size, drive_info.drive_type.clone(), &config)?;
+                        DoDWipe::wipe_drive(
+                            device,
+                            drive_info.size,
+                            drive_info.drive_type.clone(),
+                            config,
+                        )?;
                     }
                 }
             } else {
                 println!("\n⚠️  Sanitize command only available for NVMe drives");
                 println!("   Falling back to DoD 5220.22-M (3-pass software wipe)...\n");
-                DoDWipe::wipe_drive(device, drive_info.size, drive_info.drive_type.clone(), &config)?;
+                DoDWipe::wipe_drive(
+                    device,
+                    drive_info.size,
+                    drive_info.drive_type.clone(),
+                    config,
+                )?;
             }
         }
         Algorithm::TrimOnly => {
@@ -1713,10 +2028,12 @@ async fn wipe_all_drives(
     // Show what will be wiped
     println!("The following drives will be wiped:");
     for drive in &drives_to_wipe {
-        println!("  - {} ({}, {} GB)",
-                 drive.device_path,
-                 drive.model,
-                 drive.size / (1024 * 1024 * 1024));
+        println!(
+            "  - {} ({}, {} GB)",
+            drive.device_path,
+            drive.model,
+            drive.size / (1024 * 1024 * 1024)
+        );
     }
 
     if !unsafe_mode {
@@ -1753,7 +2070,12 @@ async fn wipe_all_drives(
     // Wipe each drive
     for (index, drive) in drives_to_wipe.iter().enumerate() {
         println!("\n{}", "=".repeat(60));
-        println!("Wiping drive {}/{}: {}", index + 1, total_drives, drive.device_path);
+        println!(
+            "Wiping drive {}/{}: {}",
+            index + 1,
+            total_drives,
+            drive.device_path
+        );
         println!("{}", "=".repeat(60));
 
         let cert_filename = drive.device_path.replace("/", "_").replace("dev_", "");
@@ -1765,8 +2087,9 @@ async fn wipe_all_drives(
             config.clone(),
             Some(&cert_path),
             session.clone(),
-            force
-        ).await;
+            force,
+        )
+        .await;
 
         match result {
             Ok(_) => {
@@ -1793,12 +2116,15 @@ async fn wipe_all_drives(
 
 async fn verify_drive(device: &str, check_hidden: bool) -> Result<()> {
     let drives = DriveDetector::detect_all_drives()?;
-    let drive_info = drives.into_iter()
+    let drive_info = drives
+        .into_iter()
         .find(|d| d.device_path == device)
         .ok_or_else(|| anyhow::anyhow!("Drive not found: {}", device))?;
 
-    println!("Verifying wipe on {} ({}, {})",
-             device, drive_info.model, drive_info.serial);
+    println!(
+        "Verifying wipe on {} ({}, {})",
+        device, drive_info.model, drive_info.serial
+    );
 
     // Check for hidden areas if requested
     if check_hidden {
@@ -1871,7 +2197,10 @@ async fn check_health(device: &str, self_test: bool, monitor: bool) -> Result<()
                 println!("\nRunning SMART self-test...");
                 use crate::drives::operations::smart::{SMARTMonitor, SelfTestType};
                 SMARTMonitor::run_self_test(device, SelfTestType::Short)?;
-                println!("Self-test started. Check progress with 'smartctl -l selftest {}'", device);
+                println!(
+                    "Self-test started. Check progress with 'smartctl -l selftest {}'",
+                    device
+                );
             }
         }
     }
@@ -2005,7 +2334,10 @@ async fn handle_sed(device: &str, action: &SedAction) -> Result<()> {
                     }
 
                     println!("Crypto Erase Support: {}", sed_info.supports_crypto_erase);
-                    println!("Instant Secure Erase: {}", sed_info.supports_instant_secure_erase);
+                    println!(
+                        "Instant Secure Erase: {}",
+                        sed_info.supports_instant_secure_erase
+                    );
 
                     if let Some(fw) = sed_info.firmware_version {
                         println!("Firmware: {}", fw);
@@ -2120,8 +2452,10 @@ async fn wipe_drives_parallel(
                     config,
                     Some(&cert_path),
                     session,
-                    force
-                ).await {
+                    force,
+                )
+                .await
+                {
                     Ok(_) => DriveWipeRecord {
                         drive_info: drive.clone(),
                         status: WipeStatus::Completed,
@@ -2139,7 +2473,7 @@ async fn wipe_drives_parallel(
                         error_message: Some(e.to_string()),
                         certificate_path: None,
                         verification_passed: Some(false),
-                    }
+                    },
                 }
             }
         })
@@ -2154,17 +2488,14 @@ async fn wipe_drives_parallel(
 fn setup_signal_handlers() -> Result<()> {
     use signal_hook::{consts::SIGINT, iterator::Signals};
 
-    let mut signals = Signals::new(&[SIGINT])?;
+    let mut signals = Signals::new([SIGINT])?;
 
     std::thread::spawn(move || {
         for sig in signals.forever() {
-            match sig {
-                SIGINT => {
-                    eprintln!("\n\n🛑 Interrupt received! Stopping wipe operation...");
-                    eprintln!("   Please wait for current buffer to finish writing...");
-                    sayonara_wipe::set_interrupted();
-                }
-                _ => {}
+            if sig == SIGINT {
+                eprintln!("\n\n🛑 Interrupt received! Stopping wipe operation...");
+                eprintln!("   Please wait for current buffer to finish writing...");
+                sayonara_wipe::set_interrupted();
             }
         }
     });

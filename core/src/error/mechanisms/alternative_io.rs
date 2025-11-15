@@ -2,7 +2,6 @@
 ///
 /// This module provides multiple I/O fallback methods, trying them in order
 /// from fastest to slowest/safest when errors occur.
-
 use anyhow::{Context, Result};
 use std::fs::OpenOptions;
 use std::io::{Seek, SeekFrom, Write};
@@ -149,7 +148,7 @@ impl AlternativeIO {
     /// Write with O_DIRECT (requires alignment)
     fn write_optimized_direct(&self, device: &str, offset: u64, data: &[u8]) -> Result<()> {
         // Check alignment (512-byte boundary for most devices)
-        if offset % 512 != 0 || data.len() % 512 != 0 {
+        if !offset.is_multiple_of(512) || !data.len().is_multiple_of(512) {
             return Err(anyhow::anyhow!("Data not aligned for O_DIRECT"));
         }
 
@@ -165,8 +164,7 @@ impl AlternativeIO {
         file.write_all(data)
             .context("Failed to write with O_DIRECT")?;
 
-        file.sync_all()
-            .context("Failed to sync")?;
+        file.sync_all().context("Failed to sync")?;
 
         Ok(())
     }
@@ -181,11 +179,9 @@ impl AlternativeIO {
         file.seek(SeekFrom::Start(offset))
             .context("Failed to seek")?;
 
-        file.write_all(data)
-            .context("Failed to write")?;
+        file.write_all(data).context("Failed to write")?;
 
-        file.sync_all()
-            .context("Failed to sync")?;
+        file.sync_all().context("Failed to sync")?;
 
         Ok(())
     }
@@ -206,10 +202,8 @@ impl AlternativeIO {
             let _fd = file.as_raw_fd();
 
             // Map the region
-            let mut mmap = unsafe {
-                MmapMut::map_mut(&file)
-                    .context("Failed to create memory map")?
-            };
+            let mut mmap =
+                unsafe { MmapMut::map_mut(&file).context("Failed to create memory map")? };
 
             // Write data
             let start = offset as usize;
@@ -222,15 +216,16 @@ impl AlternativeIO {
             mmap[start..end].copy_from_slice(data);
 
             // Sync to disk
-            mmap.flush()
-                .context("Failed to flush memory map")?;
+            mmap.flush().context("Failed to flush memory map")?;
 
             Ok(())
         }
 
         #[cfg(not(target_os = "linux"))]
         {
-            Err(anyhow::anyhow!("Memory-mapped I/O not supported on this platform"))
+            Err(anyhow::anyhow!(
+                "Memory-mapped I/O not supported on this platform"
+            ))
         }
     }
 
@@ -281,8 +276,14 @@ mod tests {
 
     #[test]
     fn test_io_method_properties() {
-        assert_eq!(IOMethod::OptimizedDirect.description(), "Optimized direct I/O (O_DIRECT)");
-        assert!(IOMethod::OptimizedDirect.performance_score() > IOMethod::Synchronous.performance_score());
+        assert_eq!(
+            IOMethod::OptimizedDirect.description(),
+            "Optimized direct I/O (O_DIRECT)"
+        );
+        assert!(
+            IOMethod::OptimizedDirect.performance_score()
+                > IOMethod::Synchronous.performance_score()
+        );
         assert!(IOMethod::Synchronous.safety_score() > IOMethod::OptimizedDirect.safety_score());
     }
 
@@ -353,7 +354,10 @@ mod tests {
         // (any method is valid as long as it succeeded)
         assert!(matches!(
             method,
-            IOMethod::OptimizedDirect | IOMethod::Buffered | IOMethod::MemoryMapped | IOMethod::Synchronous
+            IOMethod::OptimizedDirect
+                | IOMethod::Buffered
+                | IOMethod::MemoryMapped
+                | IOMethod::Synchronous
         ));
     }
 
@@ -366,7 +370,9 @@ mod tests {
         assert!(alt_io.current_method().is_none());
 
         let data = vec![0xBBu8; 512];
-        alt_io.write_with_fallback(path.to_str().unwrap(), 0, &data).unwrap();
+        alt_io
+            .write_with_fallback(path.to_str().unwrap(), 0, &data)
+            .unwrap();
 
         assert!(alt_io.current_method().is_some());
     }
@@ -396,7 +402,7 @@ mod tests {
 
     #[test]
     fn test_method_performance_ordering() {
-        let methods = vec![
+        let methods = [
             IOMethod::OptimizedDirect,
             IOMethod::MemoryMapped,
             IOMethod::Buffered,

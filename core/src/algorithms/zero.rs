@@ -6,13 +6,13 @@
 // - Drive testing
 // - Preparing drives for reuse in same organization
 
-use anyhow::Result;
+use crate::error::{ErrorContext, Progress, RecoveryCoordinator};
+use crate::io::{IOConfig, IOHandle, OptimizedIO};
 use crate::ui::progress::ProgressBar;
-use crate::io::{OptimizedIO, IOConfig, IOHandle};
 use crate::DriveType;
-use crate::{DriveResult, DriveError};
 use crate::WipeConfig;
-use crate::error::{RecoveryCoordinator, Progress, ErrorContext};
+use crate::{DriveError, DriveResult};
+use anyhow::Result;
 use serde_json::json;
 
 pub struct ZeroWipe;
@@ -25,8 +25,15 @@ impl ZeroWipe {
         drive_type: DriveType,
         config: &WipeConfig,
     ) -> Result<()> {
-        println!("Starting single-pass zero wipe with error recovery on {}", device_path);
-        println!("Drive size: {} bytes ({} GB)", size, size / (1024 * 1024 * 1024));
+        println!(
+            "Starting single-pass zero wipe with error recovery on {}",
+            device_path
+        );
+        println!(
+            "Drive size: {} bytes ({} GB)",
+            size,
+            size / (1024 * 1024 * 1024)
+        );
 
         // Initialize recovery coordinator
         let mut coordinator = RecoveryCoordinator::new(device_path, config)?;
@@ -52,14 +59,23 @@ impl ZeroWipe {
 
         // Execute with recovery
         let context = ErrorContext::new("zero_wipe", device_path);
-        coordinator.execute_with_recovery("zero_wipe", context, || -> DriveResult<()> { Self::write_zeros(&mut io_handle, size).map_err(|e| DriveError::IoError(std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e))))?; Ok(()) })?;
+        coordinator.execute_with_recovery("zero_wipe", context, || -> DriveResult<()> {
+            Self::write_zeros(&mut io_handle, size)
+                .map_err(|e| DriveError::IoError(std::io::Error::other(format!("{}", e))))?;
+            Ok(())
+        })?;
 
         // Save final checkpoint
-        coordinator.maybe_checkpoint("Zero", 1, size, &Progress {
-            current_pass: 1,
-            bytes_written: size,
-            state: json!({"complete": true}),
-        })?;
+        coordinator.maybe_checkpoint(
+            "Zero",
+            1,
+            size,
+            &Progress {
+                current_pass: 1,
+                bytes_written: size,
+                state: json!({"complete": true}),
+            },
+        )?;
 
         // Final sync
         io_handle.sync()?;
@@ -89,7 +105,7 @@ impl ZeroWipe {
             bytes_written += buf.len() as u64;
 
             // Update progress every 50MB or at completion
-            if bytes_written % (50 * 1024 * 1024) == 0 || bytes_written >= size {
+            if bytes_written.is_multiple_of(50 * 1024 * 1024) || bytes_written >= size {
                 let progress = (bytes_written as f64 / size as f64) * 100.0;
                 bar.render(progress, Some(bytes_written), Some(size));
             }
@@ -137,8 +153,8 @@ impl ZeroWipe {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::NamedTempFile;
     use std::io::Write;
+    use tempfile::NamedTempFile;
 
     #[test]
     fn test_zero_wipe_small_file() {
@@ -152,14 +168,20 @@ mod tests {
         let size = test_data.len() as u64;
 
         // Configure for buffered I/O (can't use Direct I/O on regular files)
-        let mut io_config = IOConfig::default();
-        io_config.use_direct_io = false;
+        let io_config = IOConfig {
+            use_direct_io: false,
+            ..Default::default()
+        };
 
         let mut io_handle = OptimizedIO::open(path, io_config).unwrap();
 
         // Perform zero wipe
         let result = write_zeros(&mut io_handle, size);
-        assert!(result.is_ok(), "Zero wipe should succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Zero wipe should succeed: {:?}",
+            result.err()
+        );
     }
 
     fn write_zeros(io_handle: &mut IOHandle, size: u64) -> Result<()> {

@@ -4,22 +4,22 @@
 
 // Basic drive types
 pub mod hdd;
-pub mod ssd;
 pub mod nvme;
+pub mod ssd;
 
 // Advanced drive types (Phase 1, Step 6)
-pub mod smr;       // Shingled Magnetic Recording
-pub mod optane;    // Intel Optane / 3D XPoint
-pub mod hybrid;    // Hybrid SSHD drives
-pub mod emmc;      // eMMC/UFS embedded storage
-pub mod raid;      // RAID array handling
+pub mod emmc; // eMMC/UFS embedded storage
+pub mod hybrid; // Hybrid SSHD drives
+pub mod optane; // Intel Optane / 3D XPoint
+pub mod raid;
+pub mod smr; // Shingled Magnetic Recording // RAID array handling
 
 // Re-exports for convenience
+pub use emmc::{BootPartition, EMMCDevice, RPMBPartition, UFSDevice, UFSLogicalUnit, UserDataArea};
 pub use hdd::HDDWipe;
-pub use ssd::SSDWipe;
-pub use nvme::{NVMeWipe, NVMeAdvanced, NVMeNamespace, NamespaceType, ZNSZone, ZNSZoneState};
-pub use smr::{SMRDrive, Zone, ZoneType, ZoneCondition, ZoneModel};
+pub use hybrid::{HDDInfo, HybridDrive, PinnedRegion, SSDCacheInfo};
+pub use nvme::{NVMeAdvanced, NVMeNamespace, NVMeWipe, NamespaceType, ZNSZone, ZNSZoneState};
 pub use optane::{OptaneDrive, OptaneMode, OptaneNamespace};
-pub use hybrid::{HybridDrive, HDDInfo, SSDCacheInfo, PinnedRegion};
-pub use emmc::{EMMCDevice, BootPartition, RPMBPartition, UserDataArea, UFSDevice, UFSLogicalUnit};
-pub use raid::{RAIDArray, RAIDType, RAIDController, MetadataRegion, MetadataLocation};
+pub use raid::{MetadataLocation, MetadataRegion, RAIDArray, RAIDController, RAIDType};
+pub use smr::{SMRDrive, Zone, ZoneCondition, ZoneModel, ZoneType};
+pub use ssd::SSDWipe;

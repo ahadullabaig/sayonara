@@ -3,26 +3,20 @@
 
 use crate::{DriveError, DriveResult, FreezeStatus};
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::Path;
 use std::process::Command;
 use std::thread;
 use std::time::{Duration, Instant};
-use std::fs;
-use std::path::Path;
-use serde::{Serialize, Deserialize};
 
 // Use relative imports from sibling modules
+use super::detection::{FreezeDetector, FreezeReason};
 use super::strategies::UnfreezeStrategy;
-use super::detection::{FreezeReason, FreezeDetector};
 
 // Import strategies directly
 use super::strategies::{
-    SataLinkReset,
-    PcieHotReset,
-    AcpiSleep,
-    UsbSuspend,
-    IpmiPower,
-    VendorSpecific,
-    KernelModule,
+    AcpiSleep, IpmiPower, KernelModule, PcieHotReset, SataLinkReset, UsbSuspend, VendorSpecific,
 };
 
 /// Configuration for freeze mitigation
@@ -47,7 +41,7 @@ impl Default for FreezeMitigationConfig {
         Self {
             max_attempts_duration: 300, // 5 minutes
             allow_kernel_module: true,
-            allow_ipmi: false, // Conservative default
+            allow_ipmi: false,       // Conservative default
             allow_acpi_sleep: false, // May affect system
             allow_vendor_specific: true,
             retry_delay_ms: 2000,
@@ -89,7 +83,10 @@ impl SuccessHistory {
     }
 
     pub(crate) fn record_success(&mut self, method: &str) {
-        *self.successful_methods.entry(method.to_string()).or_insert(0) += 1;
+        *self
+            .successful_methods
+            .entry(method.to_string())
+            .or_insert(0) += 1;
         self.last_updated = chrono::Utc::now();
         let _ = self.save();
     }
@@ -188,15 +185,19 @@ impl AdvancedFreezeMitigation {
         // Step 3: Try strategies in order
         for strategy in &self.strategies {
             if start_time.elapsed() > Duration::from_secs(self.config.max_attempts_duration) {
-                warnings.push(format!("Timeout reached after {} seconds",
-                                      self.config.max_attempts_duration));
+                warnings.push(format!(
+                    "Timeout reached after {} seconds",
+                    self.config.max_attempts_duration
+                ));
                 break;
             }
 
             // Check if strategy is compatible with freeze reason
             if !strategy.is_compatible_with(&freeze_reason) {
-                println!("  ⏭️  Skipping {} (incompatible with freeze reason)",
-                         strategy.name());
+                println!(
+                    "  ⏭️  Skipping {} (incompatible with freeze reason)",
+                    strategy.name()
+                );
                 continue;
             }
 
@@ -243,12 +244,14 @@ impl AdvancedFreezeMitigation {
         }
 
         // All methods failed
-        Err(DriveError::DriveFrozen(
-            format!("Failed to unfreeze drive after {} attempts using {} methods. \
+        Err(DriveError::DriveFrozen(format!(
+            "Failed to unfreeze drive after {} attempts using {} methods. \
                     Freeze reason: {:?}. Consider: 1) Cold boot the system, \
                     2) Try different controller mode in BIOS, 3) Use IPMI power cycle",
-                    attempts, self.strategies.len(), freeze_reason)
-        ))
+            attempts,
+            self.strategies.len(),
+            freeze_reason
+        )))
     }
 
     /// Get current freeze status
@@ -256,9 +259,7 @@ impl AdvancedFreezeMitigation {
         let output = Command::new("hdparm")
             .args(["-I", device_path])
             .output()
-            .map_err(|e| DriveError::HardwareCommandFailed(
-                format!("hdparm failed: {}", e)
-            ))?;
+            .map_err(|e| DriveError::HardwareCommandFailed(format!("hdparm failed: {}", e)))?;
 
         let output_str = String::from_utf8_lossy(&output.stdout);
 
@@ -280,7 +281,10 @@ impl AdvancedFreezeMitigation {
     /// Check if secure erase is blocked
     pub fn is_secure_erase_blocked(&self, device_path: &str) -> DriveResult<bool> {
         let status = self.get_freeze_status(device_path)?;
-        Ok(matches!(status, FreezeStatus::Frozen | FreezeStatus::FrozenByBIOS))
+        Ok(matches!(
+            status,
+            FreezeStatus::Frozen | FreezeStatus::FrozenByBIOS
+        ))
     }
 
     /// Get detailed freeze information
@@ -293,7 +297,8 @@ impl AdvancedFreezeMitigation {
         };
 
         let compatible_strategies: Vec<String> = if let Some(ref r) = reason {
-            self.strategies.iter()
+            self.strategies
+                .iter()
                 .filter(|s| s.is_compatible_with(r))
                 .map(|s| s.name().to_string())
                 .collect()
@@ -315,7 +320,9 @@ impl AdvancedFreezeMitigation {
             return 1.0; // Not frozen
         };
 
-        let compatible_count = self.strategies.iter()
+        let compatible_count = self
+            .strategies
+            .iter()
             .filter(|s| s.is_compatible_with(r))
             .count();
 
@@ -324,7 +331,9 @@ impl AdvancedFreezeMitigation {
         }
 
         // Calculate based on historical success rate
-        let total_successes: u32 = self.strategies.iter()
+        let total_successes: u32 = self
+            .strategies
+            .iter()
             .filter(|s| s.is_compatible_with(r))
             .map(|s| self.success_history.get_priority(s.name()))
             .sum();

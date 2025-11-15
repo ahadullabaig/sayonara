@@ -1,5 +1,5 @@
 use std::io::{self, Write};
-use std::time::{Instant};
+use std::time::Instant;
 
 pub(crate) const CAT_FRAMES: [&str; 6] = [
     "ฅ(^･ω･^=)  ", // cat happy
@@ -69,9 +69,9 @@ impl ProgressBar {
 
         // Colors (ANSI) — subtle & modern
         // green for filled, gray for empty, cyan for percent label
-        let green = "\x1b[38;5;82m";   // bright green
-        let gray = "\x1b[38;5;240m";   // gray
-        let cyan = "\x1b[38;5;51m";    // cyan
+        let green = "\x1b[38;5;82m"; // bright green
+        let gray = "\x1b[38;5;240m"; // gray
+        let cyan = "\x1b[38;5;51m"; // cyan
         let bold = "\x1b[1m";
         let reset = "\x1b[0m";
 
@@ -81,10 +81,7 @@ impl ProgressBar {
 
         let bar_filled = filled_block.repeat(filled);
         let bar_empty = empty_block.repeat(empty);
-        let bar = format!(
-            "{}{}{}{}{}",
-            bold, green, bar_filled, reset, gray
-        ) + &bar_empty + reset;
+        let bar = format!("{}{}{}{}{}", bold, green, bar_filled, reset, gray) + &bar_empty + reset;
 
         // Speed and ETA
         let _info = String::new();
@@ -93,7 +90,7 @@ impl ProgressBar {
             let elapsed = self.start.elapsed().as_secs_f64().max(0.0001);
             let speed = (written as f64) / elapsed;
             let speed_readable = human_bytes(speed);
-            let remaining = if total > written { total - written } else { 0 };
+            let remaining = total.saturating_sub(written);
             let eta_secs = if speed > 0.0 {
                 (remaining as f64 / speed).round() as u64
             } else {
@@ -119,7 +116,7 @@ impl ProgressBar {
             // move cursor up 2 lines, clear them, reprint
             // \x1b[2A moves up 2 lines, \x1b[2K clears line
             print!("\x1b[2A\x1b[2K\r"); // go up 2 and clear
-            print!("{}\n", cat_line_str);
+            println!("{}", cat_line_str);
             print!("\x1b[2K\r[{}] {}\n", bar, info);
         }
 

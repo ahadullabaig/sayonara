@@ -1,8 +1,8 @@
-use anyhow::{Result, anyhow};
+use crate::ui::progress::ProgressBar;
+use anyhow::{anyhow, Result};
 use std::process::Command;
 use std::thread;
 use std::time::Duration;
-use crate::ui::progress::ProgressBar;
 
 pub struct SSDWipe;
 
@@ -18,7 +18,13 @@ impl SSDWipe {
         Self::set_security_password(device_path, "temp123")?;
 
         let mut cmd = Command::new("hdparm");
-        cmd.args(["--user-master", "u", "--security-erase", "temp123", device_path]);
+        cmd.args([
+            "--user-master",
+            "u",
+            "--security-erase",
+            "temp123",
+            device_path,
+        ]);
         let mut process = cmd.spawn()?;
 
         let mut bar = ProgressBar::new(48);
@@ -42,18 +48,14 @@ impl SSDWipe {
     }
 
     fn is_secure_erase_supported(device_path: &str) -> Result<bool> {
-        let output = Command::new("hdparm")
-            .args(["-I", device_path])
-            .output()?;
+        let output = Command::new("hdparm").args(["-I", device_path]).output()?;
         let output_str = String::from_utf8_lossy(&output.stdout);
         Ok(output_str.contains("supported: enhanced erase"))
     }
 
     fn unfreeze_drive(device_path: &str) -> Result<()> {
         println!("Checking drive freeze status...");
-        let output = Command::new("hdparm")
-            .args(["-I", device_path])
-            .output()?;
+        let output = Command::new("hdparm").args(["-I", device_path]).output()?;
         let output_str = String::from_utf8_lossy(&output.stdout);
         if output_str.contains("frozen") {
             println!("Warning: Drive is frozen. May need power cycle.");
@@ -63,7 +65,13 @@ impl SSDWipe {
 
     fn set_security_password(device_path: &str, password: &str) -> Result<()> {
         let output = Command::new("hdparm")
-            .args(["--user-master", "u", "--security-set-pass", password, device_path])
+            .args([
+                "--user-master",
+                "u",
+                "--security-set-pass",
+                password,
+                device_path,
+            ])
             .output()?;
         if !output.status.success() {
             let error = String::from_utf8_lossy(&output.stderr);

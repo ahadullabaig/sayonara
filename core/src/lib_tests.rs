@@ -4,27 +4,38 @@
 // default implementations, serialization, PartialEq, Clone, and Copy traits.
 
 use super::*;
+use serial_test::serial;
 
 // ==================== INTERRUPT HANDLING TESTS ====================
 
 #[test]
+#[serial]
 fn test_interrupt_initially_not_set() {
-    // Note: This may fail if other tests have set the flag
-    // In a real test suite, we'd reset between tests
-    let _ = is_interrupted(); // Just verify it works
+    reset_interrupted();
+    assert!(
+        !is_interrupted(),
+        "Interrupt flag should initially be not set"
+    );
 }
 
 #[test]
+#[serial]
 fn test_set_interrupt_flag() {
+    reset_interrupted();
     set_interrupted();
     assert!(is_interrupted(), "Interrupt flag should be set");
 }
 
 #[test]
+#[serial]
 fn test_interrupt_flag_persistence() {
+    reset_interrupted();
     set_interrupted();
     assert!(is_interrupted());
-    assert!(is_interrupted(), "Flag should remain set on subsequent calls");
+    assert!(
+        is_interrupted(),
+        "Flag should remain set on subsequent calls"
+    );
 }
 
 // ==================== DRIVE ERROR TESTS ====================
@@ -118,7 +129,7 @@ fn test_drive_error_clone() {
 
 #[test]
 fn test_drive_error_clone_all_variants() {
-    let errors = vec![
+    let errors = [
         DriveError::DriveFrozen("test".to_string()),
         DriveError::HardwareCommandFailed("test".to_string()),
         DriveError::SMARTReadFailed("test".to_string()),
@@ -304,7 +315,7 @@ fn test_algorithm_clone() {
 
 #[test]
 fn test_drive_type_all_variants() {
-    let types = vec![
+    let types = [
         DriveType::HDD,
         DriveType::SSD,
         DriveType::NVMe,
@@ -338,7 +349,7 @@ fn test_drive_type_clone() {
 
 #[test]
 fn test_encryption_status_all_variants() {
-    let statuses = vec![
+    let statuses = [
         EncryptionStatus::None,
         EncryptionStatus::OPAL,
         EncryptionStatus::BitLocker,
@@ -363,7 +374,7 @@ fn test_encryption_status_clone() {
 
 #[test]
 fn test_sed_type_all_variants() {
-    let types = vec![
+    let types = [
         SEDType::OPAL20,
         SEDType::OPAL10,
         SEDType::TCGEnterprise,
@@ -402,7 +413,7 @@ fn test_sed_type_clone() {
 
 #[test]
 fn test_sanitize_option_all_variants() {
-    let options = vec![
+    let options = [
         SanitizeOption::BlockErase,
         SanitizeOption::CryptoErase,
         SanitizeOption::Overwrite,
@@ -423,7 +434,7 @@ fn test_sanitize_option_clone() {
 
 #[test]
 fn test_freeze_status_all_variants() {
-    let statuses = vec![
+    let statuses = [
         FreezeStatus::NotFrozen,
         FreezeStatus::Frozen,
         FreezeStatus::FrozenByBIOS,
@@ -451,7 +462,7 @@ fn test_freeze_status_partial_eq() {
 
 #[test]
 fn test_health_status_all_variants() {
-    let statuses = vec![
+    let statuses = [
         HealthStatus::Good,
         HealthStatus::Warning,
         HealthStatus::Critical,
@@ -479,7 +490,7 @@ fn test_health_status_clone() {
 
 #[test]
 fn test_wipe_phase_all_variants() {
-    let phases = vec![
+    let phases = [
         WipePhase::Preparing,
         WipePhase::UnfreezingDrive,
         WipePhase::RemovingHPA,
@@ -507,7 +518,7 @@ fn test_wipe_phase_clone() {
 
 #[test]
 fn test_wipe_status_all_variants() {
-    let statuses = vec![
+    let statuses = [
         WipeStatus::Pending,
         WipeStatus::InProgress,
         WipeStatus::Completed,
@@ -685,9 +696,14 @@ fn test_operation_status_clone() {
 
 #[test]
 fn test_drive_result_ok() {
-    let result: DriveResult<String> = Ok("Success".to_string());
+    fn returns_ok() -> DriveResult<String> {
+        Ok("Success".to_string())
+    }
+    let result = returns_ok();
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "Success");
+    if let Ok(value) = result {
+        assert_eq!(value, "Success");
+    }
 }
 
 #[test]

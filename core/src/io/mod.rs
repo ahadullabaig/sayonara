@@ -1,17 +1,17 @@
-pub mod optimized_engine;
 pub mod buffer_pool;
-pub mod platform_specific;
-pub mod metrics;
 pub mod io_uring_engine;
+pub mod metrics;
 pub mod mmap_engine;
+pub mod optimized_engine;
+pub mod platform_specific;
 
 #[cfg(test)]
 mod tests;
 
 // Re-exports
-pub use optimized_engine::{OptimizedIO, IOConfig, IOHandle};
-pub use buffer_pool::{BufferPool, AlignedBuffer};
+pub use buffer_pool::{AlignedBuffer, BufferPool};
 pub use metrics::{IOMetrics, PerformanceStats};
+pub use optimized_engine::{IOConfig, IOHandle, OptimizedIO};
 
 use std::time::Duration;
 
@@ -37,17 +37,17 @@ pub enum IOPattern {
 /// Drive speed category for adaptive buffering
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DriveSpeed {
-    Slow,      // < 100 MB/s (USB 2.0, old HDDs)
-    Medium,    // 100-300 MB/s (SATA HDDs, USB 3.0)
-    Fast,      // 300-600 MB/s (SATA SSDs)
-    VeryFast,  // > 600 MB/s (NVMe, high-end SSDs)
+    Slow,     // < 100 MB/s (USB 2.0, old HDDs)
+    Medium,   // 100-300 MB/s (SATA HDDs, USB 3.0)
+    Fast,     // 300-600 MB/s (SATA SSDs)
+    VeryFast, // > 600 MB/s (NVMe, high-end SSDs)
 }
 
 impl DriveSpeed {
     /// Determine optimal buffer size for this drive speed
     pub fn optimal_buffer_size(&self) -> usize {
         match self {
-            DriveSpeed::Slow => 1 * 1024 * 1024,      // 1MB
+            DriveSpeed::Slow => 1024 * 1024,          // 1MB
             DriveSpeed::Medium => 4 * 1024 * 1024,    // 4MB
             DriveSpeed::Fast => 8 * 1024 * 1024,      // 8MB
             DriveSpeed::VeryFast => 16 * 1024 * 1024, // 16MB
@@ -115,6 +115,6 @@ pub enum IOError {
 #[derive(Debug, Clone, Copy)]
 pub enum ThrottleAction {
     None,
-    Slow(f64),  // Reduce speed by this factor (0.0-1.0)
+    Slow(f64), // Reduce speed by this factor (0.0-1.0)
     Pause(Duration),
 }

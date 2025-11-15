@@ -1,5 +1,4 @@
 /// Common test helper functions
-
 use std::fs;
 use std::io::Read;
 
@@ -73,8 +72,8 @@ pub fn calculate_file_entropy(path: &std::path::Path) -> std::io::Result<f64> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::NamedTempFile;
     use std::io::Write;
+    use tempfile::NamedTempFile;
 
     #[test]
     fn test_verify_all_zeros() {

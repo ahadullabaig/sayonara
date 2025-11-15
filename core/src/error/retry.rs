@@ -3,7 +3,6 @@
 /// This module provides sophisticated retry logic for handling transient failures.
 /// Includes exponential backoff with jitter to prevent thundering herd,
 /// and circuit breaker pattern to fail fast when service is persistently down.
-
 use super::classification::{ClassifiedError, ErrorClass};
 use anyhow::Result;
 use std::sync::{Arc, Mutex};
@@ -59,29 +58,17 @@ impl ExponentialBackoff {
 
     /// Preset for transient errors (fast retries)
     pub fn transient() -> Self {
-        Self::new(
-            Duration::from_millis(100),
-            Duration::from_secs(30),
-            10,
-        )
+        Self::new(Duration::from_millis(100), Duration::from_secs(30), 10)
     }
 
     /// Preset for recoverable errors (moderate retries)
     pub fn recoverable() -> Self {
-        Self::new(
-            Duration::from_millis(500),
-            Duration::from_secs(60),
-            5,
-        )
+        Self::new(Duration::from_millis(500), Duration::from_secs(60), 5)
     }
 
     /// Preset for environmental errors (slow, patient retries)
     pub fn environmental() -> Self {
-        Self::new(
-            Duration::from_secs(5),
-            Duration::from_secs(300),
-            20,
-        )
+        Self::new(Duration::from_secs(5), Duration::from_secs(300), 20)
     }
 
     /// Calculate exponential delay with jitter
@@ -198,9 +185,9 @@ impl CircuitBreaker {
     /// Default circuit breaker for device operations
     pub fn default_device() -> Self {
         Self::new(
-            5,                          // Open after 5 failures
-            3,                          // Close after 3 successes
-            Duration::from_secs(30),    // Wait 30s before testing
+            5,                       // Open after 5 failures
+            3,                       // Close after 3 successes
+            Duration::from_secs(30), // Wait 30s before testing
         )
     }
 
@@ -267,7 +254,10 @@ impl CircuitBreaker {
                     state.failure_count = 0;
                     state.success_count = 0;
                     state.opened_at = None;
-                    tracing::info!("Circuit breaker CLOSED after {} successes", self.success_threshold);
+                    tracing::info!(
+                        "Circuit breaker CLOSED after {} successes",
+                        self.success_threshold
+                    );
                 }
             }
             CircuitStatus::Open => {
@@ -394,12 +384,9 @@ mod tests {
 
     #[test]
     fn test_exponential_backoff_delays() {
-        let backoff = ExponentialBackoff::new(
-            Duration::from_millis(100),
-            Duration::from_secs(10),
-            5,
-        )
-        .with_jitter(0.0); // No jitter for predictable testing
+        let backoff =
+            ExponentialBackoff::new(Duration::from_millis(100), Duration::from_secs(10), 5)
+                .with_jitter(0.0); // No jitter for predictable testing
 
         let delay0 = backoff.next_delay(0);
         let delay1 = backoff.next_delay(1);
@@ -412,12 +399,9 @@ mod tests {
 
     #[test]
     fn test_exponential_backoff_max_delay() {
-        let backoff = ExponentialBackoff::new(
-            Duration::from_millis(100),
-            Duration::from_secs(1),
-            10,
-        )
-        .with_jitter(0.0);
+        let backoff =
+            ExponentialBackoff::new(Duration::from_millis(100), Duration::from_secs(1), 10)
+                .with_jitter(0.0);
 
         // Should cap at max_delay (1000ms)
         let delay10 = backoff.next_delay(10);
@@ -426,12 +410,9 @@ mod tests {
 
     #[test]
     fn test_exponential_backoff_jitter() {
-        let backoff = ExponentialBackoff::new(
-            Duration::from_millis(100),
-            Duration::from_secs(10),
-            5,
-        )
-        .with_jitter(0.5);
+        let backoff =
+            ExponentialBackoff::new(Duration::from_millis(100), Duration::from_secs(10), 5)
+                .with_jitter(0.5);
 
         // Generate multiple delays and verify they differ (jitter working)
         let delays: Vec<_> = (0..10).map(|_| backoff.next_delay(1).as_millis()).collect();
@@ -478,7 +459,10 @@ mod tests {
         // Next call should fail fast
         let result = cb.call(|| Ok::<_, anyhow::Error>(42));
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Circuit breaker is OPEN"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Circuit breaker is OPEN"));
     }
 
     #[test]
@@ -542,8 +526,10 @@ mod tests {
     fn test_no_retry_strategy() {
         let strategy = NoRetry;
         let context = ErrorContext::new("test", "/dev/sda");
-        let error = crate::error::classification::ErrorClassifier::new()
-            .classify(DriveError::NotFound("Device not found".to_string()), context);
+        let error = crate::error::classification::ErrorClassifier::new().classify(
+            DriveError::NotFound("Device not found".to_string()),
+            context,
+        );
 
         assert!(!strategy.should_retry(0, &error));
         assert_eq!(strategy.max_attempts(), 0);
@@ -565,11 +551,8 @@ mod tests {
 
     #[test]
     fn test_retry_strategy_should_retry() {
-        let backoff = ExponentialBackoff::new(
-            Duration::from_millis(100),
-            Duration::from_secs(1),
-            3,
-        );
+        let backoff =
+            ExponentialBackoff::new(Duration::from_millis(100), Duration::from_secs(1), 3);
 
         let context = ErrorContext::new("test", "/dev/sda");
         let error = crate::error::classification::ErrorClassifier::new()

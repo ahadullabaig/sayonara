@@ -1,10 +1,12 @@
+// Allow uppercase acronyms in test code (HDD, SSD, SMR, EMMC)
+#![allow(clippy::upper_case_acronyms)]
+
+use std::io::{Seek, SeekFrom, Write};
 /// Mock drive infrastructure for testing
 ///
 /// Provides simulated drives for testing wipe operations without requiring
 /// actual hardware. Supports various drive types and error injection.
-
 use tempfile::{NamedTempFile, TempDir};
-use std::io::{Write, Seek, SeekFrom};
 
 /// Simulated drive types for testing
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -33,7 +35,7 @@ impl Default for MockDriveConfig {
     fn default() -> Self {
         Self {
             drive_type: MockDriveType::HDD,
-            size_mb: 100,  // 100MB default
+            size_mb: 100, // 100MB default
             sector_size: 512,
             simulate_errors: false,
             freeze_state: false,
@@ -61,7 +63,7 @@ impl MockDrive {
         while written < size_bytes {
             let remaining = size_bytes - written;
             let write_size = remaining.min(chunk_size);
-            let chunk = vec![0xAB; write_size as usize];  // Pattern to simulate data
+            let chunk = vec![0xAB; write_size as usize]; // Pattern to simulate data
             temp_file.write_all(&chunk)?;
             written += write_size;
         }
@@ -112,6 +114,7 @@ impl MockDrive {
     }
 
     /// Get the path as a string
+    #[allow(dead_code)]
     pub fn path_str(&self) -> &str {
         self.path().to_str().unwrap()
     }
@@ -142,10 +145,10 @@ pub mod loopback {
             .output()?;
 
         if !output.status.success() {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Failed to create sparse file: {}", String::from_utf8_lossy(&output.stderr))
-            ));
+            return Err(std::io::Error::other(format!(
+                "Failed to create sparse file: {}",
+                String::from_utf8_lossy(&output.stderr)
+            )));
         }
 
         // Attach to loop device
@@ -154,10 +157,10 @@ pub mod loopback {
             .output()?;
 
         if !output.status.success() {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Failed to create loop device: {}", String::from_utf8_lossy(&output.stderr))
-            ));
+            return Err(std::io::Error::other(format!(
+                "Failed to create loop device: {}",
+                String::from_utf8_lossy(&output.stderr)
+            )));
         }
 
         let loop_device = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -167,15 +170,13 @@ pub mod loopback {
     /// Detach a loopback device
     #[allow(dead_code)]
     pub fn detach_loopback(loop_device: &str) -> std::io::Result<()> {
-        let output = Command::new("losetup")
-            .args(["-d", loop_device])
-            .output()?;
+        let output = Command::new("losetup").args(["-d", loop_device]).output()?;
 
         if !output.status.success() {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("Failed to detach loop device: {}", String::from_utf8_lossy(&output.stderr))
-            ));
+            return Err(std::io::Error::other(format!(
+                "Failed to detach loop device: {}",
+                String::from_utf8_lossy(&output.stderr)
+            )));
         }
 
         Ok(())

@@ -6,9 +6,8 @@
 /// - Executes retry logic with appropriate backoff
 /// - Applies recovery mechanisms (bad sector handling, self-healing, degraded mode)
 /// - Provides circuit breaker protection
-
 use super::checkpoint::{Checkpoint, CheckpointManager};
-use super::classification::{ClassifiedError, ErrorClassifier, ErrorClass, ErrorContext};
+use super::classification::{ClassifiedError, ErrorClass, ErrorClassifier, ErrorContext};
 use super::mechanisms::{
     AlternativeIO, BadSectorHandler, DegradedMode, DegradedModeManager, HealMethod, SelfHealer,
 };
@@ -114,7 +113,7 @@ impl RecoveryCoordinator {
         // Set up bad sector handler if needed
         let bad_sector_handler = Some(
             BadSectorHandler::new(&device_path)
-                .with_log_file(BadSectorHandler::default_log_file(&device_path))
+                .with_log_file(BadSectorHandler::default_log_file(&device_path)),
         );
 
         Ok(Self {
@@ -162,13 +161,16 @@ impl RecoveryCoordinator {
                 );
                 return Err(last_classified_error
                     .map(|e: ClassifiedError| e.original)
-                    .unwrap_or_else(|| DriveError::HardwareCommandFailed(
-                        "Circuit breaker open".to_string()
-                    )));
+                    .unwrap_or_else(|| {
+                        DriveError::HardwareCommandFailed("Circuit breaker open".to_string())
+                    }));
             }
 
             // Execute operation within circuit breaker
-            match self.circuit_breaker.call(|| operation().map_err(|e| anyhow::anyhow!("{}", e))) {
+            match self
+                .circuit_breaker
+                .call(|| operation().map_err(|e| anyhow::anyhow!("{}", e)))
+            {
                 Ok(result) => {
                     if attempt > 0 {
                         tracing::info!(
@@ -294,9 +296,9 @@ impl RecoveryCoordinator {
                 // Try healing for recoverable errors
                 if error.retry_count == 0 {
                     match &error.original {
-                        DriveError::DriveFrozen(_) => {
-                            RecoveryAction::Heal { method: HealMethod::ResetDevice }
-                        }
+                        DriveError::DriveFrozen(_) => RecoveryAction::Heal {
+                            method: HealMethod::ResetDevice,
+                        },
                         _ => {
                             let strategy = self.retry_config.get_strategy(error.class);
                             let delay = strategy.next_delay(error.retry_count);
@@ -304,7 +306,9 @@ impl RecoveryCoordinator {
                         }
                     }
                 } else {
-                    RecoveryAction::Abort { error: error.original.clone() }
+                    RecoveryAction::Abort {
+                        error: error.original.clone(),
+                    }
                 }
             }
 
@@ -314,13 +318,13 @@ impl RecoveryCoordinator {
                 RecoveryAction::Retry { after: delay }
             }
 
-            ErrorClass::Fatal => {
-                RecoveryAction::Abort { error: error.original.clone() }
-            }
+            ErrorClass::Fatal => RecoveryAction::Abort {
+                error: error.original.clone(),
+            },
 
-            ErrorClass::UserInterrupted => {
-                RecoveryAction::Abort { error: error.original.clone() }
-            }
+            ErrorClass::UserInterrupted => RecoveryAction::Abort {
+                error: error.original.clone(),
+            },
         }
     }
 
@@ -443,7 +447,7 @@ mod tests {
         let device_path = "/dev/sda".to_string();
         let operation_id = uuid::Uuid::new_v4().to_string();
         let checkpoint_manager = Arc::new(Mutex::new(
-            CheckpointManager::new(Some(db_path.to_str().unwrap())).unwrap()
+            CheckpointManager::new(Some(db_path.to_str().unwrap())).unwrap(),
         ));
 
         let coordinator = RecoveryCoordinator {
@@ -473,11 +477,8 @@ mod tests {
         let (coordinator, _temp) = create_test_coordinator();
         let context = ErrorContext::new("test_op", "/dev/sda");
 
-        let result = coordinator.execute_with_recovery(
-            "test_operation",
-            context,
-            || Ok::<_, DriveError>(42),
-        );
+        let result = coordinator
+            .execute_with_recovery("test_operation", context, || Ok::<_, DriveError>(42));
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 42);
@@ -491,18 +492,14 @@ mod tests {
         let attempt_count = Arc::new(AtomicU32::new(0));
         let attempt_count_clone = Arc::clone(&attempt_count);
 
-        let result = coordinator.execute_with_recovery(
-            "test_operation",
-            context,
-            || {
-                let count = attempt_count_clone.fetch_add(1, Ordering::SeqCst);
-                if count < 2 {
-                    Err(DriveError::Timeout("timeout".to_string()))
-                } else {
-                    Ok(42)
-                }
-            },
-        );
+        let result = coordinator.execute_with_recovery("test_operation", context, || {
+            let count = attempt_count_clone.fetch_add(1, Ordering::SeqCst);
+            if count < 2 {
+                Err(DriveError::Timeout("timeout".to_string()))
+            } else {
+                Ok(42)
+            }
+        });
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 42);
@@ -514,11 +511,9 @@ mod tests {
         let (coordinator, _temp) = create_test_coordinator();
         let context = ErrorContext::new("test_op", "/dev/sda");
 
-        let result = coordinator.execute_with_recovery(
-            "test_operation",
-            context,
-            || Err::<(), _>(DriveError::NotFound("Device not found".to_string())),
-        );
+        let result = coordinator.execute_with_recovery("test_operation", context, || {
+            Err::<(), _>(DriveError::NotFound("Device not found".to_string()))
+        });
 
         assert!(result.is_err());
         // Fatal errors should not be retried
@@ -538,10 +533,14 @@ mod tests {
 
     #[test]
     fn test_recovery_action_types() {
-        let action = RecoveryAction::Retry { after: Duration::from_secs(1) };
+        let action = RecoveryAction::Retry {
+            after: Duration::from_secs(1),
+        };
         matches!(action, RecoveryAction::Retry { .. });
 
-        let action = RecoveryAction::Skip { reason: "test".to_string() };
+        let action = RecoveryAction::Skip {
+            reason: "test".to_string(),
+        };
         matches!(action, RecoveryAction::Skip { .. });
     }
 }

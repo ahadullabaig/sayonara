@@ -1,17 +1,17 @@
 // Strategy trait and implementations for drive unfreeze methods
 
-use anyhow::Result;
-use super::detection::FreezeReason;  // UPDATED: relative import from parent
+use super::detection::FreezeReason;
+use anyhow::Result; // UPDATED: relative import from parent
 
-mod sata_link_reset;
-mod vendor_specific;
 mod kernel_module;
 mod remaining_impl;
+mod sata_link_reset;
+mod vendor_specific;
 
+pub use kernel_module::KernelModule;
+pub use remaining_impl::{AcpiSleep, IpmiPower, PcieHotReset, UsbSuspend};
 pub use sata_link_reset::SataLinkReset;
 pub use vendor_specific::VendorSpecific;
-pub use kernel_module::KernelModule;
-pub use remaining_impl::{PcieHotReset, AcpiSleep, UsbSuspend, IpmiPower};
 
 /// Result of a strategy execution
 #[derive(Debug, Clone)]

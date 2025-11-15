@@ -92,6 +92,7 @@ glob = "0.3"
 humantime = "2.1"
 
 [dev-dependencies]
+ctor = "0.2"
 criterion = "0.5"
 mockall = "0.12"
 proptest = "1.4"
@@ -120,6 +121,26 @@ debug = true
 [[bin]]
 name = "sayonara"
 path = "src/main.rs"
+
+[[bench]]
+name = "throughput"
+harness = false
+
+[[bench]]
+name = "latency"
+harness = false
+
+[[bench]]
+name = "scaling"
+harness = false
+
+[[bench]]
+name = "buffer_pool"
+harness = false
+
+[[bench]]
+name = "adaptive_tuning"
+harness = false
 
 [features]
 default = ["progress-bars", "color-output"]

@@ -1,14 +1,20 @@
 // SATA link power management reset strategy
 
-use super::{UnfreezeStrategy, StrategyResult};
+use super::{StrategyResult, UnfreezeStrategy};
 use crate::drives::freeze::detection::FreezeReason;
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use std::fs;
+use std::path::Path;
 use std::thread;
 use std::time::Duration;
-use std::path::Path;
 
 pub struct SataLinkReset;
+
+impl Default for SataLinkReset {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl SataLinkReset {
     pub fn new() -> Self {
@@ -47,7 +53,9 @@ impl SataLinkReset {
             }
         }
 
-        Err(anyhow!("Link power management not available for this device"))
+        Err(anyhow!(
+            "Link power management not available for this device"
+        ))
     }
 
     /// Perform link power cycle
@@ -60,8 +68,8 @@ impl SataLinkReset {
 
         // Cycle through different power states to force link reset
         let policies = [
-            "min_power",      // Deepest power save
-            "medium_power",   // Medium
+            "min_power",       // Deepest power save
+            "medium_power",    // Medium
             "max_performance", // No power save
         ];
 
@@ -136,10 +144,9 @@ impl UnfreezeStrategy for SataLinkReset {
     }
 
     fn is_compatible_with(&self, reason: &FreezeReason) -> bool {
-        matches!(reason,
-            FreezeReason::BiosSetFrozen |
-            FreezeReason::ControllerPolicy |
-            FreezeReason::Unknown
+        matches!(
+            reason,
+            FreezeReason::BiosSetFrozen | FreezeReason::ControllerPolicy | FreezeReason::Unknown
         )
     }
 
@@ -161,7 +168,7 @@ impl UnfreezeStrategy for SataLinkReset {
                 } else {
                     println!("      ✅ Link PM cycle complete");
                     return Ok(StrategyResult::success(
-                        "SATA link reset via power management cycling"
+                        "SATA link reset via power management cycling",
                     ));
                 }
             }
@@ -176,12 +183,10 @@ impl UnfreezeStrategy for SataLinkReset {
                 println!("      ✅ SCSI rescan triggered");
                 Ok(StrategyResult::success_with_warning(
                     "SATA link reset via SCSI rescan",
-                    "Link PM cycling was not available"
+                    "Link PM cycling was not available",
                 ))
             }
-            Err(e) => {
-                Err(anyhow!("SATA link reset failed: {}", e))
-            }
+            Err(e) => Err(anyhow!("SATA link reset failed: {}", e)),
         }
     }
 

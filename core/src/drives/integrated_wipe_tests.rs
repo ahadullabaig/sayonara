@@ -92,9 +92,10 @@ fn test_get_device_size_with_valid_sysfs() -> Result<()> {
             let dev_name_str = dev_name.to_string_lossy();
 
             // Skip loop devices and other virtual devices
-            if dev_name_str.starts_with("loop") ||
-               dev_name_str.starts_with("ram") ||
-               dev_name_str.starts_with("dm-") {
+            if dev_name_str.starts_with("loop")
+                || dev_name_str.starts_with("ram")
+                || dev_name_str.starts_with("dm-")
+            {
                 continue;
             }
 
@@ -183,8 +184,11 @@ fn test_fill_buffer_multiple_patterns() {
     for pattern in patterns {
         let mut buffer = vec![0x00; 512];
         buffer.fill(pattern);
-        assert!(buffer.iter().all(|&b| b == pattern),
-                "Buffer should be filled with pattern 0x{:02X}", pattern);
+        assert!(
+            buffer.iter().all(|&b| b == pattern),
+            "Buffer should be filled with pattern 0x{:02X}",
+            pattern
+        );
     }
 }
 
@@ -197,7 +201,10 @@ fn test_write_size_calculation_full_buffer() {
     let buffer_size = 4096u64; // 4KB buffer
 
     let write_size = (size - bytes_written).min(buffer_size);
-    assert_eq!(write_size, buffer_size, "First write should use full buffer");
+    assert_eq!(
+        write_size, buffer_size,
+        "First write should use full buffer"
+    );
 }
 
 #[test]
@@ -217,7 +224,10 @@ fn test_write_size_calculation_exact_buffer() {
     let buffer_size = 4096u64;
 
     let write_size = (size - bytes_written).min(buffer_size);
-    assert_eq!(write_size, buffer_size, "Should use full buffer for exact fit");
+    assert_eq!(
+        write_size, buffer_size,
+        "Should use full buffer for exact fit"
+    );
 }
 
 #[test]
@@ -236,9 +246,7 @@ fn test_offset_calculation_sequential() {
     let start_offset = 0u64;
     let buffer_size = 4096u64;
 
-    let offsets: Vec<u64> = (0..10)
-        .map(|i| start_offset + (i * buffer_size))
-        .collect();
+    let offsets: Vec<u64> = (0..10).map(|i| start_offset + (i * buffer_size)).collect();
 
     assert_eq!(offsets[0], 0);
     assert_eq!(offsets[1], 4096);
@@ -300,16 +308,17 @@ fn test_progress_update_interval() {
     let update_interval = 100 * 1024 * 1024u64;
 
     let bytes_values = vec![
-        50 * 1024 * 1024u64,   // 50MB - no update
-        99 * 1024 * 1024u64,   // 99MB - no update
-        100 * 1024 * 1024u64,  // 100MB - update!
-        150 * 1024 * 1024u64,  // 150MB - no update
-        200 * 1024 * 1024u64,  // 200MB - update!
+        50 * 1024 * 1024u64,  // 50MB - no update
+        99 * 1024 * 1024u64,  // 99MB - no update
+        100 * 1024 * 1024u64, // 100MB - update!
+        150 * 1024 * 1024u64, // 150MB - no update
+        200 * 1024 * 1024u64, // 200MB - update!
     ];
 
     for bytes in bytes_values {
         let should_update = bytes % update_interval == 0;
-        let expected = bytes >= update_interval && (bytes / update_interval) * update_interval == bytes;
+        let expected =
+            bytes >= update_interval && (bytes / update_interval) * update_interval == bytes;
         assert_eq!(should_update, expected);
     }
 }
@@ -319,21 +328,25 @@ fn test_progress_update_interval() {
 #[test]
 fn test_multipass_wipe_pattern_sequence() {
     // Test the 3-pass sequence: zeros -> ones -> random
-    let pass_patterns = vec![0x00, 0xFF]; // Random is tested separately
+    let pass_patterns = [0x00, 0xFF]; // Random is tested separately
 
     for (idx, pattern) in pass_patterns.iter().enumerate() {
         let mut buffer = vec![0xAA; 1024]; // Start with different pattern
         buffer.fill(*pattern);
 
-        assert!(buffer.iter().all(|&b| b == *pattern),
-                "Pass {} should fill with 0x{:02X}", idx + 1, pattern);
+        assert!(
+            buffer.iter().all(|&b| b == *pattern),
+            "Pass {} should fill with 0x{:02X}",
+            idx + 1,
+            pattern
+        );
     }
 }
 
 #[test]
 fn test_multipass_wipe_pass_count() {
     // Verify 3-pass wipe structure
-    let passes = vec![
+    let passes = [
         ("zeros", 0x00),
         ("ones", 0xFF),
         ("random", 0xAA), // Placeholder for random
@@ -364,7 +377,7 @@ fn test_namespace_gb_conversion() {
 
 #[test]
 fn test_multiple_namespaces_total_size() {
-    let namespace_sizes = vec![
+    let namespace_sizes = [
         500 * 1024 * 1024 * 1024u64, // 500GB
         250 * 1024 * 1024 * 1024u64, // 250GB
         250 * 1024 * 1024 * 1024u64, // 250GB
@@ -410,7 +423,7 @@ fn test_zone_count_calculation() {
 #[test]
 fn test_raid_member_count() {
     // Test RAID member iteration logic
-    let member_drives = vec![
+    let member_drives = [
         "/dev/sda".to_string(),
         "/dev/sdb".to_string(),
         "/dev/sdc".to_string(),
@@ -449,13 +462,14 @@ fn test_boot_partition_size_mb_conversion() {
 #[test]
 fn test_boot_partition_skip_zero_size() {
     // Test logic for skipping zero-size partitions
-    let boot_partitions = vec![
-        ("boot0", 4 * 1024 * 1024u64),  // 4MB - should wipe
-        ("boot1", 4 * 1024 * 1024u64),  // 4MB - should wipe
-        ("boot2", 0u64),                // 0 bytes - should skip
+    let boot_partitions = [
+        ("boot0", 4 * 1024 * 1024u64), // 4MB - should wipe
+        ("boot1", 4 * 1024 * 1024u64), // 4MB - should wipe
+        ("boot2", 0u64),               // 0 bytes - should skip
     ];
 
-    let non_zero: Vec<_> = boot_partitions.iter()
+    let non_zero: Vec<_> = boot_partitions
+        .iter()
         .filter(|(_, size)| *size > 0)
         .collect();
 
@@ -492,47 +506,17 @@ fn test_error_propagation_pattern() {
     assert!(error_result.is_err());
 }
 
-// ==================== INTEGRATION TEST STUBS ====================
-// These tests are marked with #[ignore] and should be run manually
-// in a hardware test environment with actual drives
-
-#[test]
-#[ignore] // Requires actual SMR drive
-fn integration_test_smr_wipe_stub() {
-    // This test would be run with actual hardware
-    // Placeholder for documentation
-    println!("SMR wipe integration test - requires hardware");
-}
-
-#[test]
-#[ignore] // Requires actual Optane drive
-fn integration_test_optane_wipe_stub() {
-    println!("Optane wipe integration test - requires hardware");
-}
-
-#[test]
-#[ignore] // Requires actual hybrid drive
-fn integration_test_hybrid_wipe_stub() {
-    println!("Hybrid drive wipe integration test - requires hardware");
-}
-
-#[test]
-#[ignore] // Requires actual eMMC device
-fn integration_test_emmc_wipe_stub() {
-    println!("eMMC wipe integration test - requires hardware");
-}
-
-#[test]
-#[ignore] // Requires actual RAID array
-fn integration_test_raid_wipe_stub() {
-    println!("RAID array wipe integration test - requires hardware");
-}
-
-#[test]
-#[ignore] // Requires actual NVMe drive with advanced features
-fn integration_test_nvme_advanced_wipe_stub() {
-    println!("Advanced NVMe wipe integration test - requires hardware");
-}
+// ==================== INTEGRATION TESTS ====================
+// Integration tests for specialized drive types have been moved to:
+// tests/hardware_integration.rs
+//
+// These tests use mock drives and can run without physical hardware:
+// - test_wipe_smr_drive
+// - test_wipe_optane_drive
+// - test_wipe_hybrid_drive
+// - test_wipe_emmc_drive
+// - test_wipe_raid_array
+// - test_wipe_nvme_advanced
 
 // ==================== EDGE CASE TESTS ====================
 

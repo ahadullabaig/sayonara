@@ -1,21 +1,28 @@
 #[cfg(test)]
-mod tests {
-    use crate::io::*;
-    use tempfile::NamedTempFile;
-    use std::time::Instant;
+mod io_tests {
     use crate::io::metrics::PerformanceTuner;
+    use crate::io::*;
+    use serial_test::serial;
+    use std::time::Instant;
+    use tempfile::NamedTempFile;
 
     type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
     #[test]
+    #[serial]
     fn test_sequential_write_performance() -> Result<()> {
+        // Reset interrupt flag in case other tests set it
+        crate::reset_interrupted();
+
         let temp = NamedTempFile::new()?;
         let path = temp.path().to_str().unwrap();
 
         // Use buffered I/O for testing (Direct I/O requires block device)
-        let mut config = IOConfig::default();
-        config.use_direct_io = false;
-        config.initial_buffer_size = 1 * 1024 * 1024;  // 1MB for test
+        let config = IOConfig {
+            use_direct_io: false,
+            initial_buffer_size: 1024 * 1024, // 1MB for test
+            ..IOConfig::default()
+        };
 
         let mut handle = OptimizedIO::open(path, config)?;
 
@@ -33,7 +40,10 @@ mod tests {
         let elapsed = start.elapsed();
         let throughput = test_size as f64 / elapsed.as_secs_f64();
 
-        println!("Test throughput: {:.2} MB/s", throughput / (1024.0 * 1024.0));
+        println!(
+            "Test throughput: {:.2} MB/s",
+            throughput / (1024.0 * 1024.0)
+        );
 
         // Check metrics
         let stats = handle.metrics().stats();
@@ -73,10 +83,7 @@ mod tests {
 
         // Record some operations
         for i in 1..=100 {
-            metrics.record_operation(
-                1024,
-                std::time::Duration::from_micros(i * 10)
-            );
+            metrics.record_operation(1024, std::time::Duration::from_micros(i * 10));
         }
 
         let stats = metrics.stats();
@@ -92,7 +99,7 @@ mod tests {
         // Slow drive
         let slow = DriveSpeed::from_throughput(50 * 1024 * 1024);
         assert_eq!(slow, DriveSpeed::Slow);
-        assert_eq!(slow.optimal_buffer_size(), 1 * 1024 * 1024);
+        assert_eq!(slow.optimal_buffer_size(), 1024 * 1024);
 
         // Fast NVMe
         let fast = DriveSpeed::from_throughput(800 * 1024 * 1024);
@@ -154,10 +161,7 @@ mod tests {
 
         // Record operations with varying latencies
         for i in 1..=1000 {
-            metrics.record_operation(
-                1024,
-                std::time::Duration::from_micros(i)
-            );
+            metrics.record_operation(1024, std::time::Duration::from_micros(i));
         }
 
         let p50 = metrics.latency_percentile(50.0);
@@ -203,7 +207,7 @@ mod tests {
             bytes_processed: 100 * 1024 * 1024,
             operations_count: 100,
             errors: 0,
-            throughput_bps: 10 * 1024 * 1024,  // 10 MB/s
+            throughput_bps: 10 * 1024 * 1024, // 10 MB/s
             iops: 10,
             avg_latency: std::time::Duration::from_millis(100),
             p50_latency: std::time::Duration::from_millis(90),
@@ -216,35 +220,8 @@ mod tests {
         assert!((efficiency - 10.0).abs() < 0.1);
     }
 
-    // Integration test - requires actual hardware
-    #[test]
-    #[ignore]
-    fn integration_test_real_device_performance() -> Result<()> {
-        // This test should be run manually on actual hardware
-        // Usage: cargo test --ignored -- integration_test_real_device_performance
-
-        let device_path = "/dev/sdX";  // Update with actual device
-        let config = IOConfig::nvme_optimized();
-
-        let mut handle = OptimizedIO::open(device_path, config)?;
-
-        // Write 1GB
-        let test_size = 1024 * 1024 * 1024u64;
-
-        OptimizedIO::sequential_write(&mut handle, test_size, |buffer| {
-            use crate::crypto::secure_rng::secure_random_bytes;
-            secure_random_bytes(buffer.as_mut_slice())?;
-            Ok(())
-        })?;
-
-        // Print performance report
-        OptimizedIO::print_performance_report(&handle, Some(3000 * 1024 * 1024));
-
-        let stats = handle.metrics().stats();
-
-        // Verify we achieved good performance
-        assert!(stats.efficiency(3000 * 1024 * 1024) > 85.0);
-
-        Ok(())
-    }
+    // ==================== INTEGRATION TESTS ====================
+    // I/O performance integration test has been moved to:
+    // tests/hardware_integration.rs::test_io_performance_with_mock
+    // This test uses mock drives and can run without physical hardware
 }

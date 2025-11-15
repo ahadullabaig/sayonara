@@ -9,7 +9,6 @@
 /// - Failure prediction and risk scoring
 /// - Self-test result parsing
 /// - Edge cases and error handling
-
 use super::smart::*;
 use crate::HealthStatus;
 use std::collections::HashMap;
@@ -68,7 +67,10 @@ fn test_parse_temperature_invalid_too_high() {
 fn test_parse_temperature_invalid_after_conversion() {
     // 250°F would convert to >100°C, should be rejected
     let temp = SMARTMonitor::parse_temperature_robust(250, "test invalid fahrenheit");
-    assert_eq!(temp, None, "Temperature converting to >100°C should be invalid");
+    assert_eq!(
+        temp, None,
+        "Temperature converting to >100°C should be invalid"
+    );
 }
 
 #[test]
@@ -147,7 +149,11 @@ fn test_determine_health_critical_reallocated_sectors() {
     };
 
     let status = SMARTMonitor::determine_health_status(&health);
-    assert_eq!(status, HealthStatus::Critical, "150 reallocated sectors should be Critical");
+    assert_eq!(
+        status,
+        HealthStatus::Critical,
+        "150 reallocated sectors should be Critical"
+    );
 }
 
 #[test]
@@ -171,7 +177,11 @@ fn test_determine_health_warning_reallocated_sectors() {
     };
 
     let status = SMARTMonitor::determine_health_status(&health);
-    assert_eq!(status, HealthStatus::Warning, "50 reallocated sectors should be Warning");
+    assert_eq!(
+        status,
+        HealthStatus::Warning,
+        "50 reallocated sectors should be Warning"
+    );
 }
 
 #[test]
@@ -195,7 +205,11 @@ fn test_determine_health_warning_pending_sectors() {
     };
 
     let status = SMARTMonitor::determine_health_status(&health);
-    assert_eq!(status, HealthStatus::Warning, "Pending sectors should trigger Warning");
+    assert_eq!(
+        status,
+        HealthStatus::Warning,
+        "Pending sectors should trigger Warning"
+    );
 }
 
 #[test]
@@ -219,7 +233,11 @@ fn test_determine_health_critical_uncorrectable_errors() {
     };
 
     let status = SMARTMonitor::determine_health_status(&health);
-    assert_eq!(status, HealthStatus::Critical, "Uncorrectable errors should be Critical");
+    assert_eq!(
+        status,
+        HealthStatus::Critical,
+        "Uncorrectable errors should be Critical"
+    );
 }
 
 #[test]
@@ -243,7 +261,11 @@ fn test_determine_health_ssd_wear_critical() {
     };
 
     let status = SMARTMonitor::determine_health_status(&health);
-    assert_eq!(status, HealthStatus::Critical, "95% wear should be Critical");
+    assert_eq!(
+        status,
+        HealthStatus::Critical,
+        "95% wear should be Critical"
+    );
 }
 
 #[test]
@@ -291,7 +313,11 @@ fn test_determine_health_nvme_spare_critical() {
     };
 
     let status = SMARTMonitor::determine_health_status(&health);
-    assert_eq!(status, HealthStatus::Critical, "5% spare should be Critical");
+    assert_eq!(
+        status,
+        HealthStatus::Critical,
+        "5% spare should be Critical"
+    );
 }
 
 #[test]
@@ -339,7 +365,11 @@ fn test_determine_health_nvme_warning() {
     };
 
     let status = SMARTMonitor::determine_health_status(&health);
-    assert_eq!(status, HealthStatus::Warning, "Critical warning should trigger Warning");
+    assert_eq!(
+        status,
+        HealthStatus::Warning,
+        "Critical warning should trigger Warning"
+    );
 }
 
 #[test]
@@ -412,7 +442,11 @@ fn test_determine_health_priority_critical_over_warning() {
     };
 
     let status = SMARTMonitor::determine_health_status(&health);
-    assert_eq!(status, HealthStatus::Critical, "Critical errors should override Warning temperature");
+    assert_eq!(
+        status,
+        HealthStatus::Critical,
+        "Critical errors should override Warning temperature"
+    );
 }
 
 // ============================================================================
@@ -817,7 +851,10 @@ fn test_predict_failure_reallocated_sectors_high() {
         risk_score += 20;
     }
 
-    assert_eq!(risk_score, 40, "High reallocated sectors should add 40 points");
+    assert_eq!(
+        risk_score, 40,
+        "High reallocated sectors should add 40 points"
+    );
 }
 
 #[test]
@@ -887,16 +924,8 @@ fn test_predict_failure_combined_score() {
 
 #[test]
 fn test_risk_level_classification() {
-    assert_eq!(
-        classify_risk(0),
-        RiskLevel::None,
-        "0 score should be None"
-    );
-    assert_eq!(
-        classify_risk(15),
-        RiskLevel::Low,
-        "15 score should be Low"
-    );
+    assert_eq!(classify_risk(0), RiskLevel::None, "0 score should be None");
+    assert_eq!(classify_risk(15), RiskLevel::Low, "15 score should be Low");
     assert_eq!(
         classify_risk(40),
         RiskLevel::Medium,

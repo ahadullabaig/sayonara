@@ -1,18 +1,23 @@
-pub mod drives;
+// Allow uppercase acronyms for industry-standard terms like HDD, SSD, SMR, EMMC
+#![allow(clippy::upper_case_acronyms)]
+// Allow complex types where needed for comprehensive error handling and configuration
+#![allow(clippy::type_complexity)]
+
 pub mod algorithms;
-pub mod verification;
 pub mod crypto;
-pub mod ui;
-pub mod io;
-pub mod wipe_orchestrator;
+pub mod drives;
 pub mod error;
+pub mod io;
+pub mod ui;
+pub mod verification;
+pub mod wipe_orchestrator;
 
 // Re-export main wipe orchestrator for convenience
-pub use wipe_orchestrator::{WipeOrchestrator, wipe_drive};
+pub use wipe_orchestrator::{wipe_drive, WipeOrchestrator};
 
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 use std::sync::atomic::{AtomicBool, Ordering};
+use thiserror::Error;
 
 // Global flag for handling Ctrl+C interrupts
 static INTERRUPTED: AtomicBool = AtomicBool::new(false);
@@ -25,6 +30,11 @@ pub fn set_interrupted() {
 /// Check if an interrupt has been received
 pub fn is_interrupted() -> bool {
     INTERRUPTED.load(Ordering::SeqCst)
+}
+
+/// Reset the interrupt flag (primarily for testing)
+pub fn reset_interrupted() {
+    INTERRUPTED.store(false, Ordering::SeqCst);
 }
 
 // Enhanced error types for better error handling
@@ -74,7 +84,9 @@ pub enum DriveError {
 impl Clone for DriveError {
     fn clone(&self) -> Self {
         match self {
-            DriveError::IoError(e) => DriveError::IoError(std::io::Error::new(e.kind(), e.to_string())),
+            DriveError::IoError(e) => {
+                DriveError::IoError(std::io::Error::new(e.kind(), e.to_string()))
+            }
             DriveError::DriveFrozen(s) => DriveError::DriveFrozen(s.clone()),
             DriveError::HardwareCommandFailed(s) => DriveError::HardwareCommandFailed(s.clone()),
             DriveError::SMARTReadFailed(s) => DriveError::SMARTReadFailed(s.clone()),
@@ -135,22 +147,22 @@ impl Default for WipeConfig {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum HPADCOHandling {
-    Ignore,           // Don't check for HPA/DCO
-    Detect,           // Detect and warn only
-    TemporaryRemove,  // Remove during wipe, restore after
-    PermanentRemove,  // Remove permanently (dangerous)
+    Ignore,          // Don't check for HPA/DCO
+    Detect,          // Detect and warn only
+    TemporaryRemove, // Remove during wipe, restore after
+    PermanentRemove, // Remove permanently (dangerous)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Algorithm {
-    DoD5220,      // 3-pass DoD 5220.22-M
-    Gutmann,      // 35-pass Gutmann
-    Random,       // Single pass random
-    Zero,         // Single pass zeros
-    SecureErase,  // Hardware secure erase
-    CryptoErase,  // Cryptographic erase (SED)
-    Sanitize,     // NVMe sanitize command
-    TrimOnly,     // TRIM/discard only (SSD)
+    DoD5220,     // 3-pass DoD 5220.22-M
+    Gutmann,     // 35-pass Gutmann
+    Random,      // Single pass random
+    Zero,        // Single pass zeros
+    SecureErase, // Hardware secure erase
+    CryptoErase, // Cryptographic erase (SED)
+    Sanitize,    // NVMe sanitize command
+    TrimOnly,    // TRIM/discard only (SSD)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -206,11 +218,11 @@ pub enum DriveType {
     NVMe,
     USB,
     RAID,
-    SMR,              // Shingled Magnetic Recording (Host-Managed/Aware)
-    Optane,           // Intel Optane / 3D XPoint
-    HybridSSHD,       // Hybrid HDD + SSD cache
-    EMMC,             // Embedded MultiMediaCard
-    UFS,              // Universal Flash Storage
+    SMR,        // Shingled Magnetic Recording (Host-Managed/Aware)
+    Optane,     // Intel Optane / 3D XPoint
+    HybridSSHD, // Hybrid HDD + SSD cache
+    EMMC,       // Embedded MultiMediaCard
+    UFS,        // Universal Flash Storage
     Unknown,
 }
 

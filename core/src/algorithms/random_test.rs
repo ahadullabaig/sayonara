@@ -5,13 +5,12 @@
 /// - Cryptographic quality of random data
 /// - Checkpoint/resume functionality
 /// - Error recovery integration
-
 #[cfg(test)]
 mod random_algorithm_tests {
-    use crate::DriveType;
     use crate::io::IOConfig;
-    use tempfile::NamedTempFile;
+    use crate::DriveType;
     use std::collections::HashSet;
+    use tempfile::NamedTempFile;
 
     #[test]
     fn test_random_pass_count() {
@@ -26,8 +25,10 @@ mod random_algorithm_tests {
         let drive_size = 1024 * 1024 * 100u64; // 100 MB
         let expected_total = drive_size;
 
-        assert_eq!(expected_total, drive_size,
-                  "Total data written should equal drive size");
+        assert_eq!(
+            expected_total, drive_size,
+            "Total data written should equal drive size"
+        );
     }
 
     #[test]
@@ -36,7 +37,10 @@ mod random_algorithm_tests {
         let size = 4096;
         let data: Vec<u8> = (0..size).map(|i| ((i * 31) % 256) as u8).collect();
 
-        assert!(data.iter().any(|&b| b != 0x00), "Random data should not be all zeros");
+        assert!(
+            data.iter().any(|&b| b != 0x00),
+            "Random data should not be all zeros"
+        );
     }
 
     #[test]
@@ -45,7 +49,10 @@ mod random_algorithm_tests {
         let size = 4096;
         let data: Vec<u8> = (0..size).map(|i| ((i * 31) % 256) as u8).collect();
 
-        assert!(data.iter().any(|&b| b != 0xFF), "Random data should not be all ones");
+        assert!(
+            data.iter().any(|&b| b != 0xFF),
+            "Random data should not be all ones"
+        );
     }
 
     #[test]
@@ -56,9 +63,11 @@ mod random_algorithm_tests {
 
         let unique_bytes: HashSet<u8> = data.iter().copied().collect();
 
-        assert!(unique_bytes.len() > 200,
-               "Random data should have high byte diversity, got {} unique bytes",
-               unique_bytes.len());
+        assert!(
+            unique_bytes.len() > 200,
+            "Random data should have high byte diversity, got {} unique bytes",
+            unique_bytes.len()
+        );
     }
 
     #[test]
@@ -84,8 +93,11 @@ mod random_algorithm_tests {
         }
 
         // Good random data should have entropy > 7.0
-        assert!(entropy > 6.0,
-               "Random data should have high entropy, got: {}", entropy);
+        assert!(
+            entropy > 6.0,
+            "Random data should have high entropy, got: {}",
+            entropy
+        );
     }
 
     #[test]
@@ -125,8 +137,10 @@ mod random_algorithm_tests {
             }
         }
 
-        assert!(entropy_random > entropy_zero,
-               "Random data should have higher entropy than zeros");
+        assert!(
+            entropy_random > entropy_zero,
+            "Random data should have higher entropy than zeros"
+        );
     }
 
     #[test]
@@ -149,7 +163,7 @@ mod random_algorithm_tests {
 
         let state = json!({"complete": true});
         assert!(state["complete"].is_boolean());
-        assert_eq!(state["complete"].as_bool().unwrap(), true);
+        assert!(state["complete"].as_bool().unwrap());
     }
 
     #[test]
@@ -166,9 +180,12 @@ mod random_algorithm_tests {
 
         for (bytes_written, expected_progress) in progress_points {
             let progress = (bytes_written as f64 / total_size as f64) * 100.0;
-            assert!((progress - expected_progress).abs() < 0.01,
-                   "Progress calculation mismatch: expected {}, got {}",
-                   expected_progress, progress);
+            assert!(
+                (progress - expected_progress).abs() < 0.01,
+                "Progress calculation mismatch: expected {}, got {}",
+                expected_progress,
+                progress
+            );
         }
     }
 
@@ -219,7 +236,10 @@ mod random_algorithm_tests {
         // Verify
         let data = std::fs::read(file_path)?;
         assert_eq!(data.len(), file_size as usize);
-        assert!(data.iter().any(|&b| b != 0xAA), "Data should be overwritten");
+        assert!(
+            data.iter().any(|&b| b != 0xAA),
+            "Data should be overwritten"
+        );
 
         // Check diversity
         let unique: HashSet<u8> = data.iter().copied().collect();
@@ -255,20 +275,26 @@ mod random_algorithm_tests {
         let first_block = &data[0..block_size];
 
         // Count how many blocks match the first block
-        let repeating_blocks = data.chunks_exact(block_size)
+        let repeating_blocks = data
+            .chunks_exact(block_size)
             .filter(|chunk| *chunk == first_block)
             .count();
 
         let total_blocks = size / block_size;
 
         // Should not have ALL blocks identical
-        assert!(repeating_blocks < total_blocks,
-               "Random data should not have all blocks identical");
+        assert!(
+            repeating_blocks < total_blocks,
+            "Random data should not have all blocks identical"
+        );
 
         // Should not have more than 50% identical blocks
         let repetition_ratio = repeating_blocks as f64 / total_blocks as f64;
-        assert!(repetition_ratio < 0.5,
-               "Random data should not have >50% identical blocks: {}", repetition_ratio);
+        assert!(
+            repetition_ratio < 0.5,
+            "Random data should not have >50% identical blocks: {}",
+            repetition_ratio
+        );
     }
 
     #[test]
@@ -278,11 +304,17 @@ mod random_algorithm_tests {
 
         // Zero wipe
         let zeros = vec![0u8; size];
-        assert!(zeros.iter().all(|&b| b == 0), "Zero wipe should produce all zeros");
+        assert!(
+            zeros.iter().all(|&b| b == 0),
+            "Zero wipe should produce all zeros"
+        );
 
         // Random wipe
         let random: Vec<u8> = (0..size).map(|i| ((i * 31) % 256) as u8).collect();
-        assert!(random.iter().any(|&b| b != 0), "Random wipe should not be all zeros");
+        assert!(
+            random.iter().any(|&b| b != 0),
+            "Random wipe should not be all zeros"
+        );
 
         // They should be different
         assert_ne!(zeros, random, "Random wipe should differ from zero wipe");
@@ -295,11 +327,17 @@ mod random_algorithm_tests {
 
         // Ones wipe
         let ones = vec![0xFFu8; size];
-        assert!(ones.iter().all(|&b| b == 0xFF), "Ones wipe should produce all 0xFF");
+        assert!(
+            ones.iter().all(|&b| b == 0xFF),
+            "Ones wipe should produce all 0xFF"
+        );
 
         // Random wipe
         let random: Vec<u8> = (0..size).map(|i| ((i * 31) % 256) as u8).collect();
-        assert!(random.iter().any(|&b| b != 0xFF), "Random wipe should not be all 0xFF");
+        assert!(
+            random.iter().any(|&b| b != 0xFF),
+            "Random wipe should not be all 0xFF"
+        );
 
         // They should be different
         assert_ne!(ones, random, "Random wipe should differ from ones wipe");
@@ -314,12 +352,16 @@ mod random_algorithm_tests {
         let random2: Vec<u8> = (0..size).map(|i| ((i * 37) % 256) as u8).collect();
 
         // They should differ (using different multipliers)
-        let differences = random1.iter()
+        let differences = random1
+            .iter()
             .zip(random2.iter())
             .filter(|(a, b)| a != b)
             .count();
 
-        assert!(differences > 900, "Successive random generations should differ significantly");
+        assert!(
+            differences > 900,
+            "Successive random generations should differ significantly"
+        );
     }
 
     #[test]
@@ -329,13 +371,16 @@ mod random_algorithm_tests {
         let update_interval = 50 * 1024 * 1024; // 50 MB
 
         let should_update = |bytes_written: u64| -> bool {
-            bytes_written % update_interval == 0 || bytes_written >= file_size
+            bytes_written.is_multiple_of(update_interval) || bytes_written >= file_size
         };
 
         // Test at various points
         assert!(should_update(50 * 1024 * 1024), "Should update at 50MB");
         assert!(should_update(100 * 1024 * 1024), "Should update at 100MB");
         assert!(should_update(file_size), "Should update at completion");
-        assert!(!should_update(25 * 1024 * 1024), "Should not update at 25MB");
+        assert!(
+            !should_update(25 * 1024 * 1024),
+            "Should not update at 25MB"
+        );
     }
 }

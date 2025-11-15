@@ -8,7 +8,6 @@
 /// - Device size calculations
 /// - TRIM effectiveness verification logic
 /// - Edge cases and error handling
-
 use super::trim::*;
 
 // ============================================================================
@@ -18,12 +17,7 @@ use super::trim::*;
 #[test]
 fn test_get_drive_type_nvme_from_path() {
     // NVMe drives are detected by path first
-    let paths = vec![
-        "/dev/nvme0n1",
-        "/dev/nvme1n1",
-        "/dev/nvme0n2",
-        "nvme0",
-    ];
+    let paths = vec!["/dev/nvme0n1", "/dev/nvme1n1", "/dev/nvme0n2", "nvme0"];
 
     for path in paths {
         // The function would return NVMe for these paths
@@ -45,7 +39,13 @@ fn test_nvme_namespace_extraction() {
         let result = TrimOperations::get_nvme_nsid(path);
         if let Some(exp) = expected {
             assert!(result.is_ok(), "Should extract namespace from {}", path);
-            assert_eq!(result.unwrap(), exp, "Namespace should be {} for {}", exp, path);
+            assert_eq!(
+                result.unwrap(),
+                exp,
+                "Namespace should be {} for {}",
+                exp,
+                path
+            );
         }
     }
 }
@@ -61,15 +61,21 @@ fn test_nvme_namespace_extraction_default_fallback() {
 #[test]
 fn test_nvme_namespace_extraction_edge_cases() {
     let test_cases = vec![
-        ("/dev/nvme0", "1"),  // No namespace specified, should default
-        ("nvmen1", "1"),      // Should extract 1
-        ("/dev/nvme", "1"),   // No number, should default
+        ("/dev/nvme0", "1"), // No namespace specified, should default
+        ("nvmen1", "1"),     // Should extract 1
+        ("/dev/nvme", "1"),  // No number, should default
     ];
 
     for (path, expected) in test_cases {
         let result = TrimOperations::get_nvme_nsid(path);
         assert!(result.is_ok(), "Should succeed for path {}", path);
-        assert_eq!(result.unwrap(), expected, "Expected {} for path {}", expected, path);
+        assert_eq!(
+            result.unwrap(),
+            expected,
+            "Expected {} for path {}",
+            expected,
+            path
+        );
     }
 }
 
@@ -80,19 +86,28 @@ fn test_nvme_namespace_extraction_edge_cases() {
 #[test]
 fn test_is_trim_pattern_all_zeros() {
     let buffer = vec![0u8; 4096];
-    assert!(TrimOperations::is_trim_pattern(&buffer), "All zeros should be TRIM pattern");
+    assert!(
+        TrimOperations::is_trim_pattern(&buffer),
+        "All zeros should be TRIM pattern"
+    );
 }
 
 #[test]
 fn test_is_trim_pattern_all_ones() {
     let buffer = vec![0xFFu8; 4096];
-    assert!(TrimOperations::is_trim_pattern(&buffer), "All 0xFF should be TRIM pattern");
+    assert!(
+        TrimOperations::is_trim_pattern(&buffer),
+        "All 0xFF should be TRIM pattern"
+    );
 }
 
 #[test]
 fn test_is_trim_pattern_repeated_byte() {
     let buffer = vec![0xAAu8; 4096];
-    assert!(TrimOperations::is_trim_pattern(&buffer), "Repeated byte should be TRIM pattern");
+    assert!(
+        TrimOperations::is_trim_pattern(&buffer),
+        "Repeated byte should be TRIM pattern"
+    );
 }
 
 #[test]
@@ -102,29 +117,44 @@ fn test_is_trim_pattern_repeating_dword() {
     for _ in 0..1024 {
         buffer.extend_from_slice(&[0xDE, 0xAD, 0xBE, 0xEF]);
     }
-    assert!(TrimOperations::is_trim_pattern(&buffer), "DEADBEEF pattern should be detected");
+    assert!(
+        TrimOperations::is_trim_pattern(&buffer),
+        "DEADBEEF pattern should be detected"
+    );
 }
 
 #[test]
 fn test_is_trim_pattern_random_data() {
     let buffer: Vec<u8> = (0..4096).map(|i| ((i * 31) % 256) as u8).collect();
-    assert!(!TrimOperations::is_trim_pattern(&buffer), "Random data should not be TRIM pattern");
+    assert!(
+        !TrimOperations::is_trim_pattern(&buffer),
+        "Random data should not be TRIM pattern"
+    );
 }
 
 #[test]
 fn test_is_trim_pattern_mixed_data() {
     let mut buffer = vec![0xAAu8; 2048];
     buffer.extend_from_slice(&vec![0x55u8; 2048]);
-    assert!(!TrimOperations::is_trim_pattern(&buffer), "Mixed data should not be TRIM pattern");
+    assert!(
+        !TrimOperations::is_trim_pattern(&buffer),
+        "Mixed data should not be TRIM pattern"
+    );
 }
 
 #[test]
 fn test_is_trim_pattern_short_buffer() {
     let buffer = vec![0u8; 4];
-    assert!(TrimOperations::is_trim_pattern(&buffer), "Short all-zero buffer should be pattern");
+    assert!(
+        TrimOperations::is_trim_pattern(&buffer),
+        "Short all-zero buffer should be pattern"
+    );
 
     let buffer2 = vec![0xFFu8; 7];
-    assert!(TrimOperations::is_trim_pattern(&buffer2), "Short all-FF buffer should be pattern");
+    assert!(
+        TrimOperations::is_trim_pattern(&buffer2),
+        "Short all-FF buffer should be pattern"
+    );
 }
 
 #[test]
@@ -145,8 +175,11 @@ fn test_is_trim_pattern_partial_repeat() {
         buffer.extend_from_slice(&[0x12, 0x34, 0x56, 0x78]);
     }
     buffer.extend_from_slice(&[0x12, 0x34]); // Partial at end
-    // Current implementation checks chunks of 4, so this should still match
-    assert!(TrimOperations::is_trim_pattern(&buffer), "Partial repeat should still match");
+                                             // Current implementation checks chunks of 4, so this should still match
+    assert!(
+        TrimOperations::is_trim_pattern(&buffer),
+        "Partial repeat should still match"
+    );
 }
 
 // ============================================================================
@@ -179,11 +212,11 @@ fn test_trim_effectiveness_calculation_threshold() {
 #[test]
 fn test_trim_effectiveness_calculation_edge_cases() {
     // All samples show TRIM
-    let effectiveness = (100 as f64 / 100 as f64) > 0.9;
+    let effectiveness = (100_f64 / 100_f64) > 0.9;
     assert!(effectiveness, "100% should be effective");
 
     // No samples show TRIM
-    let effectiveness = (0 as f64 / 100 as f64) > 0.9;
+    let effectiveness = (0 as f64 / 100_f64) > 0.9;
     assert!(!effectiveness, "0% should not be effective");
 
     // Zero samples checked
@@ -204,15 +237,20 @@ fn test_trim_effectiveness_fractional_cases() {
         (91, 100, true),
         (95, 100, true),
         (100, 100, true),
-        (45, 50, false),  // 90%
-        (46, 50, true),   // 92%
+        (45, 50, false), // 90%
+        (46, 50, true),  // 92%
     ];
 
     for (zero_count, total, expected) in test_cases {
         let effectiveness = (zero_count as f64 / total as f64) > 0.9;
-        assert_eq!(effectiveness, expected,
-                   "{}/{} should be {} effective",
-                   zero_count, total, if expected { "" } else { "not" });
+        assert_eq!(
+            effectiveness,
+            expected,
+            "{}/{} should be {} effective",
+            zero_count,
+            total,
+            if expected { "" } else { "not" }
+        );
     }
 }
 
@@ -264,11 +302,15 @@ fn test_trim_support_hdparm_output_parsing() {
     ];
 
     for (output, expected) in test_cases {
-        let has_trim = output.contains("Data Set Management TRIM supported") ||
-            output.contains("TRIM supported") ||
-            output.contains("Deterministic read data after TRIM");
+        let has_trim = output.contains("Data Set Management TRIM supported")
+            || output.contains("TRIM supported")
+            || output.contains("Deterministic read data after TRIM");
 
-        assert_eq!(has_trim, expected, "Output '{}' should be {}", output, expected);
+        assert_eq!(
+            has_trim, expected,
+            "Output '{}' should be {}",
+            output, expected
+        );
     }
 }
 
@@ -349,7 +391,10 @@ Commands/features:
 "#;
 
     let has_trim = output_with_trim.contains("Data Set Management TRIM supported");
-    assert!(has_trim, "Should detect TRIM support in realistic hdparm output");
+    assert!(
+        has_trim,
+        "Should detect TRIM support in realistic hdparm output"
+    );
 
     let has_deterministic_trim = output_with_trim.contains("Deterministic read data after TRIM");
     assert!(has_deterministic_trim, "Should detect deterministic TRIM");
@@ -366,8 +411,8 @@ ATA device, with non-removable media
     Nominal Media Rotation Rate: 7200
     "#;
 
-    let has_trim = output_no_trim.contains("Data Set Management TRIM supported") ||
-        output_no_trim.contains("TRIM supported");
+    let has_trim = output_no_trim.contains("Data Set Management TRIM supported")
+        || output_no_trim.contains("TRIM supported");
     assert!(!has_trim, "Should not detect TRIM support for HDD");
 }
 
@@ -402,17 +447,24 @@ Rotation Rate:      7199 rpm
 fn test_drive_type_detection_rpm_variations() {
     // Note: using non-zero-containing rpm values to avoid "0 rpm" substring matching bug
     let rpm_values = vec![
-        ("5433 rpm", true),   // HDD (avoiding 5400)
-        ("7199 rpm", true),   // HDD (avoiding 7200)
-        ("9999 rpm", true),   // HDD (avoiding 10000)
-        ("15111 rpm", true),  // HDD (avoiding 15000)
-        ("0 rpm", false),     // SSD (reported as 0 rpm)
+        ("5433 rpm", true),            // HDD (avoiding 5400)
+        ("7199 rpm", true),            // HDD (avoiding 7200)
+        ("9999 rpm", true),            // HDD (avoiding 10000)
+        ("15111 rpm", true),           // HDD (avoiding 15000)
+        ("0 rpm", false),              // SSD (reported as 0 rpm)
         ("Solid State Device", false), // SSD
     ];
 
     for (output, is_hdd) in rpm_values {
-        let detected_hdd = output.contains("rpm") && !output.contains("0 rpm") && !output.contains("Solid State");
-        assert_eq!(detected_hdd, is_hdd, "Output '{}' should be {} HDD", output, if is_hdd { "" } else { "not" });
+        let detected_hdd =
+            output.contains("rpm") && !output.contains("0 rpm") && !output.contains("Solid State");
+        assert_eq!(
+            detected_hdd,
+            is_hdd,
+            "Output '{}' should be {} HDD",
+            output,
+            if is_hdd { "" } else { "not" }
+        );
     }
 }
 
@@ -423,29 +475,38 @@ fn test_drive_type_detection_rpm_variations() {
 #[test]
 fn test_buffer_pattern_edge_case_single_byte() {
     let buffer = vec![0xAA];
-    assert!(TrimOperations::is_trim_pattern(&buffer), "Single byte should be considered pattern");
+    assert!(
+        TrimOperations::is_trim_pattern(&buffer),
+        "Single byte should be considered pattern"
+    );
 }
 
 #[test]
 fn test_buffer_pattern_edge_case_two_bytes() {
     let buffer = vec![0xAA, 0xAA];
-    assert!(TrimOperations::is_trim_pattern(&buffer), "Two identical bytes should be pattern");
+    assert!(
+        TrimOperations::is_trim_pattern(&buffer),
+        "Two identical bytes should be pattern"
+    );
 }
 
 #[test]
 fn test_buffer_pattern_edge_case_different_bytes() {
     let buffer = vec![0xAA, 0xBB];
-    assert!(!TrimOperations::is_trim_pattern(&buffer), "Two different bytes should not be pattern");
+    assert!(
+        !TrimOperations::is_trim_pattern(&buffer),
+        "Two different bytes should not be pattern"
+    );
 }
 
 #[test]
 fn test_nvme_namespace_parsing_complex_paths() {
     let paths = vec![
         ("/dev/nvme0n1", "1"),
-        ("/dev/nvme0n1p1", "1"),      // With partition
-        ("/dev/nvme0n10", "10"),      // Two-digit namespace
-        ("/dev/nvme10n1", "1"),       // Two-digit controller
-        ("/dev/nvme99n99", "99"),     // Large numbers
+        ("/dev/nvme0n1p1", "1"),  // With partition
+        ("/dev/nvme0n10", "10"),  // Two-digit namespace
+        ("/dev/nvme10n1", "1"),   // Two-digit controller
+        ("/dev/nvme99n99", "99"), // Large numbers
     ];
 
     for (path, expected_ns) in paths {
@@ -453,9 +514,12 @@ fn test_nvme_namespace_parsing_complex_paths() {
         assert!(result.is_ok(), "Should parse {}", path);
         // Note: actual parsing might vary based on implementation
         // This test verifies the pattern exists
-        assert!(path.contains(&format!("n{}", expected_ns)) ||
-                expected_ns == "1", // default fallback
-                "Path {} should extract namespace {}", path, expected_ns);
+        assert!(
+            path.contains(&format!("n{}", expected_ns)) || expected_ns == "1", // default fallback
+            "Path {} should extract namespace {}",
+            path,
+            expected_ns
+        );
     }
 }
 
@@ -465,12 +529,18 @@ fn test_trim_patterns_various_lengths() {
 
     for len in lengths {
         let buffer_zeros = vec![0u8; len];
-        assert!(TrimOperations::is_trim_pattern(&buffer_zeros),
-                "All-zero buffer of {} bytes should be pattern", len);
+        assert!(
+            TrimOperations::is_trim_pattern(&buffer_zeros),
+            "All-zero buffer of {} bytes should be pattern",
+            len
+        );
 
         let buffer_ones = vec![0xFFu8; len];
-        assert!(TrimOperations::is_trim_pattern(&buffer_ones),
-                "All-FF buffer of {} bytes should be pattern", len);
+        assert!(
+            TrimOperations::is_trim_pattern(&buffer_ones),
+            "All-FF buffer of {} bytes should be pattern",
+            len
+        );
     }
 }
 

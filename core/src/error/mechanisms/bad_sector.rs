@@ -2,7 +2,6 @@
 ///
 /// This module handles bad sectors that cannot be written, skipping them
 /// while maintaining a record for verification and reporting.
-
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -55,7 +54,10 @@ impl BadSectorHandler {
     /// Default log file path for device
     pub fn default_log_file(device_name: &str) -> PathBuf {
         let sanitized = device_name.replace("/", "_").replace(".", "_");
-        PathBuf::from(format!("/var/log/sayonara-wipe/bad_sectors_{}.log", sanitized))
+        PathBuf::from(format!(
+            "/var/log/sayonara-wipe/bad_sectors_{}.log",
+            sanitized
+        ))
     }
 
     /// Record a bad sector
@@ -213,11 +215,14 @@ impl BadSectorReport {
         }
 
         if !self.bad_sector_offsets.is_empty() {
-            output.push_str(&format!("\nBad sector offsets:\n"));
+            output.push_str("\nBad sector offsets:\n");
             for (i, offset) in self.bad_sector_offsets.iter().enumerate() {
                 output.push_str(&format!("  {}: {}\n", i + 1, offset));
                 if i >= 99 {
-                    output.push_str(&format!("  ... and {} more\n", self.total_bad_sectors - 100));
+                    output.push_str(&format!(
+                        "  ... and {} more\n",
+                        self.total_bad_sectors - 100
+                    ));
                     break;
                 }
             }
@@ -259,7 +264,9 @@ mod tests {
         let handler = BadSectorHandler::new("/dev/sda");
 
         for i in 0..10 {
-            handler.record_bad_sector(i * 512, format!("Error {}", i)).unwrap();
+            handler
+                .record_bad_sector(i * 512, format!("Error {}", i))
+                .unwrap();
         }
 
         assert_eq!(handler.bad_sector_count(), 10);
@@ -377,7 +384,9 @@ mod tests {
         assert!(path.to_string_lossy().contains("bad_sectors__dev_sda.log"));
 
         let path = BadSectorHandler::default_log_file("/dev/nvme0n1");
-        assert!(path.to_string_lossy().contains("bad_sectors__dev_nvme0n1.log"));
+        assert!(path
+            .to_string_lossy()
+            .contains("bad_sectors__dev_nvme0n1.log"));
     }
 
     #[test]

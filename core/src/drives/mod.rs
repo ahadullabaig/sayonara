@@ -34,83 +34,74 @@ pub use detection::DriveDetector;
 
 // Drive types
 pub use types::{
+    BootPartition,
+    EMMCDevice,
+    HDDInfo,
     // Basic types
     HDDWipe,
-    SSDWipe,
-    NVMeWipe,
-
+    HybridDrive,
+    MetadataLocation,
+    MetadataRegion,
     // Advanced NVMe
     NVMeAdvanced,
     NVMeNamespace,
-    NamespaceType,
-    ZNSZone,
-    ZNSZoneState,
+    NVMeWipe,
 
-    // Advanced drive types (Phase 1, Step 6)
-    SMRDrive,
-    Zone,
-    ZoneType,
-    ZoneCondition,
-    ZoneModel,
+    NamespaceType,
     OptaneDrive,
     OptaneMode,
     OptaneNamespace,
-    HybridDrive,
-    HDDInfo,
-    SSDCacheInfo,
     PinnedRegion,
-    EMMCDevice,
-    BootPartition,
+    RAIDArray,
+    RAIDController,
+    RAIDType,
     RPMBPartition,
-    UserDataArea,
+    // Advanced drive types (Phase 1, Step 6)
+    SMRDrive,
+    SSDCacheInfo,
+    SSDWipe,
     UFSDevice,
     UFSLogicalUnit,
-    RAIDArray,
-    RAIDType,
-    RAIDController,
-    MetadataRegion,
-    MetadataLocation,
+    UserDataArea,
+    ZNSZone,
+    ZNSZoneState,
+
+    Zone,
+    ZoneCondition,
+    ZoneModel,
+    ZoneType,
 };
 
 // Operations
-pub use operations::{
-    HPADCOManager,
-    SEDManager,
-    TrimOperations,
-    SMARTMonitor,
-};
+pub use operations::{HPADCOManager, SEDManager, SMARTMonitor, TrimOperations};
 
 // Freeze mitigation
 pub use freeze::{
+    get_mitigation,
+    // Advanced freeze mitigation
+    AdvancedFreezeMitigation,
+    FreezeDetector,
+
+    FreezeInfo,
+
     // Basic freeze mitigation
     FreezeMitigation,
 
-    // Advanced freeze mitigation
-    AdvancedFreezeMitigation,
     FreezeMitigationConfig,
-    UnfreezeResult,
-    FreezeInfo,
-
-    // Freeze detection
-    FreezeReason,
-    FreezeDetector,
-
-    // Strategies (optional, for direct access)
-    UnfreezeStrategy,
-    StrategyResult,
-
     // Helper functions
     FreezeMitigationStrategy,
-    get_mitigation,
+    // Freeze detection
+    FreezeReason,
+    StrategyResult,
+
+    UnfreezeResult,
+    // Strategies (optional, for direct access)
+    UnfreezeStrategy,
 };
 
 // Integrated wipe operations
 pub use integrated_wipe::{
-    wipe_smr_drive_integrated,
-    wipe_optane_drive_integrated,
-    wipe_hybrid_drive_integrated,
-    wipe_emmc_drive_integrated,
-    wipe_raid_array_integrated,
-    wipe_nvme_advanced_integrated,
+    wipe_emmc_drive_integrated, wipe_hybrid_drive_integrated, wipe_nvme_advanced_integrated,
+    wipe_optane_drive_integrated, wipe_raid_array_integrated, wipe_smr_drive_integrated,
     WipeAlgorithm,
 };

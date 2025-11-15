@@ -1,15 +1,21 @@
 // Strategy that loads kernel module for direct ATA register access
 
-use super::{UnfreezeStrategy, StrategyResult};
+use super::{StrategyResult, UnfreezeStrategy};
 use crate::drives::freeze::detection::FreezeReason;
-use anyhow::{Result, anyhow};
-use std::process::Command;
+use anyhow::{anyhow, Result};
 use std::path::Path;
+use std::process::Command;
 use std::thread;
 use std::time::Duration;
 
 pub struct KernelModule {
     module_path: String,
+}
+
+impl Default for KernelModule {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl KernelModule {
@@ -21,9 +27,7 @@ impl KernelModule {
 
     /// Check if module is already loaded
     fn is_module_loaded(&self) -> bool {
-        let output = Command::new("lsmod")
-            .output()
-            .ok();
+        let output = Command::new("lsmod").output().ok();
 
         if let Some(output) = output {
             let output_str = String::from_utf8_lossy(&output.stdout);
@@ -41,9 +45,7 @@ impl KernelModule {
 
         println!("      📦 Loading kernel module: {}", self.module_path);
 
-        let output = Command::new("insmod")
-            .arg(&self.module_path)
-            .output()?;
+        let output = Command::new("insmod").arg(&self.module_path).output()?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -61,9 +63,7 @@ impl KernelModule {
     fn unload_module(&self) -> Result<()> {
         println!("      🗑️  Unloading kernel module");
 
-        let output = Command::new("rmmod")
-            .arg("ata_unfreeze")
-            .output()?;
+        let output = Command::new("rmmod").arg("ata_unfreeze").output()?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -78,13 +78,13 @@ impl KernelModule {
 
     /// Check module output in dmesg
     fn check_module_output(&self) -> Result<bool> {
-        let output = Command::new("dmesg")
-            .output()?;
+        let output = Command::new("dmesg").output()?;
 
         let output_str = String::from_utf8_lossy(&output.stdout);
 
         // Look for success messages
-        let lines: Vec<&str> = output_str.lines()
+        let lines: Vec<&str> = output_str
+            .lines()
             .filter(|l| l.contains("ata_unfreeze"))
             .collect();
 
@@ -94,8 +94,7 @@ impl KernelModule {
 
         // Check last few lines for success
         for line in lines.iter().rev().take(5) {
-            if line.contains("Successfully unfrozen") ||
-                line.contains("Unfroze") {
+            if line.contains("Successfully unfrozen") || line.contains("Unfroze") {
                 println!("      📜 Module log: {}", line);
                 return Ok(true);
             }
@@ -107,16 +106,14 @@ impl KernelModule {
     /// Build the kernel module if needed
     fn build_module(&self) -> Result<()> {
         // Try to find module source in the codebase first
-        let codebase_src = std::env::current_dir()
-            .ok()
-            .and_then(|d| {
-                let path = d.join("src/drives/freeze/kernel_module");
-                if path.exists() {
-                    Some(path)
-                } else {
-                    None
-                }
-            });
+        let codebase_src = std::env::current_dir().ok().and_then(|d| {
+            let path = d.join("src/drives/freeze/kernel_module");
+            if path.exists() {
+                Some(path)
+            } else {
+                None
+            }
+        });
 
         let module_src_dir = if let Some(path) = codebase_src {
             path.to_string_lossy().to_string()
@@ -124,8 +121,11 @@ impl KernelModule {
             // Fall back to system location
             let fallback = "/usr/local/src/sayonara-wipe/kernel_module";
             if !Path::new(fallback).exists() {
-                return Err(anyhow!("Kernel module source not found. Expected at: \
-                    src/drives/freeze/kernel_module/ or {}", fallback));
+                return Err(anyhow!(
+                    "Kernel module source not found. Expected at: \
+                    src/drives/freeze/kernel_module/ or {}",
+                    fallback
+                ));
             }
             fallback.to_string()
         };
@@ -146,10 +146,13 @@ impl KernelModule {
         std::fs::create_dir_all("/usr/local/lib/sayonara-wipe")?;
         std::fs::copy(
             format!("{}/ata_unfreeze.ko", module_src_dir),
-            &self.module_path
+            &self.module_path,
         )?;
 
-        println!("      ✅ Module built and installed to {}", self.module_path);
+        println!(
+            "      ✅ Module built and installed to {}",
+            self.module_path
+        );
         Ok(())
     }
 }
@@ -211,8 +214,11 @@ impl UnfreezeStrategy for KernelModule {
             match self.build_module() {
                 Ok(_) => println!("      ✅ Module compiled successfully"),
                 Err(e) => {
-                    return Err(anyhow!("Failed to build kernel module: {}. \
-                        Install kernel headers with: apt install linux-headers-$(uname -r)", e));
+                    return Err(anyhow!(
+                        "Failed to build kernel module: {}. \
+                        Install kernel headers with: apt install linux-headers-$(uname -r)",
+                        e
+                    ));
                 }
             }
         }
@@ -228,12 +234,12 @@ impl UnfreezeStrategy for KernelModule {
 
         if success {
             Ok(StrategyResult::success(
-                "Kernel module successfully unfroze drive(s)"
+                "Kernel module successfully unfroze drive(s)",
             ))
         } else {
             Ok(StrategyResult::success_with_warning(
                 "Kernel module loaded but no frozen drives were unfrozen",
-                "Check dmesg for details"
+                "Check dmesg for details",
             ))
         }
     }
