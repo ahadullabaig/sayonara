@@ -93,27 +93,62 @@ impl WipeOrchestrator {
         println!("Conventional Zones: {}", smr.conventional_zone_count);
         println!();
 
-        // Convert WipeConfig algorithm to WipeAlgorithm
-        let wipe_algorithm = self.convert_to_wipe_algorithm();
+        // Handle multi-pass algorithms (DoD, Gutmann) by executing multiple passes
+        match self.config.algorithm {
+            Algorithm::DoD5220 => {
+                println!("Using DoD 5220.22-M (3-pass wipe)");
+                let passes = vec![
+                    (WipeAlgorithm::Zeros, "Pass 1/3: Writing zeros"),
+                    (WipeAlgorithm::Ones, "Pass 2/3: Writing ones"),
+                    (WipeAlgorithm::Random, "Pass 3/3: Writing random data"),
+                ];
 
-        // Create error context for recovery
-        let context = ErrorContext::new(
-            "smr_wipe",
-            &self.device_path,
-        );
+                for (pass_num, (algorithm, description)) in passes.iter().enumerate() {
+                    println!("{}", description);
+                    let context = ErrorContext::new(
+                        &format!("smr_wipe_pass_{}", pass_num + 1),
+                        &self.device_path,
+                    );
 
-        // Execute with recovery coordinator
-        self.recovery_coordinator.execute_with_recovery(
-            "wipe_smr_drive",
-            context,
-            || -> DriveResult<()> {
-                wipe_smr_drive_integrated(&smr, wipe_algorithm.clone())
-                    .map_err(|e| DriveError::IoError(std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e))))?;
-                Ok(())
+                    self.recovery_coordinator.execute_with_recovery(
+                        "wipe_smr_drive",
+                        context,
+                        || -> DriveResult<()> {
+                            wipe_smr_drive_integrated(&smr, algorithm.clone())
+                                .map_err(|e| DriveError::IoError(std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e))))?;
+                            Ok(())
+                        }
+                    ).map_err(|e| DriveError::IoError(
+                        std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e))
+                    ))?;
+                }
             }
-        ).map_err(|e| DriveError::IoError(
-            std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e))
-        ))?;
+            Algorithm::Gutmann => {
+                return Err(DriveError::Unsupported(
+                    "Gutmann 35-pass wipe not yet supported for SMR drives. Use DoD or Random instead.".to_string()
+                ));
+            }
+            _ => {
+                // Single-pass algorithms (Zero, Random, etc.)
+                let wipe_algorithm = self.convert_to_wipe_algorithm();
+                let context = ErrorContext::new(
+                    "smr_wipe",
+                    &self.device_path,
+                );
+
+                self.recovery_coordinator.execute_with_recovery(
+                    "wipe_smr_drive",
+                    context,
+                    || -> DriveResult<()> {
+                        wipe_smr_drive_integrated(&smr, wipe_algorithm.clone())
+                            .map_err(|e| DriveError::IoError(std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e))))?;
+                        Ok(())
+                    }
+                ).map_err(|e| DriveError::IoError(
+                    std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e))
+                ))?;
+            }
+        }
 
         println!("✅ SMR drive wipe completed successfully");
         Ok(())
@@ -311,7 +346,7 @@ impl WipeOrchestrator {
             return Ok(());
         }
 
-        // Fall back to basic NVMe wipe via sanitize command
+        // Try basic NVMe wipe via sanitize command, fall back to software if it fails
         println!("Using standard NVMe sanitize command with Recovery");
 
         // Create error context
@@ -323,7 +358,7 @@ impl WipeOrchestrator {
         let device_path = self.device_path.clone();
 
         // Execute with recovery coordinator
-        self.recovery_coordinator.execute_with_recovery(
+        let sanitize_result = self.recovery_coordinator.execute_with_recovery(
             "wipe_nvme_basic",
             context,
             || {
@@ -335,17 +370,55 @@ impl WipeOrchestrator {
                     .map_err(|e| DriveError::IoError(std::io::Error::new(std::io::ErrorKind::Other, format!("NVMe sanitize failed: {}", e))))?;
 
                 if !output.status.success() {
-                    return Err(DriveError::IoError(std::io::Error::new(std::io::ErrorKind::Other, "NVMe sanitize failed")));
+                    return Err(DriveError::IoError(std::io::Error::new(std::io::ErrorKind::Other, "NVMe sanitize command failed")));
                 }
 
                 Ok(())
             }
-        ).map_err(|e| DriveError::IoError(
-            std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e))
-        ))?;
+        );
 
-        println!("✅ NVMe wipe completed successfully");
-        Ok(())
+        // Check if sanitize succeeded, if not fall back to software wipe
+        match sanitize_result {
+            Ok(_) => {
+                println!("✅ NVMe sanitize completed successfully");
+                Ok(())
+            }
+            Err(e) => {
+                println!("\n⚠️  NVMe sanitize failed: {}", e);
+                println!("   Reason: Drive may not support Sanitize or Format NVM commands");
+                println!("   Falling back to software overwrite (this will take longer)...\n");
+
+                // Fall back to software overwrite using write_pattern_to_region
+                let size = self.drive_info.size;
+                let context = ErrorContext::new(
+                    "nvme_software_fallback",
+                    &self.device_path,
+                );
+
+                self.recovery_coordinator.execute_with_recovery(
+                    "nvme_software_wipe",
+                    context,
+                    || {
+                        println!("   Pass 1/3: Writing zeros...");
+                        self.write_pattern_to_region(0, size)?;
+
+                        println!("   Pass 2/3: Writing ones...");
+                        let pattern = vec![0xFF; 4096 * 1024]; // 4MB of 0xFF
+                        self.write_custom_pattern(0, size, &pattern)?;
+
+                        println!("   Pass 3/3: Writing random data...");
+                        self.write_random_data_to_region(0, size)?;
+
+                        Ok(())
+                    }
+                ).map_err(|e| DriveError::IoError(
+                    std::io::Error::new(std::io::ErrorKind::Other, format!("Software fallback failed: {}", e))
+                ))?;
+
+                println!("✅ NVMe software wipe completed successfully");
+                Ok(())
+            }
+        }
     }
 
     /// Wipe SSD drive with error recovery
@@ -465,12 +538,17 @@ impl WipeOrchestrator {
     }
 
     /// Convert WipeConfig algorithm to WipeAlgorithm for integrated wipe functions
+    ///
+    /// NOTE: This only handles single-pass algorithms. Multi-pass algorithms (DoD, Gutmann)
+    /// must be handled separately by the caller executing multiple passes.
     pub(crate) fn convert_to_wipe_algorithm(&self) -> WipeAlgorithm {
         match self.config.algorithm {
             Algorithm::Zero => WipeAlgorithm::Zeros,
             Algorithm::Random => WipeAlgorithm::Random,
-            Algorithm::DoD5220 => WipeAlgorithm::Random, // DoD uses multiple passes with random
-            Algorithm::Gutmann => WipeAlgorithm::Random,  // Gutmann uses complex patterns
+            // DoD and Gutmann should be handled with multiple passes by the caller
+            // Fallback to random for safety if called incorrectly
+            Algorithm::DoD5220 => WipeAlgorithm::Random,
+            Algorithm::Gutmann => WipeAlgorithm::Random,
             _ => WipeAlgorithm::Random, // Default to random for security
         }
     }
@@ -488,6 +566,58 @@ impl WipeOrchestrator {
         file.write_all(&pattern)?;
         file.sync_all()?;
 
+        Ok(())
+    }
+
+    /// Write a custom pattern to a specific region
+    fn write_custom_pattern(&self, offset: u64, size: u64, pattern: &[u8]) -> Result<()> {
+        let mut file = OpenOptions::new()
+            .write(true)
+            .open(&self.device_path)?;
+
+        file.seek(SeekFrom::Start(offset))?;
+
+        let pattern_len = pattern.len() as u64;
+        let mut written = 0u64;
+
+        // Write pattern repeatedly until size is reached
+        while written < size {
+            let to_write = std::cmp::min(pattern_len, size - written);
+            file.write_all(&pattern[..to_write as usize])?;
+            written += to_write;
+        }
+
+        file.sync_all()?;
+        Ok(())
+    }
+
+    /// Write cryptographically secure random data to a specific region
+    /// This method explicitly uses SecureRNG regardless of the configured algorithm
+    fn write_random_data_to_region(&self, offset: u64, size: u64) -> Result<()> {
+        use crate::crypto::secure_rng::SecureRNG;
+
+        let mut file = OpenOptions::new()
+            .write(true)
+            .open(&self.device_path)?;
+
+        file.seek(SeekFrom::Start(offset))?;
+
+        let mut rng = SecureRNG::new()?;
+        let chunk_size = 4 * 1024 * 1024; // 4MB chunks
+        let mut written = 0u64;
+
+        while written < size {
+            let to_write = std::cmp::min(chunk_size, (size - written) as usize);
+            let mut buffer = vec![0u8; to_write];
+
+            // Fill with cryptographically secure random data
+            rng.fill_bytes(&mut buffer)?;
+
+            file.write_all(&buffer)?;
+            written += to_write as u64;
+        }
+
+        file.sync_all()?;
         Ok(())
     }
 
