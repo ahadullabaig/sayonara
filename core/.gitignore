@@ -13,6 +13,9 @@ target/
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
 
+# Test coverage reports
+coverage/
+
 # Kernel module build artifacts
 *.ko
 *.o
@@ -38,4 +41,4 @@ CLAUDE.md
 phase1.md
 PHASE1_COMPLETION_ROADMAP.md
 TESTING.md
-coverage_baseline.md
+TEST_COVERAGE_EXPANSION_REPORT.md
