@@ -93,27 +93,62 @@ impl WipeOrchestrator {
         println!("Conventional Zones: {}", smr.conventional_zone_count);
         println!();
 
-        // Convert WipeConfig algorithm to WipeAlgorithm
-        let wipe_algorithm = self.convert_to_wipe_algorithm();
+        // Handle multi-pass algorithms (DoD, Gutmann) by executing multiple passes
+        match self.config.algorithm {
+            Algorithm::DoD5220 => {
+                println!("Using DoD 5220.22-M (3-pass wipe)");
+                let passes = vec![
+                    (WipeAlgorithm::Zeros, "Pass 1/3: Writing zeros"),
+                    (WipeAlgorithm::Ones, "Pass 2/3: Writing ones"),
+                    (WipeAlgorithm::Random, "Pass 3/3: Writing random data"),
+                ];
 
-        // Create error context for recovery
-        let context = ErrorContext::new(
-            "smr_wipe",
-            &self.device_path,
-        );
+                for (pass_num, (algorithm, description)) in passes.iter().enumerate() {
+                    println!("{}", description);
+                    let context = ErrorContext::new(
+                        &format!("smr_wipe_pass_{}", pass_num + 1),
+                        &self.device_path,
+                    );
 
-        // Execute with recovery coordinator
-        self.recovery_coordinator.execute_with_recovery(
-            "wipe_smr_drive",
-            context,
-            || -> DriveResult<()> {
-                wipe_smr_drive_integrated(&smr, wipe_algorithm.clone())
-                    .map_err(|e| DriveError::IoError(std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e))))?;
-                Ok(())
+                    self.recovery_coordinator.execute_with_recovery(
+                        "wipe_smr_drive",
+                        context,
+                        || -> DriveResult<()> {
+                            wipe_smr_drive_integrated(&smr, algorithm.clone())
+                                .map_err(|e| DriveError::IoError(std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e))))?;
+                            Ok(())
+                        }
+                    ).map_err(|e| DriveError::IoError(
+                        std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e))
+                    ))?;
+                }
             }
-        ).map_err(|e| DriveError::IoError(
-            std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e))
-        ))?;
+            Algorithm::Gutmann => {
+                return Err(DriveError::Unsupported(
+                    "Gutmann 35-pass wipe not yet supported for SMR drives. Use DoD or Random instead.".to_string()
+                ));
+            }
+            _ => {
+                // Single-pass algorithms (Zero, Random, etc.)
+                let wipe_algorithm = self.convert_to_wipe_algorithm();
+                let context = ErrorContext::new(
+                    "smr_wipe",
+                    &self.device_path,
+                );
+
+                self.recovery_coordinator.execute_with_recovery(
+                    "wipe_smr_drive",
+                    context,
+                    || -> DriveResult<()> {
+                        wipe_smr_drive_integrated(&smr, wipe_algorithm.clone())
+                            .map_err(|e| DriveError::IoError(std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e))))?;
+                        Ok(())
+                    }
+                ).map_err(|e| DriveError::IoError(
+                    std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e))
+                ))?;
+            }
+        }
 
         println!("✅ SMR drive wipe completed successfully");
         Ok(())
@@ -503,12 +538,17 @@ impl WipeOrchestrator {
     }
 
     /// Convert WipeConfig algorithm to WipeAlgorithm for integrated wipe functions
+    ///
+    /// NOTE: This only handles single-pass algorithms. Multi-pass algorithms (DoD, Gutmann)
+    /// must be handled separately by the caller executing multiple passes.
     pub(crate) fn convert_to_wipe_algorithm(&self) -> WipeAlgorithm {
         match self.config.algorithm {
             Algorithm::Zero => WipeAlgorithm::Zeros,
             Algorithm::Random => WipeAlgorithm::Random,
-            Algorithm::DoD5220 => WipeAlgorithm::Random, // DoD uses multiple passes with random
-            Algorithm::Gutmann => WipeAlgorithm::Random,  // Gutmann uses complex patterns
+            // DoD and Gutmann should be handled with multiple passes by the caller
+            // Fallback to random for safety if called incorrectly
+            Algorithm::DoD5220 => WipeAlgorithm::Random,
+            Algorithm::Gutmann => WipeAlgorithm::Random,
             _ => WipeAlgorithm::Random, // Default to random for security
         }
     }

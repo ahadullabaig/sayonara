@@ -14,21 +14,17 @@ mod dod_algorithm_tests {
     use std::io::{Read, Seek, SeekFrom};
 
     #[test]
-    fn test_dod_pass_count() {
-        // DoD 5220.22-M specifies 3 passes
-        let expected_passes = 3;
-        assert_eq!(expected_passes, 3, "DoD should use exactly 3 passes");
-    }
+    fn test_dod_constants() {
+        // Verify DoD 5220.22-M standard constants
+        use crate::algorithms::dod::DoDWipe;
 
-    #[test]
-    fn test_dod_pass_patterns() {
-        // Verify the correct pass patterns
-        let pass_1_pattern = 0x00u8;
-        let pass_2_pattern = 0xFFu8;
-        // pass_3 is random
+        // DoD 5220.22-M specifies exactly 3 passes
+        assert_eq!(DoDWipe::PASS_COUNT, 3, "DoD 5220.22-M requires exactly 3 passes");
 
-        assert_eq!(pass_1_pattern, 0x00, "Pass 1 should be all zeros");
-        assert_eq!(pass_2_pattern, 0xFF, "Pass 2 should be all ones");
+        // Verify pattern constants match the standard
+        assert_eq!(DoDWipe::PASS_1_PATTERN, 0x00, "Pass 1 must be all zeros per DoD 5220.22-M");
+        assert_eq!(DoDWipe::PASS_2_PATTERN, 0xFF, "Pass 2 must be all ones per DoD 5220.22-M");
+        // Pass 3 is cryptographically secure random data (verified in functional tests)
     }
 
     #[test]

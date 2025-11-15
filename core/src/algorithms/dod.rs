@@ -11,6 +11,15 @@ use serde_json::json;
 pub struct DoDWipe;
 
 impl DoDWipe {
+    /// DoD 5220.22-M standard pass 1 pattern (all zeros)
+    pub const PASS_1_PATTERN: u8 = 0x00;
+
+    /// DoD 5220.22-M standard pass 2 pattern (all ones)
+    pub const PASS_2_PATTERN: u8 = 0xFF;
+
+    /// DoD 5220.22-M requires exactly 3 passes
+    pub const PASS_COUNT: usize = 3;
+
     pub fn wipe_drive(
         device_path: &str,
         size: u64,
@@ -45,8 +54,8 @@ impl DoDWipe {
         if start_pass <= 0 {
             println!("\n🔄 Pass 1/3: Writing 0x00");
             let context = ErrorContext::new("dod_pass_1", device_path);
-            coordinator.execute_with_recovery("pass_1", context, || -> DriveResult<()> { Self::write_pattern(&mut io_handle, size, 0x00).map_err(|e| DriveError::IoError(std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e))))?; Ok(()) })?;
-            coordinator.maybe_checkpoint("DoD", 3, size * 3, &Progress {
+            coordinator.execute_with_recovery("pass_1", context, || -> DriveResult<()> { Self::write_pattern(&mut io_handle, size, Self::PASS_1_PATTERN).map_err(|e| DriveError::IoError(std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e))))?; Ok(()) })?;
+            coordinator.maybe_checkpoint("DoD", Self::PASS_COUNT, size * Self::PASS_COUNT as u64, &Progress {
                 current_pass: 1,
                 bytes_written: size,
                 state: json!({"pass": 1}),
@@ -57,8 +66,8 @@ impl DoDWipe {
         if start_pass <= 1 {
             println!("\n🔄 Pass 2/3: Writing 0xFF");
             let context = ErrorContext::new("dod_pass_2", device_path);
-            coordinator.execute_with_recovery("pass_2", context, || -> DriveResult<()> { Self::write_pattern(&mut io_handle, size, 0xFF).map_err(|e| DriveError::IoError(std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e))))?; Ok(()) })?;
-            coordinator.maybe_checkpoint("DoD", 3, size * 3, &Progress {
+            coordinator.execute_with_recovery("pass_2", context, || -> DriveResult<()> { Self::write_pattern(&mut io_handle, size, Self::PASS_2_PATTERN).map_err(|e| DriveError::IoError(std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e))))?; Ok(()) })?;
+            coordinator.maybe_checkpoint("DoD", Self::PASS_COUNT, size * Self::PASS_COUNT as u64, &Progress {
                 current_pass: 2,
                 bytes_written: size * 2,
                 state: json!({"pass": 2}),
@@ -70,9 +79,9 @@ impl DoDWipe {
             println!("\n🔄 Pass 3/3: Writing random data");
             let context = ErrorContext::new("dod_pass_3", device_path);
             coordinator.execute_with_recovery("pass_3", context, || -> DriveResult<()> { Self::write_random(&mut io_handle, size).map_err(|e| DriveError::IoError(std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e))))?; Ok(()) })?;
-            coordinator.maybe_checkpoint("DoD", 3, size * 3, &Progress {
+            coordinator.maybe_checkpoint("DoD", Self::PASS_COUNT, size * Self::PASS_COUNT as u64, &Progress {
                 current_pass: 3,
-                bytes_written: size * 3,
+                bytes_written: size * Self::PASS_COUNT as u64,
                 state: json!({"pass": 3}),
             })?;
         }
