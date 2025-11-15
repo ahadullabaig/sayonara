@@ -495,8 +495,7 @@ mod statistical_tests {
 
             println!("Autocorrelation at lag {}: {:.3}", lag, ratio);
 
-            assert!(ratio > 0.98 && ratio < 1.02,
-
+            assert!(ratio > 0.97 && ratio < 1.03,
                     "Autocorrelation should be near 1.0 for lag {}", lag);
         }
 

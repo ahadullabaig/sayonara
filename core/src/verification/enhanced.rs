@@ -1289,7 +1289,7 @@ impl EnhancedVerification {
         })
     }
 
-    pub(crate) fn runs_test(data: &[u8]) -> Result<bool> {
+    pub fn runs_test(data: &[u8]) -> Result<bool> {
         let mut runs = 0;
         let mut last_bit = false;
 
@@ -1309,7 +1309,7 @@ impl EnhancedVerification {
         Ok(ratio > 0.9 && ratio < 1.1)
     }
 
-    pub(crate) fn monobit_test(data: &[u8]) -> Result<bool> {
+    pub fn monobit_test(data: &[u8]) -> Result<bool> {
         let ones: u64 = data.iter().map(|b| b.count_ones() as u64).sum();
         let zeros = (data.len() * 8) as u64 - ones;
         let ratio = ones as f64 / (ones + zeros) as f64;
@@ -1317,7 +1317,7 @@ impl EnhancedVerification {
         Ok(ratio > 0.49 && ratio < 0.51)
     }
 
-    pub(crate) fn poker_test(data: &[u8]) -> Result<bool> {
+    pub fn poker_test(data: &[u8]) -> Result<bool> {
         let mut freq_4bit = [0u64; 16];
 
         for &byte in data {
@@ -1339,7 +1339,7 @@ impl EnhancedVerification {
         Ok(chi_square < 30.578)
     }
 
-    pub(crate) fn serial_test(data: &[u8]) -> Result<bool> {
+    pub fn serial_test(data: &[u8]) -> Result<bool> {
         let mut freq_2bit = [0u64; 4];
 
         for &byte in data {
@@ -1361,7 +1361,7 @@ impl EnhancedVerification {
         Ok(chi_square < 11.345)
     }
 
-    pub(crate) fn autocorrelation_test(data: &[u8]) -> Result<bool> {
+    pub fn autocorrelation_test(data: &[u8]) -> Result<bool> {
         let max_lag = data.len().min(100);
 
         for lag in 1..max_lag {

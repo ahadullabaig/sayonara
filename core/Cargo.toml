@@ -122,6 +122,26 @@ debug = true
 name = "sayonara"
 path = "src/main.rs"
 
+[[bench]]
+name = "throughput"
+harness = false
+
+[[bench]]
+name = "latency"
+harness = false
+
+[[bench]]
+name = "scaling"
+harness = false
+
+[[bench]]
+name = "buffer_pool"
+harness = false
+
+[[bench]]
+name = "adaptive_tuning"
+harness = false
+
 [features]
 default = ["progress-bars", "color-output"]
 progress-bars = []
