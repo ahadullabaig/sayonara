@@ -1,3 +1,6 @@
+// Allow uppercase acronyms in test code (HDD, SSD, SMR, EMMC)
+#![allow(clippy::upper_case_acronyms)]
+
 use std::io::{Seek, SeekFrom, Write};
 /// Mock drive infrastructure for testing
 ///
@@ -111,6 +114,7 @@ impl MockDrive {
     }
 
     /// Get the path as a string
+    #[allow(dead_code)]
     pub fn path_str(&self) -> &str {
         self.path().to_str().unwrap()
     }
@@ -141,8 +145,7 @@ pub mod loopback {
             .output()?;
 
         if !output.status.success() {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            return Err(std::io::Error::other(
                 format!(
                     "Failed to create sparse file: {}",
                     String::from_utf8_lossy(&output.stderr)
@@ -156,8 +159,7 @@ pub mod loopback {
             .output()?;
 
         if !output.status.success() {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            return Err(std::io::Error::other(
                 format!(
                     "Failed to create loop device: {}",
                     String::from_utf8_lossy(&output.stderr)
@@ -175,8 +177,7 @@ pub mod loopback {
         let output = Command::new("losetup").args(["-d", loop_device]).output()?;
 
         if !output.status.success() {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            return Err(std::io::Error::other(
                 format!(
                     "Failed to detach loop device: {}",
                     String::from_utf8_lossy(&output.stderr)

@@ -111,7 +111,7 @@ impl AlignedBuffer {
         };
 
         // Round up to huge page boundary
-        let aligned_size = ((size + huge_page_size - 1) / huge_page_size) * huge_page_size;
+        let aligned_size = size.div_ceil(huge_page_size) * huge_page_size;
 
         unsafe {
             let addr = libc::mmap(
@@ -129,7 +129,7 @@ impl AlignedBuffer {
             }
 
             // Check alignment
-            if (addr as usize) % alignment != 0 {
+            if !(addr as usize).is_multiple_of(alignment) {
                 libc::munmap(addr, aligned_size);
                 return Err(IOError::AlignmentError(format!(
                     "Huge page allocation not aligned to {}",
@@ -331,12 +331,12 @@ pub struct PooledBuffer {
 
 impl PooledBuffer {
     /// Get mutable access to the buffer
-    pub fn as_mut(&mut self) -> &mut AlignedBuffer {
+    pub fn buffer_mut(&mut self) -> &mut AlignedBuffer {
         &mut self.buffer
     }
 
     /// Get immutable access to the buffer
-    pub fn as_ref(&self) -> &AlignedBuffer {
+    pub fn buffer_ref(&self) -> &AlignedBuffer {
         &self.buffer
     }
 }

@@ -1,3 +1,8 @@
+// Allow uppercase acronyms for industry-standard terms like HDD, SSD, SMR, EMMC
+#![allow(clippy::upper_case_acronyms)]
+// Allow complex types where needed for comprehensive error handling and configuration
+#![allow(clippy::type_complexity)]
+
 pub mod algorithms;
 pub mod crypto;
 pub mod drives;

@@ -57,11 +57,11 @@ impl SMARTMonitor {
         const KELVIN_MIN: u64 = 273;
         const KELVIN_MAX: u64 = 373;
 
-        let temp_celsius = if value >= KELVIN_MIN && value <= KELVIN_MAX {
+        let temp_celsius = if (KELVIN_MIN..=KELVIN_MAX).contains(&value) {
             // Likely Kelvin (e.g., 313K = 40°C)
             println!("  🌡️  Detected Kelvin temperature: {}K", value);
             value - 273
-        } else if value >= FAHRENHEIT_MIN && value <= FAHRENHEIT_MAX && value > CELSIUS_MAX {
+        } else if (FAHRENHEIT_MIN..=FAHRENHEIT_MAX).contains(&value) && value > CELSIUS_MAX {
             // Likely Fahrenheit (e.g., 104°F = 40°C)
             println!("  🌡️  Detected Fahrenheit temperature: {}°F", value);
             ((value - 32) * 5) / 9
@@ -665,8 +665,8 @@ impl SMARTMonitor {
         }
 
         // Handle hex values
-        if raw_str.starts_with("0x") {
-            if let Ok(val) = u64::from_str_radix(&raw_str[2..], 16) {
+        if let Some(stripped) = raw_str.strip_prefix("0x") {
+            if let Ok(val) = u64::from_str_radix(stripped, 16) {
                 return val;
             }
         }
@@ -797,7 +797,7 @@ impl SMARTMonitor {
                 let output_str = String::from_utf8_lossy(&output.stdout);
                 for line in output_str.lines() {
                     if line.contains("data_units_written") {
-                        if let Some(units) = Self::extract_number(&line) {
+                        if let Some(units) = Self::extract_number(line) {
                             // NVMe reports in 512KB units
                             return Ok(Some(units * 512 * 1024));
                         }
@@ -859,7 +859,7 @@ impl SMARTMonitor {
             } else if line.contains("Completed: read failure") {
                 return Ok(SelfTestResult::Failed("Read failure detected".to_string()));
             } else if line.contains("In progress") {
-                if let Some(percent) = Self::extract_percentage(&line) {
+                if let Some(percent) = Self::extract_percentage(line) {
                     return Ok(SelfTestResult::InProgress(percent as u8));
                 }
                 return Ok(SelfTestResult::InProgress(0));

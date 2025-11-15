@@ -12,6 +12,12 @@ pub struct KernelModule {
     module_path: String,
 }
 
+impl Default for KernelModule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl KernelModule {
     pub fn new() -> Self {
         // Default module path (can be configured)

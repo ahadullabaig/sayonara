@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod tests {
+mod io_tests {
     use crate::io::metrics::PerformanceTuner;
     use crate::io::*;
     use serial_test::serial;
@@ -18,9 +18,11 @@ mod tests {
         let path = temp.path().to_str().unwrap();
 
         // Use buffered I/O for testing (Direct I/O requires block device)
-        let mut config = IOConfig::default();
-        config.use_direct_io = false;
-        config.initial_buffer_size = 1 * 1024 * 1024; // 1MB for test
+        let config = IOConfig {
+            use_direct_io: false,
+            initial_buffer_size: 1024 * 1024, // 1MB for test
+            ..IOConfig::default()
+        };
 
         let mut handle = OptimizedIO::open(path, config)?;
 
@@ -97,7 +99,7 @@ mod tests {
         // Slow drive
         let slow = DriveSpeed::from_throughput(50 * 1024 * 1024);
         assert_eq!(slow, DriveSpeed::Slow);
-        assert_eq!(slow.optimal_buffer_size(), 1 * 1024 * 1024);
+        assert_eq!(slow.optimal_buffer_size(), 1024 * 1024);
 
         // Fast NVMe
         let fast = DriveSpeed::from_throughput(800 * 1024 * 1024);

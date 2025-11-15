@@ -366,7 +366,7 @@ impl SelfHealer {
     /// Reset MegaRAID controller
     fn reset_megaraid(&self) -> Result<()> {
         let output = Command::new("/opt/MegaRAID/MegaCli/MegaCli64")
-            .args(&["-AdpReset", "-a0"])
+            .args(["-AdpReset", "-a0"])
             .output()
             .context("Failed to reset MegaRAID controller")?;
 
@@ -387,7 +387,7 @@ impl SelfHealer {
         };
 
         let output = Command::new(cmd)
-            .args(&["ctrl", "all", "diag", "file=/dev/null"])
+            .args(["ctrl", "all", "diag", "file=/dev/null"])
             .output()
             .context("Failed to reset HP SmartArray")?;
 
@@ -404,7 +404,7 @@ impl SelfHealer {
         // MPT controllers can be reset via sysfs or driver reload
         // This is a simplified version
         let output = Command::new("modprobe")
-            .args(&["-r", "mpt3sas"])
+            .args(["-r", "mpt3sas"])
             .output()
             .context("Failed to unload mpt3sas")?;
 
@@ -440,7 +440,7 @@ impl SelfHealer {
 
         // Try chassis power cycle
         let output = Command::new("ipmitool")
-            .args(&["chassis", "power", "cycle"])
+            .args(["chassis", "power", "cycle"])
             .output()
             .context("Failed to execute IPMI power cycle")?;
 
@@ -503,12 +503,10 @@ mod tests {
 
     #[test]
     fn test_heal_method_ordering_by_risk() {
-        let mut methods = vec![
-            HealMethod::ReloadDriver,
+        let mut methods = [HealMethod::ReloadDriver,
             HealMethod::ResetDevice,
             HealMethod::ResetController,
-            HealMethod::PowerCycle,
-        ];
+            HealMethod::PowerCycle];
 
         // Sort by risk level
         methods.sort_by_key(|m| m.risk_level());

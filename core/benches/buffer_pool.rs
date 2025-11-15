@@ -251,8 +251,8 @@ fn bench_memory_bandwidth(c: &mut Criterion) {
     group.bench_function("sequential_write", |b| {
         b.iter(|| {
             let mut buffer = vec![0u8; size];
-            for i in 0..size {
-                buffer[i] = 0xAB;
+            for item in buffer.iter_mut() {
+                *item = 0xAB;
             }
             black_box(buffer);
         });

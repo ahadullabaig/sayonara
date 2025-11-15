@@ -23,7 +23,7 @@ impl RecoveryTest {
                 return Ok(false);
             }
             checked += 1;
-            if checked % 50 == 0 || checked == total {
+            if checked.is_multiple_of(50) || checked == total {
                 let progress = (checked as f64 / total as f64) * 50.0; // 0–50%
                 bar.render(progress, None, None);
             }
@@ -79,10 +79,10 @@ impl RecoveryTest {
 
         let mut counts = [0u64; 256];
         let mut processed = 0usize;
-        for (_i, &byte) in buffer.iter().enumerate() {
+        for &byte in buffer.iter() {
             counts[byte as usize] += 1;
             processed += 1;
-            if processed % (buffer.len() / 50).max(1) == 0 {
+            if processed.is_multiple_of((buffer.len() / 50).max(1)) {
                 // progress from 50% -> 100%
                 let pct = 50.0 + (processed as f64 / buffer.len() as f64) * 50.0;
                 // pass bytes processed to show speed/eta relative to sample_size

@@ -112,8 +112,8 @@ fn test_monobit_test_fails_on_all_ones() -> Result<()> {
 fn test_monobit_test_passes_on_balanced_data() -> Result<()> {
     // Create data with exactly 50% ones
     let mut data = vec![0u8; 8192];
-    for i in 0..data.len() {
-        data[i] = if i % 2 == 0 { 0x00 } else { 0xFF };
+    for (i, item) in data.iter_mut().enumerate() {
+        *item = if i % 2 == 0 { 0x00 } else { 0xFF };
     }
 
     let result = EnhancedVerification::monobit_test(&data)?;

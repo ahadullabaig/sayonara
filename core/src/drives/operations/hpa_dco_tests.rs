@@ -411,7 +411,7 @@ fn test_capacity_calculation_with_both_hpa_and_dco() {
 
 #[test]
 fn test_sector_to_byte_conversion() {
-    assert_eq!(1 * 512, 512);
+    assert_eq!(512, 512);
     assert_eq!(2048 * 512, 1048576); // 1 MB
     assert_eq!(2097152 * 512, 1073741824); // 1 GB
 }
@@ -432,7 +432,7 @@ fn test_realistic_hidden_area_sizes() {
     // Common HPA sizes: 128 MB, 256 MB, 1 GB
     let hpa_128mb_sectors = (128 * 1024 * 1024) / 512;
     let hpa_256mb_sectors = (256 * 1024 * 1024) / 512;
-    let hpa_1gb_sectors = (1 * 1024 * 1024 * 1024) / 512;
+    let hpa_1gb_sectors = (1024 * 1024 * 1024) / 512;
 
     assert_eq!(hpa_128mb_sectors, 262144);
     assert_eq!(hpa_256mb_sectors, 524288);
@@ -582,7 +582,7 @@ fn test_forensic_recovery_partition_scenario() {
     // Verify this represents realistic recovery partition
     let hidden_gb = hpa.hidden_size_bytes / (1024 * 1024 * 1024);
     assert!(
-        hidden_gb >= 10 && hidden_gb <= 20,
+        (10..=20).contains(&hidden_gb),
         "Recovery partition should be 10-20GB"
     );
 }
@@ -607,7 +607,7 @@ fn test_vendor_locked_dco_scenario() {
     let hidden_gb = dco.hidden_size_bytes / (1024 * 1024 * 1024);
     // 931 GB - 900 GB = ~31 GB hidden
     assert!(
-        hidden_gb >= 30 && hidden_gb <= 32,
+        (30..=32).contains(&hidden_gb),
         "Should have ~31GB hidden (integer division)"
     );
 }

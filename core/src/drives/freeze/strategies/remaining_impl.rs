@@ -13,6 +13,12 @@ use std::time::Duration;
 
 pub struct PcieHotReset;
 
+impl Default for PcieHotReset {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PcieHotReset {
     pub fn new() -> Self {
         Self
@@ -188,6 +194,12 @@ impl UnfreezeStrategy for PcieHotReset {
 
 pub struct AcpiSleep;
 
+impl Default for AcpiSleep {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AcpiSleep {
     pub fn new() -> Self {
         Self
@@ -341,6 +353,12 @@ impl UnfreezeStrategy for AcpiSleep {
 
 pub struct UsbSuspend;
 
+impl Default for UsbSuspend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl UsbSuspend {
     pub fn new() -> Self {
         Self
@@ -410,6 +428,12 @@ impl UnfreezeStrategy for UsbSuspend {
 // ===== IPMI Power =====
 
 pub struct IpmiPower;
+
+impl Default for IpmiPower {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl IpmiPower {
     pub fn new() -> Self {
@@ -653,8 +677,7 @@ mod tests {
         let result = strategy.extract_pci_address(path);
 
         // The regex should match the PCI address pattern
-        if result.is_some() {
-            let addr = result.unwrap();
+        if let Some(addr) = result {
             assert!(addr.contains(':'));
             assert!(addr.contains('.'));
             // Should be in format XXXX:XX:XX.X
@@ -721,7 +744,8 @@ mod tests {
         // Test S3 support check (may vary by system)
         let supported = strategy.is_s3_supported();
         // Should return bool without panicking
-        assert!(supported == true || supported == false);
+        // Just checking that the method runs without panicking
+        let _ = supported;
     }
 
     #[test]
@@ -731,7 +755,8 @@ mod tests {
         // Test rtcwake availability
         let available = strategy.is_rtcwake_available();
         // Should return bool without panicking
-        assert!(available == true || available == false);
+        // Just checking that the method runs without panicking
+        let _ = available;
     }
 
     #[test]
@@ -741,7 +766,8 @@ mod tests {
         // Test availability check
         let available = strategy.is_available();
         // Should check for /sys/power/state and S3 support
-        assert!(available == true || available == false);
+        // Just checking that the method runs without panicking
+        let _ = available;
     }
 
     // ===== USB Suspend Tests =====
@@ -839,7 +865,8 @@ mod tests {
         // Test availability (will fail on systems without IPMI)
         let available = strategy.is_available();
         // Should return bool without panicking
-        assert!(available == true || available == false);
+        // Just checking that the method runs without panicking
+        let _ = available;
     }
 
     #[test]

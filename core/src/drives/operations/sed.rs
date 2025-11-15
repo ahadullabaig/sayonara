@@ -190,8 +190,8 @@ impl SEDManager {
         let drive_info = Self::get_drive_model(device_path)?;
 
         // Samsung specific
-        if drive_info.contains("Samsung") {
-            if drive_info.contains("EVO") || drive_info.contains("PRO") {
+        if drive_info.contains("Samsung")
+            && (drive_info.contains("EVO") || drive_info.contains("PRO")) {
                 return Ok(SEDInfo {
                     sed_type: SEDType::Proprietary("Samsung".to_string()),
                     locked: false,
@@ -203,11 +203,10 @@ impl SEDManager {
                     firmware_version: Self::get_firmware_version(device_path),
                 });
             }
-        }
 
         // Crucial/Micron specific
-        if drive_info.contains("Crucial") || drive_info.contains("Micron") {
-            if drive_info.contains("MX") || drive_info.contains("BX") {
+        if (drive_info.contains("Crucial") || drive_info.contains("Micron"))
+            && (drive_info.contains("MX") || drive_info.contains("BX")) {
                 return Ok(SEDInfo {
                     sed_type: SEDType::Proprietary("Crucial".to_string()),
                     locked: false,
@@ -219,7 +218,6 @@ impl SEDManager {
                     firmware_version: Self::get_firmware_version(device_path),
                 });
             }
-        }
 
         // Intel specific
         if drive_info.contains("Intel") && drive_info.contains("SSD") {
@@ -513,8 +511,7 @@ impl SEDManager {
 
         let config = IOConfig::small_read_optimized();
         let mut handle = OptimizedIO::open(device_path, config).map_err(|e| {
-            DriveError::IoError(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            DriveError::IoError(std::io::Error::other(
                 e.to_string(),
             ))
         })?;

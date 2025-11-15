@@ -59,10 +59,11 @@ impl Default for IOConfig {
 impl IOConfig {
     /// Create config optimized for drive speed
     pub fn for_drive_speed(speed: DriveSpeed) -> Self {
-        let mut config = Self::default();
-        config.initial_buffer_size = speed.optimal_buffer_size();
-        config.queue_depth = speed.optimal_queue_depth();
-        config
+        Self {
+            initial_buffer_size: speed.optimal_buffer_size(),
+            queue_depth: speed.optimal_queue_depth(),
+            ..Default::default()
+        }
     }
 
     /// Create config for NVMe drives
@@ -516,8 +517,10 @@ mod tests {
         let path = temp.path().to_str().unwrap();
 
         // Use buffered I/O for test (Direct I/O requires block device)
-        let mut config = IOConfig::default();
-        config.use_direct_io = false;
+        let config = IOConfig {
+            use_direct_io: false,
+            ..Default::default()
+        };
 
         let handle = OptimizedIO::open(path, config);
         assert!(handle.is_ok());

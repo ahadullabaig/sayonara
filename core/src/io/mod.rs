@@ -47,7 +47,7 @@ impl DriveSpeed {
     /// Determine optimal buffer size for this drive speed
     pub fn optimal_buffer_size(&self) -> usize {
         match self {
-            DriveSpeed::Slow => 1 * 1024 * 1024,      // 1MB
+            DriveSpeed::Slow => 1024 * 1024,      // 1MB
             DriveSpeed::Medium => 4 * 1024 * 1024,    // 4MB
             DriveSpeed::Fast => 8 * 1024 * 1024,      // 8MB
             DriveSpeed::VeryFast => 16 * 1024 * 1024, // 16MB

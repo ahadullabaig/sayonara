@@ -43,6 +43,12 @@ pub struct CertificateGenerator {
     private_key: String, // In practice, use proper key management
 }
 
+impl Default for CertificateGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CertificateGenerator {
     pub fn new() -> Self {
         // In production, load this from secure key store
@@ -85,7 +91,7 @@ impl CertificateGenerator {
         let mut hasher = Sha256::new();
         hasher.update(device_info.model.as_bytes());
         hasher.update(device_info.serial.as_bytes());
-        hasher.update(&device_info.size.to_le_bytes());
+        hasher.update(device_info.size.to_le_bytes());
 
         Ok(format!("{:x}", hasher.finalize()))
     }

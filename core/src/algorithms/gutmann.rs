@@ -239,7 +239,7 @@ impl GutmannWipe {
             bytes_written += buf.len() as u64;
 
             // Update progress every 100MB
-            if bytes_written % (100 * 1024 * 1024) == 0 || bytes_written >= size {
+            if bytes_written.is_multiple_of(100 * 1024 * 1024) || bytes_written >= size {
                 let progress = (bytes_written as f64 / size as f64) * 50.0; // First 50% for writing
                 bar.render(progress, Some(bytes_written), Some(size));
             }
@@ -274,7 +274,7 @@ impl GutmannWipe {
             secure_random_bytes(buf)?;
 
             // Store sample for verification (first 4KB of every 100MB)
-            if bytes_written % (100 * 1024 * 1024) == 0 {
+            if bytes_written.is_multiple_of(100 * 1024 * 1024) {
                 let sample_size = std::cmp::min(4096, buf.len());
                 verification_samples.insert(bytes_written, buf[..sample_size].to_vec());
             }
@@ -282,7 +282,7 @@ impl GutmannWipe {
             bytes_written += buf.len() as u64;
 
             // Update progress
-            if bytes_written % (100 * 1024 * 1024) == 0 || bytes_written >= size {
+            if bytes_written.is_multiple_of(100 * 1024 * 1024) || bytes_written >= size {
                 let progress = (bytes_written as f64 / size as f64) * 50.0; // First 50% for writing
                 bar.render(progress, Some(bytes_written), Some(size));
             }

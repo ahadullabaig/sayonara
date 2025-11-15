@@ -165,7 +165,7 @@ mod dod_algorithm_tests {
             let progress = (bytes_written as f64 / total_size as f64) * 100.0;
 
             assert!(
-                progress >= 0.0 && progress <= 100.0,
+                (0.0..=100.0).contains(&progress),
                 "Progress should be between 0 and 100"
             );
 
@@ -178,7 +178,7 @@ mod dod_algorithm_tests {
     #[test]
     fn test_dod_pass_sequence_order() {
         // Verify passes must execute in order
-        let pass_sequence = vec![1, 2, 3];
+        let pass_sequence = [1, 2, 3];
 
         for (idx, pass) in pass_sequence.iter().enumerate() {
             assert_eq!(

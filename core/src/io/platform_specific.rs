@@ -63,6 +63,12 @@ pub trait PlatformIO: Send + Sync {
 pub struct LinuxIO;
 
 #[cfg(target_os = "linux")]
+impl Default for LinuxIO {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LinuxIO {
     pub fn new() -> Self {
         Self

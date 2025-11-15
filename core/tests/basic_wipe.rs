@@ -19,8 +19,10 @@ fn test_basic_zero_wipe() {
     let size = mock.size_bytes();
 
     // Configure I/O for regular files (no direct I/O)
-    let mut config = IOConfig::default();
-    config.use_direct_io = false;
+    let config = IOConfig {
+        use_direct_io: false,
+        ..Default::default()
+    };
 
     // Open the mock drive
     let mut handle = OptimizedIO::open(path, config).expect("Failed to open mock drive");
@@ -50,8 +52,10 @@ fn test_pattern_wipe() {
     let size = mock.size_bytes();
 
     // Configure I/O for regular files
-    let mut config = IOConfig::default();
-    config.use_direct_io = false;
+    let config = IOConfig {
+        use_direct_io: false,
+        ..Default::default()
+    };
 
     // Open the mock drive
     let mut handle = OptimizedIO::open(path, config).expect("Failed to open mock drive");

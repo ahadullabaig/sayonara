@@ -41,7 +41,7 @@ fn bench_buffer_sizes(c: &mut Criterion) {
     ];
 
     for (name, buffer_size) in buffer_sizes {
-        group.throughput(Throughput::Bytes((file_size_mb * 1024 * 1024) as u64));
+        group.throughput(Throughput::Bytes(file_size_mb * 1024 * 1024));
         group.bench_with_input(
             BenchmarkId::from_parameter(name),
             &buffer_size,
@@ -83,7 +83,7 @@ fn bench_drive_types(c: &mut Criterion) {
     ];
 
     for (name, buffer_size) in drive_configs {
-        group.throughput(Throughput::Bytes((file_size_mb * 1024 * 1024) as u64));
+        group.throughput(Throughput::Bytes(file_size_mb * 1024 * 1024));
         group.bench_function(name, |b| {
             b.iter(|| {
                 let mut file = create_temp_file(file_size_mb).unwrap();
@@ -135,16 +135,16 @@ fn bench_pattern_generation(c: &mut Criterion) {
     group.bench_function("random_pattern", |b| {
         b.iter(|| {
             use std::collections::hash_map::RandomState;
-            use std::hash::{BuildHasher, Hash, Hasher};
+            use std::hash::BuildHasher;
 
             let mut buffer = vec![0u8; buffer_size];
             let state = RandomState::new();
 
             for chunk in buffer.chunks_mut(8) {
-                let mut hasher = state.build_hasher();
+                
                 let len = chunk.len();
-                len.hash(&mut hasher);
-                let value = hasher.finish();
+                
+                let value = state.hash_one(len);
                 let bytes = value.to_le_bytes();
                 let copy_len = len.min(8);
                 chunk[..copy_len].copy_from_slice(&bytes[..copy_len]);

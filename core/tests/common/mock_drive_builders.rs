@@ -15,16 +15,18 @@ pub struct MockSMRDriveBuilder {
 
 impl MockSMRDriveBuilder {
     pub fn new() -> Self {
-        let mut config = MockDriveConfig::default();
-        config.drive_type = DriveType::SMR;
-        config.model = "Mock SMR Drive 100MB".to_string();
-        config.size = 100 * 1024 * 1024; // 100MB for fast tests
-        config.smr_config = Some(SMRMockConfig {
-            zone_model: ZoneModel::HostManaged,
-            zone_size: 16 * 1024 * 1024, // 16MB zones
-            conventional_zone_count: 2,
-            sequential_zone_count: 6,
-        });
+        let config = MockDriveConfig {
+            drive_type: DriveType::SMR,
+            model: "Mock SMR Drive 100MB".to_string(),
+            size: 100 * 1024 * 1024, // 100MB for fast tests
+            smr_config: Some(SMRMockConfig {
+                zone_model: ZoneModel::HostManaged,
+                zone_size: 16 * 1024 * 1024, // 16MB zones
+                conventional_zone_count: 2,
+                sequential_zone_count: 6,
+            }),
+            ..Default::default()
+        };
 
         Self { config }
     }
@@ -68,18 +70,20 @@ pub struct MockOptaneDriveBuilder {
 
 impl MockOptaneDriveBuilder {
     pub fn new() -> Self {
-        let mut config = MockDriveConfig::default();
-        config.drive_type = DriveType::Optane;
-        config.model = "Mock Intel Optane 100MB".to_string();
-        config.size = 100 * 1024 * 1024; // 100MB for fast tests
-        config.supports_crypto_erase = true;
-        config.max_temperature = 85; // Optane runs hotter
-        config.optane_config = Some(OptaneMockConfig {
-            is_pmem: false,
-            supports_ise: true,
-            generation: "P4800X".to_string(),
-            namespace_count: 1,
-        });
+        let config = MockDriveConfig {
+            drive_type: DriveType::Optane,
+            model: "Mock Intel Optane 100MB".to_string(),
+            size: 100 * 1024 * 1024, // 100MB for fast tests
+            supports_crypto_erase: true,
+            max_temperature: 85, // Optane runs hotter
+            optane_config: Some(OptaneMockConfig {
+                is_pmem: false,
+                supports_ise: true,
+                generation: "P4800X".to_string(),
+                namespace_count: 1,
+            }),
+            ..Default::default()
+        };
 
         Self { config }
     }
@@ -123,14 +127,16 @@ pub struct MockHybridDriveBuilder {
 
 impl MockHybridDriveBuilder {
     pub fn new() -> Self {
-        let mut config = MockDriveConfig::default();
-        config.drive_type = DriveType::HybridSSHD;
-        config.model = "Mock Hybrid SSHD 110MB".to_string();
-        config.size = 110 * 1024 * 1024; // 110MB total for fast tests
-        config.hybrid_config = Some(HybridMockConfig {
-            hdd_capacity: 100 * 1024 * 1024,  // 100MB HDD
-            ssd_cache_size: 10 * 1024 * 1024, // 10MB SSD cache
-        });
+        let config = MockDriveConfig {
+            drive_type: DriveType::HybridSSHD,
+            model: "Mock Hybrid SSHD 110MB".to_string(),
+            size: 110 * 1024 * 1024, // 110MB total for fast tests
+            hybrid_config: Some(HybridMockConfig {
+                hdd_capacity: 100 * 1024 * 1024,  // 100MB HDD
+                ssd_cache_size: 10 * 1024 * 1024, // 10MB SSD cache
+            }),
+            ..Default::default()
+        };
 
         Self { config }
     }
@@ -171,16 +177,18 @@ pub struct MockEMMCDriveBuilder {
 
 impl MockEMMCDriveBuilder {
     pub fn new() -> Self {
-        let mut config = MockDriveConfig::default();
-        config.drive_type = DriveType::EMMC;
-        config.model = "Mock eMMC 100MB".to_string();
-        config.size = 100 * 1024 * 1024; // 100MB for fast tests
-        config.supports_trim = true;
-        config.emmc_config = Some(EMMCMockConfig {
-            boot_partition_size: 4 * 1024 * 1024, // 4MB boot partitions
-            rpmb_size: 512 * 1024,                // 512KB RPMB
-            emmc_version: "5.1".to_string(),
-        });
+        let config = MockDriveConfig {
+            drive_type: DriveType::EMMC,
+            model: "Mock eMMC 100MB".to_string(),
+            size: 100 * 1024 * 1024, // 100MB for fast tests
+            supports_trim: true,
+            emmc_config: Some(EMMCMockConfig {
+                boot_partition_size: 4 * 1024 * 1024, // 4MB boot partitions
+                rpmb_size: 512 * 1024,                // 512KB RPMB
+                emmc_version: "5.1".to_string(),
+            }),
+            ..Default::default()
+        };
 
         Self { config }
     }
@@ -224,19 +232,21 @@ pub struct MockNVMeDriveBuilder {
 
 impl MockNVMeDriveBuilder {
     pub fn new() -> Self {
-        let mut config = MockDriveConfig::default();
-        config.drive_type = DriveType::NVMe;
-        config.model = "Mock NVMe SSD 100MB".to_string();
-        config.size = 100 * 1024 * 1024; // 100MB for fast tests
-        config.supports_trim = true;
-        config.nvme_config = Some(NVMeMockConfig {
-            namespace_count: 1,
-            supports_sanitize: true,
-            sanitize_crypto_erase: true,
-            sanitize_block_erase: true,
-            supports_format_nvm: true,
-        });
-        config.sanitize_options = vec![SanitizeOption::CryptoErase, SanitizeOption::BlockErase];
+        let config = MockDriveConfig {
+            drive_type: DriveType::NVMe,
+            model: "Mock NVMe SSD 100MB".to_string(),
+            size: 100 * 1024 * 1024, // 100MB for fast tests
+            supports_trim: true,
+            nvme_config: Some(NVMeMockConfig {
+                namespace_count: 1,
+                supports_sanitize: true,
+                sanitize_crypto_erase: true,
+                sanitize_block_erase: true,
+                supports_format_nvm: true,
+            }),
+            sanitize_options: vec![SanitizeOption::CryptoErase, SanitizeOption::BlockErase],
+            ..Default::default()
+        };
 
         Self { config }
     }
@@ -280,15 +290,17 @@ pub struct MockRAIDArrayBuilder {
 
 impl MockRAIDArrayBuilder {
     pub fn new() -> Self {
-        let mut config = MockDriveConfig::default();
-        config.drive_type = DriveType::RAID;
-        config.model = "Mock RAID5 Array 100MB".to_string();
-        config.size = 100 * 1024 * 1024; // 100MB for fast tests
-        config.raid_config = Some(RAIDMockConfig {
-            raid_level: "raid5".to_string(),
-            member_count: 4,
-            array_uuid: "12345678-1234-1234-1234-123456789abc".to_string(),
-        });
+        let config = MockDriveConfig {
+            drive_type: DriveType::RAID,
+            model: "Mock RAID5 Array 100MB".to_string(),
+            size: 100 * 1024 * 1024, // 100MB for fast tests
+            raid_config: Some(RAIDMockConfig {
+                raid_level: "raid5".to_string(),
+                member_count: 4,
+                array_uuid: "12345678-1234-1234-1234-123456789abc".to_string(),
+            }),
+            ..Default::default()
+        };
 
         Self { config }
     }
@@ -332,12 +344,14 @@ pub struct MockUFSDriveBuilder {
 
 impl MockUFSDriveBuilder {
     pub fn new() -> Self {
-        let mut config = MockDriveConfig::default();
-        config.drive_type = DriveType::UFS;
-        config.model = "Mock UFS 3.1 100MB".to_string();
-        config.size = 100 * 1024 * 1024; // 100MB for fast tests
-        config.supports_trim = true;
-        config.supports_crypto_erase = true;
+        let config = MockDriveConfig {
+            drive_type: DriveType::UFS,
+            model: "Mock UFS 3.1 100MB".to_string(),
+            size: 100 * 1024 * 1024, // 100MB for fast tests
+            supports_trim: true,
+            supports_crypto_erase: true,
+            ..Default::default()
+        };
 
         Self { config }
     }
@@ -374,14 +388,16 @@ impl MockDrive {
     /// Create mock Hybrid SSHD with default configuration
     pub fn hybrid() -> std::io::Result<Self> {
         // Create a small hybrid drive for testing (100MB HDD + 10MB cache)
-        let mut config = MockDriveConfig::default();
-        config.drive_type = DriveType::HybridSSHD;
-        config.model = "Mock Hybrid SSHD 110MB".to_string();
-        config.size = 110 * 1024 * 1024; // 110MB total
-        config.hybrid_config = Some(HybridMockConfig {
-            hdd_capacity: 100 * 1024 * 1024,  // 100MB HDD
-            ssd_cache_size: 10 * 1024 * 1024, // 10MB cache
-        });
+        let config = MockDriveConfig {
+            drive_type: DriveType::HybridSSHD,
+            model: "Mock Hybrid SSHD 110MB".to_string(),
+            size: 110 * 1024 * 1024, // 110MB total
+            hybrid_config: Some(HybridMockConfig {
+                hdd_capacity: 100 * 1024 * 1024,  // 100MB HDD
+                ssd_cache_size: 10 * 1024 * 1024, // 10MB cache
+            }),
+            ..Default::default()
+        };
         MockDrive::new(config)
     }
 

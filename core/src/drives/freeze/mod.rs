@@ -69,7 +69,7 @@ impl FreezeMitigationStrategy for advanced::AdvancedFreezeMitigation {
     }
 
     fn is_frozen(&self, device_path: &str) -> crate::DriveResult<bool> {
-        Ok(self.is_secure_erase_blocked(device_path)?)
+        self.is_secure_erase_blocked(device_path)
     }
 }
 

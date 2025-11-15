@@ -349,6 +349,7 @@ pub struct MockDriveStats {
     pub bytes_written: u64,
     pub bytes_read: u64,
     pub write_count: u64,
+    #[allow(dead_code)]
     pub read_count: u64,
     pub current_temperature: u32,
     pub error_count: u64,

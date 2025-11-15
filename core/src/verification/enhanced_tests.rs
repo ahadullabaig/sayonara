@@ -274,7 +274,7 @@ mod tests {
     #[test]
     fn test_suspicious_data_low_entropy() {
         // Low entropy data (structured)
-        let data = vec![0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF].repeat(100);
+        let data = [0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF];
 
         assert!(
             EnhancedVerification::detect_suspicious_data(&data),

@@ -47,6 +47,12 @@ pub struct HardwareRNG {
     available: bool,
 }
 
+impl Default for HardwareRNG {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HardwareRNG {
     pub fn new() -> Self {
         // Check if hardware RNG is available
@@ -116,6 +122,12 @@ pub struct RingSystemRNG {
     rng: SystemRandom,
 }
 
+impl Default for RingSystemRNG {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RingSystemRNG {
     pub fn new() -> Self {
         Self {
@@ -148,6 +160,12 @@ impl EntropySource for RingSystemRNG {
 /// OS urandom entropy source
 pub struct URandom {
     available: bool,
+}
+
+impl Default for URandom {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl URandom {
@@ -192,6 +210,12 @@ impl EntropySource for URandom {
 /// Jitter entropy source (CPU timing variations)
 pub struct JitterEntropy {
     last_value: Arc<Mutex<u64>>,
+}
+
+impl Default for JitterEntropy {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl JitterEntropy {
@@ -265,7 +289,7 @@ impl EntropySource for JitterEntropy {
             while offset < dest.len() {
                 let mut hasher = Sha512::new();
                 hasher.update(&raw_entropy);
-                hasher.update(&counter.to_le_bytes());
+                hasher.update(counter.to_le_bytes());
                 let hash = hasher.finalize();
 
                 let copy_len = std::cmp::min(64, dest.len() - offset);
@@ -315,14 +339,14 @@ fn hmac_sha256(key: &[u8], data: &[u8]) -> [u8; 32] {
 
     // inner = SHA256(ipad || data)
     let mut inner = Sha256::new();
-    inner.update(&ipad);
+    inner.update(ipad);
     inner.update(data);
     let inner_res = inner.finalize();
 
     // outer = SHA256(opad || inner)
     let mut outer = Sha256::new();
-    outer.update(&opad);
-    outer.update(&inner_res);
+    outer.update(opad);
+    outer.update(inner_res);
     let out = outer.finalize();
 
     let mut ret = [0u8; 32];
@@ -450,13 +474,13 @@ impl EntropyPool {
         // Build seed material from pool + position + time
         let mut hasher = Sha256::new();
         hasher.update(&self.pool);
-        hasher.update(&self.position.to_le_bytes());
+        hasher.update(self.position.to_le_bytes());
         let time_bytes = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos()
             .to_le_bytes();
-        hasher.update(&time_bytes);
+        hasher.update(time_bytes);
         let seed = hasher.finalize();
 
         // Instantiate HMAC-DRBG seeded with the hashed pool
@@ -561,7 +585,7 @@ impl SecureRNG {
         let request_len = dest.len() as u64;
 
         // Also check if DRBG needs reseeding
-        let drbg_needs_reseed = self.drbg.as_ref().map_or(false, |d| d.needs_reseed());
+        let drbg_needs_reseed = self.drbg.as_ref().is_some_and(|d| d.needs_reseed());
 
         if bytes_generated.saturating_add(request_len) >= self.max_bytes_before_reseed
             || drbg_needs_reseed
@@ -687,14 +711,14 @@ impl SecureRNG {
         {
             let pool = self.entropy_pool.lock().unwrap();
             hasher.update(&pool.pool);
-            hasher.update(&pool.position.to_le_bytes());
+            hasher.update(pool.position.to_le_bytes());
         }
         let time_bytes = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos()
             .to_le_bytes();
-        hasher.update(&time_bytes);
+        hasher.update(time_bytes);
         let seed = hasher.finalize();
 
         // Replace or create persistent DRBG
@@ -724,9 +748,7 @@ impl SecureRNG {
         let tertiary_quality = self.tertiary_source.quality();
 
         // Weighted average with primary source having most weight
-        (primary_quality * 0.5 + secondary_quality * 0.3 + tertiary_quality * 0.2)
-            .min(1.0)
-            .max(0.0)
+        (primary_quality * 0.5 + secondary_quality * 0.3 + tertiary_quality * 0.2).clamp(0.0, 1.0)
     }
 
     /// Check if RNG is healthy

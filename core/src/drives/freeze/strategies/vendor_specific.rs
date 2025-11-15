@@ -9,6 +9,12 @@ use std::time::Duration;
 
 pub struct VendorSpecific;
 
+impl Default for VendorSpecific {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl VendorSpecific {
     pub fn new() -> Self {
         Self
@@ -653,7 +659,7 @@ impl UnfreezeStrategy for VendorSpecific {
 
     fn is_available(&self) -> bool {
         // Check if any vendor tools are available
-        let tools = vec![
+        let tools = [
             "percli",    // Dell PERC
             "hpssacli",  // HP SmartArray
             "storcli64", // LSI MegaRAID (newer)
@@ -827,7 +833,8 @@ mod tests {
         // Test availability check doesn't crash
         let available = strategy.is_intel_rst_cli_available();
         // Should return boolean (likely false in test environment)
-        assert!(available == true || available == false);
+        // Just checking that the method runs without panicking
+        let _ = available;
     }
 
     #[test]
@@ -854,7 +861,6 @@ mod tests {
         let _ = strategy.intel_rst_unfreeze("/dev/sda");
 
         // If we got here without panicking, error handling works
-        assert!(true);
     }
 
     #[test]
@@ -864,7 +870,8 @@ mod tests {
         // Test that availability check works
         let available = strategy.is_available();
         // Should return boolean
-        assert!(available == true || available == false);
+        // Just checking that the method runs without panicking
+        let _ = available;
     }
 
     #[test]

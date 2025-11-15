@@ -46,8 +46,7 @@ impl RandomWipe {
         let context = ErrorContext::new("random_wipe", device_path);
         coordinator.execute_with_recovery("random_wipe", context, || -> DriveResult<()> {
             Self::write_random(&mut io_handle, size).map_err(|e| {
-                DriveError::IoError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                DriveError::IoError(std::io::Error::other(
                     format!("{}", e),
                 ))
             })?;
@@ -91,7 +90,7 @@ impl RandomWipe {
 
             bytes_written += buf.len() as u64;
 
-            if bytes_written % (50 * 1024 * 1024) == 0 || bytes_written >= size {
+            if bytes_written.is_multiple_of(50 * 1024 * 1024) || bytes_written >= size {
                 let progress = (bytes_written as f64 / size as f64) * 100.0;
                 bar.render(progress, Some(bytes_written), Some(size));
             }

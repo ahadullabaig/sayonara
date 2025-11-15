@@ -116,7 +116,7 @@ impl HybridDrive {
         for line in output.lines() {
             if line.contains("Rotation Rate") {
                 if let Some(rpm_str) = line.split(':').nth(1) {
-                    if let Some(rpm) = rpm_str.trim().split_whitespace().next() {
+                    if let Some(rpm) = rpm_str.split_whitespace().next() {
                         if let Ok(val) = rpm.parse::<u32>() {
                             return Ok(val);
                         }

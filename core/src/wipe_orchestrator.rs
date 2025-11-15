@@ -38,9 +38,7 @@ impl WipeOrchestrator {
         // Initialize recovery coordinator for error handling and checkpointing
         let recovery_coordinator =
             RecoveryCoordinator::new(&device_path, &config).map_err(|e| {
-                DriveError::IoError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("Failed to initialize recovery coordinator: {}", e),
+                DriveError::IoError(std::io::Error::other(format!("Failed to initialize recovery coordinator: {}", e),
                 ))
             })?;
 
@@ -99,33 +97,27 @@ impl WipeOrchestrator {
         match self.config.algorithm {
             Algorithm::DoD5220 => {
                 println!("Using DoD 5220.22-M (3-pass wipe)");
-                let passes = vec![
-                    (WipeAlgorithm::Zeros, "Pass 1/3: Writing zeros"),
+                let passes = [(WipeAlgorithm::Zeros, "Pass 1/3: Writing zeros"),
                     (WipeAlgorithm::Ones, "Pass 2/3: Writing ones"),
-                    (WipeAlgorithm::Random, "Pass 3/3: Writing random data"),
-                ];
+                    (WipeAlgorithm::Random, "Pass 3/3: Writing random data")];
 
                 for (pass_num, (algorithm, description)) in passes.iter().enumerate() {
                     println!("{}", description);
                     let context = ErrorContext::new(
-                        &format!("smr_wipe_pass_{}", pass_num + 1),
+                        format!("smr_wipe_pass_{}", pass_num + 1),
                         &self.device_path,
                     );
 
                     self.recovery_coordinator
                         .execute_with_recovery("wipe_smr_drive", context, || -> DriveResult<()> {
                             wipe_smr_drive_integrated(&smr, algorithm.clone()).map_err(|e| {
-                                DriveError::IoError(std::io::Error::new(
-                                    std::io::ErrorKind::Other,
-                                    format!("{}", e),
+                                DriveError::IoError(std::io::Error::other(format!("{}", e),
                                 ))
                             })?;
                             Ok(())
                         })
                         .map_err(|e| {
-                            DriveError::IoError(std::io::Error::new(
-                                std::io::ErrorKind::Other,
-                                format!("{}", e),
+                            DriveError::IoError(std::io::Error::other(format!("{}", e),
                             ))
                         })?;
                 }
@@ -143,17 +135,13 @@ impl WipeOrchestrator {
                 self.recovery_coordinator
                     .execute_with_recovery("wipe_smr_drive", context, || -> DriveResult<()> {
                         wipe_smr_drive_integrated(&smr, wipe_algorithm.clone()).map_err(|e| {
-                            DriveError::IoError(std::io::Error::new(
-                                std::io::ErrorKind::Other,
-                                format!("{}", e),
+                            DriveError::IoError(std::io::Error::other(format!("{}", e),
                             ))
                         })?;
                         Ok(())
                     })
                     .map_err(|e| {
-                        DriveError::IoError(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            format!("{}", e),
+                        DriveError::IoError(std::io::Error::other(format!("{}", e),
                         ))
                     })?;
             }
@@ -198,17 +186,13 @@ impl WipeOrchestrator {
         self.recovery_coordinator
             .execute_with_recovery("wipe_optane_drive", context, || -> DriveResult<()> {
                 wipe_optane_drive_integrated(&optane, use_ise).map_err(|e| {
-                    DriveError::IoError(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("{}", e),
+                    DriveError::IoError(std::io::Error::other(format!("{}", e),
                     ))
                 })?;
                 Ok(())
             })
             .map_err(|e| {
-                DriveError::IoError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("{}", e),
+                DriveError::IoError(std::io::Error::other(format!("{}", e),
                 ))
             })?;
 
@@ -244,17 +228,13 @@ impl WipeOrchestrator {
         self.recovery_coordinator
             .execute_with_recovery("wipe_hybrid_drive", context, || -> DriveResult<()> {
                 wipe_hybrid_drive_integrated(&mut hybrid).map_err(|e| {
-                    DriveError::IoError(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("{}", e),
+                    DriveError::IoError(std::io::Error::other(format!("{}", e),
                     ))
                 })?;
                 Ok(())
             })
             .map_err(|e| {
-                DriveError::IoError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("{}", e),
+                DriveError::IoError(std::io::Error::other(format!("{}", e),
                 ))
             })?;
 
@@ -284,17 +264,13 @@ impl WipeOrchestrator {
         self.recovery_coordinator
             .execute_with_recovery("wipe_emmc_drive", context, || -> DriveResult<()> {
                 wipe_emmc_drive_integrated(&emmc, use_hardware).map_err(|e| {
-                    DriveError::IoError(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("{}", e),
+                    DriveError::IoError(std::io::Error::other(format!("{}", e),
                     ))
                 })?;
                 Ok(())
             })
             .map_err(|e| {
-                DriveError::IoError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("{}", e),
+                DriveError::IoError(std::io::Error::other(format!("{}", e),
                 ))
             })?;
 
@@ -320,25 +296,19 @@ impl WipeOrchestrator {
                     .arg(&device_path)
                     .output()
                     .map_err(|e| {
-                        DriveError::IoError(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            format!("UFS PURGE failed: {}", e),
+                        DriveError::IoError(std::io::Error::other(format!("UFS PURGE failed: {}", e),
                         ))
                     })?;
 
                 if !output.status.success() {
-                    return Err(DriveError::IoError(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        "UFS PURGE command failed",
+                    return Err(DriveError::IoError(std::io::Error::other("UFS PURGE command failed",
                     )));
                 }
 
                 Ok(())
             })
             .map_err(|e| {
-                DriveError::IoError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("{}", e),
+                DriveError::IoError(std::io::Error::other(format!("{}", e),
                 ))
             })?;
 
@@ -378,16 +348,12 @@ impl WipeOrchestrator {
             self.recovery_coordinator
                 .execute_with_recovery("wipe_nvme_advanced", context, || {
                     wipe_nvme_advanced_integrated(&nvme_advanced, use_format).map_err(|e| {
-                        DriveError::IoError(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            format!("Advanced NVMe wipe failed: {}", e),
+                        DriveError::IoError(std::io::Error::other(format!("Advanced NVMe wipe failed: {}", e),
                         ))
                     })
                 })
                 .map_err(|e| {
-                    DriveError::IoError(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("{}", e),
+                    DriveError::IoError(std::io::Error::other(format!("{}", e),
                     ))
                 })?;
 
@@ -414,16 +380,12 @@ impl WipeOrchestrator {
                         .arg("2") // Cryptographic erase
                         .output()
                         .map_err(|e| {
-                            DriveError::IoError(std::io::Error::new(
-                                std::io::ErrorKind::Other,
-                                format!("NVMe sanitize failed: {}", e),
+                            DriveError::IoError(std::io::Error::other(format!("NVMe sanitize failed: {}", e),
                             ))
                         })?;
 
                     if !output.status.success() {
-                        return Err(DriveError::IoError(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            "NVMe sanitize command failed",
+                        return Err(DriveError::IoError(std::io::Error::other("NVMe sanitize command failed",
                         )));
                     }
 
@@ -460,9 +422,7 @@ impl WipeOrchestrator {
                         Ok(())
                     })
                     .map_err(|e| {
-                        DriveError::IoError(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            format!("Software fallback failed: {}", e),
+                        DriveError::IoError(std::io::Error::other(format!("Software fallback failed: {}", e),
                         ))
                     })?;
 
@@ -489,9 +449,7 @@ impl WipeOrchestrator {
             .execute_with_recovery("wipe_ssd_drive", context, || {
                 // Perform basic overwrite
                 self.write_pattern_to_region(0, size).map_err(|e| {
-                    DriveError::IoError(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("SSD wipe failed: {}", e),
+                    DriveError::IoError(std::io::Error::other(format!("SSD wipe failed: {}", e),
                     ))
                 })?;
 
@@ -505,9 +463,7 @@ impl WipeOrchestrator {
                 Ok(())
             })
             .map_err(|e| {
-                DriveError::IoError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("{}", e),
+                DriveError::IoError(std::io::Error::other(format!("{}", e),
                 ))
             })?;
 
@@ -529,16 +485,12 @@ impl WipeOrchestrator {
         self.recovery_coordinator
             .execute_with_recovery("wipe_hdd_drive", context, || {
                 self.write_pattern_to_region(0, size).map_err(|e| {
-                    DriveError::IoError(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("HDD wipe failed: {}", e),
+                    DriveError::IoError(std::io::Error::other(format!("HDD wipe failed: {}", e),
                     ))
                 })
             })
             .map_err(|e| {
-                DriveError::IoError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("{}", e),
+                DriveError::IoError(std::io::Error::other(format!("{}", e),
                 ))
             })?;
 
@@ -579,16 +531,12 @@ impl WipeOrchestrator {
         self.recovery_coordinator
             .execute_with_recovery("wipe_raid_member", context, || {
                 wipe_raid_array_integrated(&raid, wipe_metadata).map_err(|e| {
-                    DriveError::IoError(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("RAID wipe failed: {}", e),
+                    DriveError::IoError(std::io::Error::other(format!("RAID wipe failed: {}", e),
                     ))
                 })
             })
             .map_err(|e| {
-                DriveError::IoError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("{}", e),
+                DriveError::IoError(std::io::Error::other(format!("{}", e),
                 ))
             })?;
 

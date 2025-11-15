@@ -212,11 +212,11 @@ fn test_trim_effectiveness_calculation_threshold() {
 #[test]
 fn test_trim_effectiveness_calculation_edge_cases() {
     // All samples show TRIM
-    let effectiveness = (100 as f64 / 100 as f64) > 0.9;
+    let effectiveness = (100_f64 / 100_f64) > 0.9;
     assert!(effectiveness, "100% should be effective");
 
     // No samples show TRIM
-    let effectiveness = (0 as f64 / 100 as f64) > 0.9;
+    let effectiveness = (0 as f64 / 100_f64) > 0.9;
     assert!(!effectiveness, "0% should not be effective");
 
     // Zero samples checked

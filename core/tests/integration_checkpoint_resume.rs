@@ -355,7 +355,8 @@ fn test_checkpoint_stats() -> Result<()> {
     // Get stats
     let stats = manager.stats()?;
     assert_eq!(stats.total_checkpoints, 5);
-    assert!(stats.database_size_bytes >= 0);
+    // Database size should be non-zero since we have checkpoints
+    assert!(stats.database_size_bytes > 0);
 
     Ok(())
 }

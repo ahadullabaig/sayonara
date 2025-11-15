@@ -328,7 +328,7 @@ fn test_progress_update_interval() {
 #[test]
 fn test_multipass_wipe_pattern_sequence() {
     // Test the 3-pass sequence: zeros -> ones -> random
-    let pass_patterns = vec![0x00, 0xFF]; // Random is tested separately
+    let pass_patterns = [0x00, 0xFF]; // Random is tested separately
 
     for (idx, pattern) in pass_patterns.iter().enumerate() {
         let mut buffer = vec![0xAA; 1024]; // Start with different pattern
@@ -346,7 +346,7 @@ fn test_multipass_wipe_pattern_sequence() {
 #[test]
 fn test_multipass_wipe_pass_count() {
     // Verify 3-pass wipe structure
-    let passes = vec![
+    let passes = [
         ("zeros", 0x00),
         ("ones", 0xFF),
         ("random", 0xAA), // Placeholder for random
@@ -377,7 +377,7 @@ fn test_namespace_gb_conversion() {
 
 #[test]
 fn test_multiple_namespaces_total_size() {
-    let namespace_sizes = vec![
+    let namespace_sizes = [
         500 * 1024 * 1024 * 1024u64, // 500GB
         250 * 1024 * 1024 * 1024u64, // 250GB
         250 * 1024 * 1024 * 1024u64, // 250GB
@@ -423,12 +423,10 @@ fn test_zone_count_calculation() {
 #[test]
 fn test_raid_member_count() {
     // Test RAID member iteration logic
-    let member_drives = vec![
-        "/dev/sda".to_string(),
+    let member_drives = ["/dev/sda".to_string(),
         "/dev/sdb".to_string(),
         "/dev/sdc".to_string(),
-        "/dev/sdd".to_string(),
-    ];
+        "/dev/sdd".to_string()];
 
     assert_eq!(member_drives.len(), 4);
 
@@ -462,7 +460,7 @@ fn test_boot_partition_size_mb_conversion() {
 #[test]
 fn test_boot_partition_skip_zero_size() {
     // Test logic for skipping zero-size partitions
-    let boot_partitions = vec![
+    let boot_partitions = [
         ("boot0", 4 * 1024 * 1024u64), // 4MB - should wipe
         ("boot1", 4 * 1024 * 1024u64), // 4MB - should wipe
         ("boot2", 0u64),               // 0 bytes - should skip

@@ -61,8 +61,7 @@ impl ZeroWipe {
         let context = ErrorContext::new("zero_wipe", device_path);
         coordinator.execute_with_recovery("zero_wipe", context, || -> DriveResult<()> {
             Self::write_zeros(&mut io_handle, size).map_err(|e| {
-                DriveError::IoError(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                DriveError::IoError(std::io::Error::other(
                     format!("{}", e),
                 ))
             })?;
@@ -109,7 +108,7 @@ impl ZeroWipe {
             bytes_written += buf.len() as u64;
 
             // Update progress every 50MB or at completion
-            if bytes_written % (50 * 1024 * 1024) == 0 || bytes_written >= size {
+            if bytes_written.is_multiple_of(50 * 1024 * 1024) || bytes_written >= size {
                 let progress = (bytes_written as f64 / size as f64) * 100.0;
                 bar.render(progress, Some(bytes_written), Some(size));
             }
@@ -172,8 +171,10 @@ mod tests {
         let size = test_data.len() as u64;
 
         // Configure for buffered I/O (can't use Direct I/O on regular files)
-        let mut io_config = IOConfig::default();
-        io_config.use_direct_io = false;
+        let io_config = IOConfig {
+            use_direct_io: false,
+            ..Default::default()
+        };
 
         let mut io_handle = OptimizedIO::open(path, io_config).unwrap();
 

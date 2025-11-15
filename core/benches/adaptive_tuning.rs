@@ -41,7 +41,7 @@ fn bench_metrics_overhead(c: &mut Criterion) {
     let num_operations = 10000;
     let bytes_per_op = 4096;
 
-    group.throughput(Throughput::Bytes((num_operations * bytes_per_op) as u64));
+    group.throughput(Throughput::Bytes(num_operations * bytes_per_op));
 
     // No metrics (baseline)
     group.bench_function("no_metrics", |b| {
@@ -220,7 +220,7 @@ fn bench_temperature_monitoring(c: &mut Criterion) {
                 bytes_written += bytes_per_op;
 
                 // Simulate temperature check every interval
-                if bytes_written % check_interval_bytes == 0 {
+                if bytes_written.is_multiple_of(check_interval_bytes) {
                     // Simulate reading temperature
                     simulated_temp += 1;
 

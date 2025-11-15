@@ -163,7 +163,7 @@ mod random_algorithm_tests {
 
         let state = json!({"complete": true});
         assert!(state["complete"].is_boolean());
-        assert_eq!(state["complete"].as_bool().unwrap(), true);
+        assert!(state["complete"].as_bool().unwrap());
     }
 
     #[test]
@@ -371,7 +371,7 @@ mod random_algorithm_tests {
         let update_interval = 50 * 1024 * 1024; // 50 MB
 
         let should_update = |bytes_written: u64| -> bool {
-            bytes_written % update_interval == 0 || bytes_written >= file_size
+            bytes_written.is_multiple_of(update_interval) || bytes_written >= file_size
         };
 
         // Test at various points

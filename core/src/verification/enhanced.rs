@@ -533,8 +533,7 @@ impl EnhancedVerification {
         println!("  📊 Level 1: Random Sampling ({}%)", sample_percentage);
 
         let sample_size = ((device_size as f64 * sample_percentage / 100.0) as u64)
-            .max(10 * 1024 * 1024)
-            .min(1024 * 1024 * 1024);
+            .clamp(10 * 1024 * 1024, 1024 * 1024 * 1024);
 
         println!("  ├─ Sampling {} MB...", sample_size / (1024 * 1024));
         let samples = Self::collect_stratified_samples(device_path, device_size, sample_size)?;
@@ -601,14 +600,14 @@ impl EnhancedVerification {
 
         OptimizedIO::sequential_read(&mut handle, device_size, |buffer, bytes| {
             // Analyze every 10th chunk to avoid memory overflow
-            if chunk_num % 10 == 0 {
+            if chunk_num.is_multiple_of(10) {
                 all_samples.extend_from_slice(&buffer.as_slice()[..bytes]);
             }
 
             bytes_read += bytes as u64;
             chunk_num += 1;
 
-            if chunk_num % 100 == 0 {
+            if chunk_num.is_multiple_of(100) {
                 println!(
                     "    Progress: {:.1}%",
                     (bytes_read as f64 / device_size as f64) * 100.0
@@ -905,8 +904,8 @@ impl EnhancedVerification {
 
             // Check for all known file signatures
             for sig in Self::FILE_SIGNATURES {
-                if buffer.len() > sig.offset + sig.pattern.len() {
-                    if &buffer[sig.offset..sig.offset + sig.pattern.len()] == sig.pattern {
+                if buffer.len() > sig.offset + sig.pattern.len()
+                    && &buffer[sig.offset..sig.offset + sig.pattern.len()] == sig.pattern {
                         found_signatures.push(FileSignatureMatch {
                             signature_name: sig.name.to_string(),
                             offset,
@@ -914,7 +913,6 @@ impl EnhancedVerification {
                             confidence: sig.confidence,
                         });
                     }
-                }
             }
         }
 
@@ -1166,8 +1164,8 @@ impl EnhancedVerification {
         let config = IOConfig::small_read_optimized();
         let mut handle = OptimizedIO::open(device_path, config)?;
 
-        for y in 0..height {
-            for x in 0..width {
+        for (y, row) in cells.iter_mut().enumerate() {
+            for (x, cell) in row.iter_mut().enumerate() {
                 let block_num = (y * width + x) as u64;
                 let offset = block_num * block_size;
 
@@ -1175,7 +1173,7 @@ impl EnhancedVerification {
 
                 if let Ok(buffer) = OptimizedIO::read_range(&mut handle, offset, read_size) {
                     if let Ok(entropy) = Self::calculate_entropy(&buffer) {
-                        cells[y][x] = entropy;
+                        *cell = entropy;
 
                         min_entropy = min_entropy.min(entropy as f32);
                         max_entropy = max_entropy.max(entropy as f32);
@@ -1471,8 +1469,8 @@ impl EnhancedVerification {
         // Check for file signatures
         let mut signatures_found = false;
         for sig in Self::FILE_SIGNATURES {
-            if data.len() > sig.offset + sig.pattern.len() {
-                if data.windows(sig.pattern.len()).any(|w| w == sig.pattern) {
+            if data.len() > sig.offset + sig.pattern.len()
+                && data.windows(sig.pattern.len()).any(|w| w == sig.pattern) {
                     signatures_found = true;
                     detected_sigs.push(FileSignatureMatch {
                         signature_name: sig.name.to_string(),
@@ -1481,7 +1479,6 @@ impl EnhancedVerification {
                         confidence: sig.confidence,
                     });
                 }
-            }
         }
 
         // Check for structured data
@@ -1644,7 +1641,7 @@ impl EnhancedVerification {
     fn test_pattern_detection(device_path: &str, offset: u64) -> Result<bool> {
         let patterns = vec![
             b"TESTDATA123456789".to_vec(),
-            vec![0xDE, 0xAD, 0xBE, 0xEF].repeat(256),
+            [0xDE, 0xAD, 0xBE, 0xEF].repeat(256),
             b"BEGIN_SENSITIVE_DATA_MARKER_END".to_vec(),
         ];
 

@@ -57,13 +57,12 @@ impl DoDWipe {
         let mut io_handle = OptimizedIO::open(device_path, io_config)?;
 
         // Pass 1: Write 0x00
-        if start_pass <= 0 {
+        if start_pass == 0 {
             println!("\n🔄 Pass 1/3: Writing 0x00");
             let context = ErrorContext::new("dod_pass_1", device_path);
             coordinator.execute_with_recovery("pass_1", context, || -> DriveResult<()> {
                 Self::write_pattern(&mut io_handle, size, Self::PASS_1_PATTERN).map_err(|e| {
-                    DriveError::IoError(std::io::Error::new(
-                        std::io::ErrorKind::Other,
+                    DriveError::IoError(std::io::Error::other(
                         format!("{}", e),
                     ))
                 })?;
@@ -87,8 +86,7 @@ impl DoDWipe {
             let context = ErrorContext::new("dod_pass_2", device_path);
             coordinator.execute_with_recovery("pass_2", context, || -> DriveResult<()> {
                 Self::write_pattern(&mut io_handle, size, Self::PASS_2_PATTERN).map_err(|e| {
-                    DriveError::IoError(std::io::Error::new(
-                        std::io::ErrorKind::Other,
+                    DriveError::IoError(std::io::Error::other(
                         format!("{}", e),
                     ))
                 })?;
@@ -112,8 +110,7 @@ impl DoDWipe {
             let context = ErrorContext::new("dod_pass_3", device_path);
             coordinator.execute_with_recovery("pass_3", context, || -> DriveResult<()> {
                 Self::write_random(&mut io_handle, size).map_err(|e| {
-                    DriveError::IoError(std::io::Error::new(
-                        std::io::ErrorKind::Other,
+                    DriveError::IoError(std::io::Error::other(
                         format!("{}", e),
                     ))
                 })?;
@@ -155,7 +152,7 @@ impl DoDWipe {
 
             bytes_written += buf.len() as u64;
 
-            if bytes_written % (50 * 1024 * 1024) == 0 || bytes_written >= size {
+            if bytes_written.is_multiple_of(50 * 1024 * 1024) || bytes_written >= size {
                 let progress = (bytes_written as f64 / size as f64) * 100.0;
                 bar.render(progress, Some(bytes_written), Some(size));
             }
@@ -178,7 +175,7 @@ impl DoDWipe {
 
             bytes_written += buf.len() as u64;
 
-            if bytes_written % (50 * 1024 * 1024) == 0 || bytes_written >= size {
+            if bytes_written.is_multiple_of(50 * 1024 * 1024) || bytes_written >= size {
                 let progress = (bytes_written as f64 / size as f64) * 100.0;
                 bar.render(progress, Some(bytes_written), Some(size));
             }

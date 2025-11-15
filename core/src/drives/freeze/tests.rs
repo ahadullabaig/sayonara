@@ -1,7 +1,7 @@
 // Comprehensive tests for advanced freeze mitigation
 
 #[cfg(test)]
-mod tests {
+mod freeze_tests {
     use crate::drives::freeze::advanced::SuccessHistory;
     use crate::drives::{
         AdvancedFreezeMitigation, FreezeDetector, FreezeInfo, FreezeMitigationConfig, FreezeReason,
@@ -238,9 +238,9 @@ mod tests {
         let unknown_prob = mitigation.calculate_success_probability(&Some(FreezeReason::Unknown));
 
         // All should be valid probabilities
-        assert!(bios_prob >= 0.0 && bios_prob <= 1.0);
-        assert!(raid_prob >= 0.0 && raid_prob <= 1.0);
-        assert!(unknown_prob >= 0.0 && unknown_prob <= 1.0);
+        assert!((0.0..=1.0).contains(&bios_prob));
+        assert!((0.0..=1.0).contains(&raid_prob));
+        assert!((0.0..=1.0).contains(&unknown_prob));
 
         // Not frozen should have 100% success
         let not_frozen = mitigation.calculate_success_probability(&None);

@@ -473,6 +473,5 @@ mod test_success {
     #[test]
     fn verify_test_compiles() {
         // This test just verifies the file compiles
-        assert!(true);
     }
 }

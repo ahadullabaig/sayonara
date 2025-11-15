@@ -148,7 +148,7 @@ impl AlternativeIO {
     /// Write with O_DIRECT (requires alignment)
     fn write_optimized_direct(&self, device: &str, offset: u64, data: &[u8]) -> Result<()> {
         // Check alignment (512-byte boundary for most devices)
-        if offset % 512 != 0 || data.len() % 512 != 0 {
+        if !offset.is_multiple_of(512) || !data.len().is_multiple_of(512) {
             return Err(anyhow::anyhow!("Data not aligned for O_DIRECT"));
         }
 
@@ -402,12 +402,10 @@ mod tests {
 
     #[test]
     fn test_method_performance_ordering() {
-        let methods = vec![
-            IOMethod::OptimizedDirect,
+        let methods = [IOMethod::OptimizedDirect,
             IOMethod::MemoryMapped,
             IOMethod::Buffered,
-            IOMethod::Synchronous,
-        ];
+            IOMethod::Synchronous];
 
         // Verify performance decreases
         for i in 0..methods.len() - 1 {

@@ -269,7 +269,7 @@ fn generate_enhanced_certificate(
 
     // Add enhanced verification data to certificate
     let mut enhanced_cert = serde_json::to_value(&certificate)?;
-    enhanced_cert["enhanced_verification"] = serde_json::to_value(&verification_report)?;
+    enhanced_cert["enhanced_verification"] = serde_json::to_value(verification_report)?;
 
     // Save enhanced certificate
     let cert_json = serde_json::to_string_pretty(&enhanced_cert)?;
@@ -474,11 +474,13 @@ async fn main() -> Result<()> {
                 device,
                 &drive_info,
                 config,
-                cert_output.as_deref(),
-                *sample_percent, // IMPORTANT: Pass sample_percent
-                *min_confidence,
-                level,
-                *skip_pre_tests, // IMPORTANT: Pass skip_pre_tests
+                VerificationOptions {
+                    cert_output: cert_output.as_deref(),
+                    _sample_percent: *sample_percent,
+                    min_confidence: *min_confidence,
+                    verification_level: level,
+                    skip_pre_tests: *skip_pre_tests,
+                },
             )
             .await?;
         }
@@ -554,17 +556,29 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
+/// Verification options for enhanced wipe
+struct VerificationOptions<'a> {
+    cert_output: Option<&'a str>,
+    _sample_percent: f64,
+    min_confidence: f64,
+    verification_level: VerificationLevel,
+    skip_pre_tests: bool,
+}
+
 /// Enhanced wipe with multi-level verification
 async fn enhanced_wipe_with_verification(
     device: &str,
     drive_info: &DriveInfo,
     config: WipeConfig,
-    cert_output: Option<&str>,
-    _sample_percent: f64,                  // PARAMETER 5
-    min_confidence: f64,                   // PARAMETER 6
-    verification_level: VerificationLevel, // PARAMETER 7
-    skip_pre_tests: bool,                  // PARAMETER 8
+    options: VerificationOptions<'_>,
 ) -> Result<()> {
+    let VerificationOptions {
+        cert_output,
+        _sample_percent,
+        min_confidence,
+        verification_level,
+        skip_pre_tests,
+    } = options;
     println!("\n🚀 Starting Enhanced Secure Wipe with Forensic Verification");
     println!(
         "Device: {} ({} GB)",
@@ -1798,7 +1812,7 @@ async fn select_and_execute_wipe(
                 device,
                 drive_info.size,
                 drive_info.drive_type.clone(),
-                &config,
+                config,
             )?;
         }
         Algorithm::Gutmann => {
@@ -1806,7 +1820,7 @@ async fn select_and_execute_wipe(
                 device,
                 drive_info.size,
                 drive_info.drive_type.clone(),
-                &config,
+                config,
             )?;
         }
         Algorithm::Random => {
@@ -1814,7 +1828,7 @@ async fn select_and_execute_wipe(
                 device,
                 drive_info.size,
                 drive_info.drive_type.clone(),
-                &config,
+                config,
             )?;
         }
         Algorithm::Zero => {
@@ -1823,7 +1837,7 @@ async fn select_and_execute_wipe(
                 device,
                 drive_info.size,
                 drive_info.drive_type.clone(),
-                &config,
+                config,
             )?; // Reuse with zero pattern
         }
         Algorithm::SecureErase => {
@@ -1842,7 +1856,7 @@ async fn select_and_execute_wipe(
                             device,
                             drive_info.size,
                             drive_info.drive_type.clone(),
-                            &config,
+                            config,
                         )?;
                     }
                 },
@@ -1861,7 +1875,7 @@ async fn select_and_execute_wipe(
                             device,
                             drive_info.size,
                             drive_info.drive_type.clone(),
-                            &config,
+                            config,
                         )?;
                     }
                 },
@@ -1878,7 +1892,7 @@ async fn select_and_execute_wipe(
                             device,
                             drive_info.size,
                             drive_info.drive_type.clone(),
-                            &config,
+                            config,
                         )?;
                     }
                 },
@@ -1889,7 +1903,7 @@ async fn select_and_execute_wipe(
                         device,
                         drive_info.size,
                         drive_info.drive_type.clone(),
-                        &config,
+                        config,
                     )?;
                 }
             }
@@ -1910,7 +1924,7 @@ async fn select_and_execute_wipe(
                             device,
                             drive_info.size,
                             drive_info.drive_type.clone(),
-                            &config,
+                            config,
                         )?;
                     }
                 }
@@ -1921,7 +1935,7 @@ async fn select_and_execute_wipe(
                     device,
                     drive_info.size,
                     drive_info.drive_type.clone(),
-                    &config,
+                    config,
                 )?;
             }
         }
@@ -1943,7 +1957,7 @@ async fn select_and_execute_wipe(
                             device,
                             drive_info.size,
                             drive_info.drive_type.clone(),
-                            &config,
+                            config,
                         )?;
                     }
                 }
@@ -1954,7 +1968,7 @@ async fn select_and_execute_wipe(
                     device,
                     drive_info.size,
                     drive_info.drive_type.clone(),
-                    &config,
+                    config,
                 )?;
             }
         }
@@ -2474,17 +2488,14 @@ async fn wipe_drives_parallel(
 fn setup_signal_handlers() -> Result<()> {
     use signal_hook::{consts::SIGINT, iterator::Signals};
 
-    let mut signals = Signals::new(&[SIGINT])?;
+    let mut signals = Signals::new([SIGINT])?;
 
     std::thread::spawn(move || {
         for sig in signals.forever() {
-            match sig {
-                SIGINT => {
-                    eprintln!("\n\n🛑 Interrupt received! Stopping wipe operation...");
-                    eprintln!("   Please wait for current buffer to finish writing...");
-                    sayonara_wipe::set_interrupted();
-                }
-                _ => {}
+            if sig == SIGINT {
+                eprintln!("\n\n🛑 Interrupt received! Stopping wipe operation...");
+                eprintln!("   Please wait for current buffer to finish writing...");
+                sayonara_wipe::set_interrupted();
             }
         }
     });

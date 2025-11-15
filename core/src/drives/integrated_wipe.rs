@@ -210,7 +210,7 @@ fn wipe_with_pattern_progress(io_handle: &mut IOHandle, size: u64, pattern: u8) 
         buffer.as_mut_slice().fill(pattern);
         bytes_written += buffer.as_slice().len() as u64;
 
-        if bytes_written % (100 * 1024 * 1024) == 0 {
+        if bytes_written.is_multiple_of(100 * 1024 * 1024) {
             let progress = (bytes_written as f64 / size as f64) * 100.0;
             bar.render(progress, Some(bytes_written), Some(size));
         }
@@ -229,7 +229,7 @@ fn wipe_with_random_progress(io_handle: &mut IOHandle, size: u64) -> Result<()> 
         secure_random_bytes(buffer.as_mut_slice())?;
         bytes_written += buffer.as_slice().len() as u64;
 
-        if bytes_written % (100 * 1024 * 1024) == 0 {
+        if bytes_written.is_multiple_of(100 * 1024 * 1024) {
             let progress = (bytes_written as f64 / size as f64) * 100.0;
             bar.render(progress, Some(bytes_written), Some(size));
         }
@@ -428,7 +428,7 @@ fn format_nvme_namespace(controller_path: &str, nsid: u32) -> Result<()> {
     use std::process::Command;
 
     let output = Command::new("nvme")
-        .args(&["format", controller_path, "-n", &nsid.to_string()])
+        .args(["format", controller_path, "-n", &nsid.to_string()])
         .output()?;
 
     if !output.status.success() {
@@ -555,12 +555,10 @@ mod tests {
 
     #[test]
     fn test_wipe_algorithm_variants() {
-        let algos = vec![
-            WipeAlgorithm::Zeros,
+        let algos = [WipeAlgorithm::Zeros,
             WipeAlgorithm::Ones,
             WipeAlgorithm::Random,
-            WipeAlgorithm::Pattern(0xAA),
-        ];
+            WipeAlgorithm::Pattern(0xAA)];
 
         assert_eq!(algos.len(), 4);
     }

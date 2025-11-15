@@ -90,7 +90,7 @@ impl ProgressBar {
             let elapsed = self.start.elapsed().as_secs_f64().max(0.0001);
             let speed = (written as f64) / elapsed;
             let speed_readable = human_bytes(speed);
-            let remaining = if total > written { total - written } else { 0 };
+            let remaining = total.saturating_sub(written);
             let eta_secs = if speed > 0.0 {
                 (remaining as f64 / speed).round() as u64
             } else {
@@ -116,7 +116,7 @@ impl ProgressBar {
             // move cursor up 2 lines, clear them, reprint
             // \x1b[2A moves up 2 lines, \x1b[2K clears line
             print!("\x1b[2A\x1b[2K\r"); // go up 2 and clear
-            print!("{}\n", cat_line_str);
+            println!("{}", cat_line_str);
             print!("\x1b[2K\r[{}] {}\n", bar, info);
         }
 

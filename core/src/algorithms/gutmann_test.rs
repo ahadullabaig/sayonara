@@ -131,8 +131,8 @@ mod tests {
 
         // Test perfect random data - should have high entropy
         let mut random_data = vec![0u8; 256];
-        for i in 0..256 {
-            random_data[i] = i as u8;
+        for (i, item) in random_data.iter_mut().enumerate() {
+            *item = i as u8;
         }
         let entropy = GutmannWipe::calculate_entropy(&random_data);
         assert!(

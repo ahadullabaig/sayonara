@@ -86,20 +86,15 @@ pub struct Zone {
 impl Zone {
     /// Check if zone needs to be reset before writing
     pub fn needs_reset(&self) -> bool {
-        match self.zone_condition {
-            ZoneCondition::Full | ZoneCondition::Closed => true,
-            _ => false,
-        }
+        matches!(self.zone_condition, ZoneCondition::Full | ZoneCondition::Closed)
     }
 
     /// Check if zone can be written to
     pub fn is_writable(&self) -> bool {
-        match self.zone_condition {
-            ZoneCondition::Empty
-            | ZoneCondition::ImplicitlyOpen
-            | ZoneCondition::ExplicitlyOpen => true,
-            _ => false,
-        }
+        matches!(
+            self.zone_condition,
+            ZoneCondition::Empty | ZoneCondition::ImplicitlyOpen | ZoneCondition::ExplicitlyOpen
+        )
     }
 }
 
@@ -553,7 +548,7 @@ mod tests {
     #[test]
     fn test_zone_model_detection() {
         // Test that zone models are correctly identified
-        assert_eq!(ZoneModel::HostManaged != ZoneModel::HostAware, true);
+        assert!(ZoneModel::HostManaged != ZoneModel::HostAware);
     }
 
     #[test]

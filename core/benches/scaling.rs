@@ -32,7 +32,7 @@ fn bench_concurrent_writes(c: &mut Criterion) {
     let buffer_size = 1024 * 1024; // 1MB buffer
 
     for num_threads in [1, 2, 4, 8] {
-        let total_bytes = (file_size_mb * num_threads * 1024 * 1024) as u64;
+        let total_bytes = file_size_mb * num_threads * 1024 * 1024;
         group.throughput(Throughput::Bytes(total_bytes));
 
         group.bench_with_input(

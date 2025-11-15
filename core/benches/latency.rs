@@ -158,7 +158,7 @@ fn bench_seek_latency(c: &mut Criterion) {
             let mut file = File::open(&path).unwrap();
             for i in 0..10 {
                 hasher.write_usize(i);
-                let offset = (hasher.finish() % (file_size * 1024 * 1024)) as u64;
+                let offset = hasher.finish() % (file_size * 1024 * 1024);
                 file.seek(SeekFrom::Start(offset)).unwrap();
             }
             black_box(file);

@@ -215,7 +215,7 @@ impl BadSectorReport {
         }
 
         if !self.bad_sector_offsets.is_empty() {
-            output.push_str(&format!("\nBad sector offsets:\n"));
+            output.push_str("\nBad sector offsets:\n");
             for (i, offset) in self.bad_sector_offsets.iter().enumerate() {
                 output.push_str(&format!("  {}: {}\n", i + 1, offset));
                 if i >= 99 {

@@ -30,8 +30,10 @@ mod algorithm_functional_tests {
         let size = 1024 * 1024u64;
 
         // Open with buffered I/O for testing
-        let mut io_config = IOConfig::default();
-        io_config.use_direct_io = false;
+        let io_config = IOConfig {
+            use_direct_io: false,
+            ..Default::default()
+        };
         let mut io_handle = OptimizedIO::open(path, io_config.clone())?;
 
         // Write zeros using DoD's write_pattern method (we'll call via sequential_write)
@@ -58,8 +60,10 @@ mod algorithm_functional_tests {
         let path = temp_file.path().to_str().unwrap();
         let size = 1024 * 1024u64;
 
-        let mut io_config = IOConfig::default();
-        io_config.use_direct_io = false;
+        let io_config = IOConfig {
+            use_direct_io: false,
+            ..Default::default()
+        };
         let mut io_handle = OptimizedIO::open(path, io_config.clone())?;
 
         // Write 0xFF pattern
@@ -86,8 +90,10 @@ mod algorithm_functional_tests {
         let path = temp_file.path().to_str().unwrap();
         let size = 512 * 1024u64;
 
-        let mut io_config = IOConfig::default();
-        io_config.use_direct_io = false;
+        let io_config = IOConfig {
+            use_direct_io: false,
+            ..Default::default()
+        };
         let mut io_handle = OptimizedIO::open(path, io_config.clone())?;
 
         // Write random data using RandomWipe approach
@@ -135,8 +141,10 @@ mod algorithm_functional_tests {
         let path = temp_file.path().to_str().unwrap();
         let size = 256 * 1024u64;
 
-        let mut io_config = IOConfig::default();
-        io_config.use_direct_io = false;
+        let io_config = IOConfig {
+            use_direct_io: false,
+            ..Default::default()
+        };
         let mut io_handle = OptimizedIO::open(path, io_config.clone())?;
 
         // Write zeros using ZeroWipe approach
@@ -170,29 +178,29 @@ mod algorithm_functional_tests {
         assert_eq!(patterns.len(), 35, "Should have exactly 35 patterns");
 
         // First 4 should be random (None)
-        for i in 0..4 {
+        for (i, pattern) in patterns.iter().take(4).enumerate() {
             assert!(
-                patterns[i].0.is_none(),
+                pattern.0.is_none(),
                 "Pattern {} should be random",
                 i + 1
             );
         }
 
         // Last 4 should be random (None)
-        for i in 31..35 {
+        for (i, pattern) in patterns.iter().skip(31).enumerate() {
             assert!(
-                patterns[i].0.is_none(),
+                pattern.0.is_none(),
                 "Pattern {} should be random",
-                i + 1
+                31 + i + 1
             );
         }
 
         // Middle patterns should have specific byte sequences
-        for i in 4..31 {
+        for (i, pattern) in patterns.iter().skip(4).take(27).enumerate() {
             assert!(
-                patterns[i].0.is_some(),
+                pattern.0.is_some(),
                 "Pattern {} should have specific bytes",
-                i + 1
+                4 + i + 1
             );
         }
     }
@@ -358,7 +366,7 @@ mod algorithm_functional_tests {
     fn test_pattern_repeatability() {
         // Ensure patterns repeat correctly across buffer boundaries
         let pattern = &[0xAB, 0xCD, 0xEF];
-        let mut buffer = vec![0u8; 10];
+        let mut buffer = [0u8; 10];
 
         for (i, byte) in buffer.iter_mut().enumerate() {
             *byte = pattern[i % pattern.len()];
@@ -412,7 +420,7 @@ mod algorithm_functional_tests {
             assert!(max_temp <= 70, "Max temperature should be reasonable");
         }
         // Config structure exists and is valid
-        assert!(config.verify || !config.verify); // Basic sanity check
+        // Just creating the default config is sufficient to test it compiles
     }
 
     #[test]

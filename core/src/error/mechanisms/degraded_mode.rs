@@ -280,9 +280,11 @@ mod tests {
     #[test]
     fn test_adjust_config_skip_verification() {
         let mut manager = DegradedModeManager::new();
-        let mut config = WipeConfig::default();
+        let mut config = WipeConfig {
+            verify: true,
+            ..Default::default()
+        };
 
-        config.verify = true;
         manager.enable(DegradedMode::SkipVerification);
         manager.adjust_config(&mut config);
 
@@ -292,9 +294,11 @@ mod tests {
     #[test]
     fn test_adjust_config_reduced_passes() {
         let mut manager = DegradedModeManager::new();
-        let mut config = WipeConfig::default();
+        let mut config = WipeConfig {
+            multiple_passes: Some(35),
+            ..Default::default()
+        };
 
-        config.multiple_passes = Some(35);
         manager.enable(DegradedMode::ReducedPasses);
         manager.adjust_config(&mut config);
 
@@ -304,9 +308,11 @@ mod tests {
     #[test]
     fn test_adjust_config_skip_hidden_areas() {
         let mut manager = DegradedModeManager::new();
-        let mut config = WipeConfig::default();
+        let mut config = WipeConfig {
+            handle_hpa_dco: crate::HPADCOHandling::TemporaryRemove,
+            ..Default::default()
+        };
 
-        config.handle_hpa_dco = crate::HPADCOHandling::TemporaryRemove;
         manager.enable(DegradedMode::SkipHiddenAreas);
         manager.adjust_config(&mut config);
 
@@ -316,9 +322,11 @@ mod tests {
     #[test]
     fn test_adjust_config_skip_trim() {
         let mut manager = DegradedModeManager::new();
-        let mut config = WipeConfig::default();
+        let mut config = WipeConfig {
+            use_trim_after: true,
+            ..Default::default()
+        };
 
-        config.use_trim_after = true;
         manager.enable(DegradedMode::SkipTRIM);
         manager.adjust_config(&mut config);
 

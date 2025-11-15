@@ -10,6 +10,12 @@ use std::time::Duration;
 
 pub struct SataLinkReset;
 
+impl Default for SataLinkReset {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SataLinkReset {
     pub fn new() -> Self {
         Self
