@@ -27,6 +27,11 @@ pub fn is_interrupted() -> bool {
     INTERRUPTED.load(Ordering::SeqCst)
 }
 
+/// Reset the interrupt flag (primarily for testing)
+pub fn reset_interrupted() {
+    INTERRUPTED.store(false, Ordering::SeqCst);
+}
+
 // Enhanced error types for better error handling
 #[derive(Error, Debug)]
 pub enum DriveError {

@@ -92,6 +92,7 @@ glob = "0.3"
 humantime = "2.1"
 
 [dev-dependencies]
+ctor = "0.2"
 criterion = "0.5"
 mockall = "0.12"
 proptest = "1.4"

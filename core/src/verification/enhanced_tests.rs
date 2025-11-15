@@ -602,22 +602,10 @@ mod tests {
         }
     }
 
-    // ==================== INTEGRATION TESTS (REQUIRE ROOT) ====================
-
-    #[test]
-    #[ignore] // Run with --ignored flag and root privileges
-    fn integration_test_full_verification_flow() -> Result<()> {
-        if unsafe { libc::geteuid() } != 0 {
-            println!("Skipping: Requires root");
-            return Ok(());
-        }
-
-        // This would test the full flow on a real or virtual device
-        // For safety, we skip unless explicitly running integration tests
-        println!("Integration test placeholder - implement with virtual block device");
-
-        Ok(())
-    }
+    // ==================== INTEGRATION TESTS ====================
+    // Full verification integration test has been moved to:
+    // tests/hardware_integration.rs::test_verification_after_wipe
+    // This test uses mock drives and can run without physical hardware or root
 
     // ==================== BENCHMARK TESTS ====================
 

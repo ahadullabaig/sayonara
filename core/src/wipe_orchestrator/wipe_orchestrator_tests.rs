@@ -445,69 +445,21 @@ fn test_all_algorithm_variants_supported() -> Result<()> {
     Ok(())
 }
 
-// ==================== INTEGRATION TEST STUBS ====================
-// These tests are marked with #[ignore] and should be run manually
-// in a hardware test environment with actual drives
-
-#[test]
-#[ignore] // Requires actual hardware
-fn integration_test_wipe_smr_drive() {
-    println!("SMR drive wipe integration test - requires SMR hardware");
-}
-
-#[test]
-#[ignore] // Requires actual hardware
-fn integration_test_wipe_optane_drive() {
-    println!("Optane drive wipe integration test - requires Optane hardware");
-}
-
-#[test]
-#[ignore] // Requires actual hardware
-fn integration_test_wipe_hybrid_drive() {
-    println!("Hybrid SSHD wipe integration test - requires hybrid hardware");
-}
-
-#[test]
-#[ignore] // Requires actual hardware
-fn integration_test_wipe_emmc_drive() {
-    println!("eMMC wipe integration test - requires eMMC hardware");
-}
-
-#[test]
-#[ignore] // Requires actual hardware
-fn integration_test_wipe_ufs_drive() {
-    println!("UFS wipe integration test - requires UFS hardware");
-}
-
-#[test]
-#[ignore] // Requires actual hardware
-fn integration_test_wipe_nvme_basic() {
-    println!("NVMe basic wipe integration test - requires NVMe hardware");
-}
-
-#[test]
-#[ignore] // Requires actual hardware
-fn integration_test_wipe_nvme_advanced() {
-    println!("NVMe advanced wipe integration test - requires advanced NVMe hardware");
-}
-
-#[test]
-#[ignore] // Requires actual hardware
-fn integration_test_wipe_ssd_drive() {
-    println!("SSD wipe integration test - requires SATA SSD hardware");
-}
-
-#[test]
-#[ignore] // Requires actual hardware
-fn integration_test_wipe_hdd_drive() {
-    println!("HDD wipe integration test - requires HDD hardware");
-}
-
-#[test]
-#[ignore] // Requires actual hardware
-fn integration_test_wipe_raid_array() {
-    println!("RAID array wipe integration test - requires RAID hardware");
-}
+// ==================== INTEGRATION TESTS ====================
+// Integration tests have been moved to: tests/hardware_integration.rs
+// These tests use mock drives and can run without physical hardware:
+// - test_wipe_hdd_drive
+// - test_wipe_ssd_drive
+// - test_wipe_nvme_basic
+// - test_wipe_nvme_advanced
+// - test_wipe_smr_drive
+// - test_wipe_optane_drive
+// - test_wipe_hybrid_drive
+// - test_wipe_emmc_drive
+// - test_wipe_ufs_drive
+// - test_wipe_raid_array
+// - test_orchestrator_execute_basic
+// - test_orchestrator_multiple_algorithms
 
 // ==================== WIPE ALGORITHM ENUM TESTS ====================
 
@@ -540,36 +492,6 @@ fn test_orchestrator_handles_invalid_device() {
     let _ = result;
 }
 
-// ==================== ASYNC EXECUTION STUB TESTS ====================
-
-#[tokio::test]
-#[ignore] // Requires runtime and hardware
-async fn integration_test_execute_orchestrator() {
-    let config = WipeConfig {
-        algorithm: Algorithm::Zero,
-        ..Default::default()
-    };
-
-    let _orchestrator = WipeOrchestrator::new("/dev/null".to_string(), config).unwrap();
-
-    // This would execute the actual wipe
-    // let result = orchestrator.execute().await;
-    // assert!(result.is_ok());
-
-    println!("Orchestrator execute integration test - requires hardware");
-}
-
-#[tokio::test]
-#[ignore] // Requires runtime and hardware
-async fn integration_test_wipe_drive_convenience_function() {
-    let _config = WipeConfig {
-        algorithm: Algorithm::Zero,
-        ..Default::default()
-    };
-
-    // This would execute the actual wipe using convenience function
-    // let result = wipe_drive("/dev/null", config).await;
-    // assert!(result.is_ok());
-
-    println!("wipe_drive() convenience function integration test - requires hardware");
-}
+// ==================== ASYNC EXECUTION TESTS ====================
+// Async execution tests have been moved to: tests/hardware_integration.rs
+// See: test_orchestrator_execute_basic, test_orchestrator_multiple_algorithms

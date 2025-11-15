@@ -632,11 +632,21 @@ impl WipeOrchestrator {
             DriveType::HDD  // Default
         };
 
+        // Try to get actual file/device size
+        // Note: For block devices, metadata().len() returns 0, so we treat that as invalid
+        let size = std::fs::metadata(device_path)
+            .ok()
+            .and_then(|m| {
+                let len = m.len();
+                if len > 0 { Some(len) } else { None }
+            })
+            .unwrap_or(1024 * 1024 * 1024 * 100);  // Fallback to 100GB if can't read or size is 0
+
         Ok(DriveInfo {
             device_path: device_path.to_string(),
             model: "Unknown".to_string(),
             serial: "Unknown".to_string(),
-            size: 1024 * 1024 * 1024 * 100,  // Assume 100GB for now
+            size,
             drive_type,
             encryption_status: crate::EncryptionStatus::None,
             capabilities: Default::default(),

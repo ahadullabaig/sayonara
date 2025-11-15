@@ -273,44 +273,10 @@ mod tests {
     }
 }
 
-// Integration tests (require root and actual hardware)
-#[cfg(all(test, feature = "integration-tests"))]
-mod integration_tests {
-    use super::*;
-
-    #[test]
-    #[ignore] // Run with --ignored flag
-    fn test_real_drive_unfreeze() {
-        // This test requires:
-        // 1. Root privileges
-        // 2. A frozen drive
-        // 3. Run with: cargo test --features integration-tests -- --ignored
-
-        if unsafe { libc::geteuid() } != 0 {
-            println!("Skipping: Requires root");
-            return;
-        }
-
-        // Test on /dev/sdb (adjust as needed)
-        let test_device = "/dev/sdb";
-
-        if !std::path::Path::new(test_device).exists() {
-            println!("Skipping: Test device not found");
-            return;
-        }
-
-        let config = FreezeMitigationConfig::default();
-        let mut mitigation = AdvancedFreezeMitigation::new(config);
-
-        match mitigation.unfreeze_drive(test_device) {
-            Ok(result) => {
-                println!("✅ Unfreeze result: {:?}", result);
-                assert!(result.success || result.attempts_made > 0);
-            }
-            Err(e) => {
-                println!("❌ Unfreeze failed: {}", e);
-                // Don't fail test - drive might not be frozen
-            }
-        }
-    }
-}
+// ==================== INTEGRATION TESTS ====================
+// Freeze mitigation integration test has been moved to:
+// tests/hardware_integration.rs::test_freeze_mitigation_disabled
+// This test uses mock drives and can run without physical hardware or root
+//
+// Note: Full freeze mitigation testing with frozen drives requires hardware
+// The mock-based test validates that freeze mitigation can be disabled/enabled

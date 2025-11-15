@@ -492,47 +492,17 @@ fn test_error_propagation_pattern() {
     assert!(error_result.is_err());
 }
 
-// ==================== INTEGRATION TEST STUBS ====================
-// These tests are marked with #[ignore] and should be run manually
-// in a hardware test environment with actual drives
-
-#[test]
-#[ignore] // Requires actual SMR drive
-fn integration_test_smr_wipe_stub() {
-    // This test would be run with actual hardware
-    // Placeholder for documentation
-    println!("SMR wipe integration test - requires hardware");
-}
-
-#[test]
-#[ignore] // Requires actual Optane drive
-fn integration_test_optane_wipe_stub() {
-    println!("Optane wipe integration test - requires hardware");
-}
-
-#[test]
-#[ignore] // Requires actual hybrid drive
-fn integration_test_hybrid_wipe_stub() {
-    println!("Hybrid drive wipe integration test - requires hardware");
-}
-
-#[test]
-#[ignore] // Requires actual eMMC device
-fn integration_test_emmc_wipe_stub() {
-    println!("eMMC wipe integration test - requires hardware");
-}
-
-#[test]
-#[ignore] // Requires actual RAID array
-fn integration_test_raid_wipe_stub() {
-    println!("RAID array wipe integration test - requires hardware");
-}
-
-#[test]
-#[ignore] // Requires actual NVMe drive with advanced features
-fn integration_test_nvme_advanced_wipe_stub() {
-    println!("Advanced NVMe wipe integration test - requires hardware");
-}
+// ==================== INTEGRATION TESTS ====================
+// Integration tests for specialized drive types have been moved to:
+// tests/hardware_integration.rs
+//
+// These tests use mock drives and can run without physical hardware:
+// - test_wipe_smr_drive
+// - test_wipe_optane_drive
+// - test_wipe_hybrid_drive
+// - test_wipe_emmc_drive
+// - test_wipe_raid_array
+// - test_wipe_nvme_advanced
 
 // ==================== EDGE CASE TESTS ====================
 

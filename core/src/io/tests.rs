@@ -4,11 +4,16 @@ mod tests {
     use tempfile::NamedTempFile;
     use std::time::Instant;
     use crate::io::metrics::PerformanceTuner;
+    use serial_test::serial;
 
     type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
     #[test]
+    #[serial]
     fn test_sequential_write_performance() -> Result<()> {
+        // Reset interrupt flag in case other tests set it
+        crate::reset_interrupted();
+
         let temp = NamedTempFile::new()?;
         let path = temp.path().to_str().unwrap();
 
@@ -216,35 +221,8 @@ mod tests {
         assert!((efficiency - 10.0).abs() < 0.1);
     }
 
-    // Integration test - requires actual hardware
-    #[test]
-    #[ignore]
-    fn integration_test_real_device_performance() -> Result<()> {
-        // This test should be run manually on actual hardware
-        // Usage: cargo test --ignored -- integration_test_real_device_performance
-
-        let device_path = "/dev/sdX";  // Update with actual device
-        let config = IOConfig::nvme_optimized();
-
-        let mut handle = OptimizedIO::open(device_path, config)?;
-
-        // Write 1GB
-        let test_size = 1024 * 1024 * 1024u64;
-
-        OptimizedIO::sequential_write(&mut handle, test_size, |buffer| {
-            use crate::crypto::secure_rng::secure_random_bytes;
-            secure_random_bytes(buffer.as_mut_slice())?;
-            Ok(())
-        })?;
-
-        // Print performance report
-        OptimizedIO::print_performance_report(&handle, Some(3000 * 1024 * 1024));
-
-        let stats = handle.metrics().stats();
-
-        // Verify we achieved good performance
-        assert!(stats.efficiency(3000 * 1024 * 1024) > 85.0);
-
-        Ok(())
-    }
+    // ==================== INTEGRATION TESTS ====================
+    // I/O performance integration test has been moved to:
+    // tests/hardware_integration.rs::test_io_performance_with_mock
+    // This test uses mock drives and can run without physical hardware
 }

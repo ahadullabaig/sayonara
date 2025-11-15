@@ -4,24 +4,29 @@
 // default implementations, serialization, PartialEq, Clone, and Copy traits.
 
 use super::*;
+use serial_test::serial;
 
 // ==================== INTERRUPT HANDLING TESTS ====================
 
 #[test]
+#[serial]
 fn test_interrupt_initially_not_set() {
-    // Note: This may fail if other tests have set the flag
-    // In a real test suite, we'd reset between tests
-    let _ = is_interrupted(); // Just verify it works
+    reset_interrupted();
+    assert!(!is_interrupted(), "Interrupt flag should initially be not set");
 }
 
 #[test]
+#[serial]
 fn test_set_interrupt_flag() {
+    reset_interrupted();
     set_interrupted();
     assert!(is_interrupted(), "Interrupt flag should be set");
 }
 
 #[test]
+#[serial]
 fn test_interrupt_flag_persistence() {
+    reset_interrupted();
     set_interrupted();
     assert!(is_interrupted());
     assert!(is_interrupted(), "Flag should remain set on subsequent calls");

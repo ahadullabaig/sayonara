@@ -161,14 +161,22 @@ impl CheckpointManager {
     /// Creates the database file and schema if it doesn't exist.
     /// Uses WAL mode for better concurrency and crash resilience.
     pub fn new(db_path: Option<&str>) -> Result<Self> {
-        let db_path = db_path
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from(DEFAULT_DB_PATH));
+        // Use in-memory database for tests to avoid permission issues
+        // Check both cfg!(test) and environment variable for test detection
+        let is_test = cfg!(test) || std::env::var("SAYONARA_TEST_MODE").is_ok();
 
-        // Ensure parent directory exists
-        if let Some(parent) = db_path.parent() {
-            std::fs::create_dir_all(parent)
-                .context("Failed to create checkpoint database directory")?;
+        let db_path = match db_path {
+            Some(path) => PathBuf::from(path),
+            None if is_test => PathBuf::from(":memory:"),
+            None => PathBuf::from(DEFAULT_DB_PATH),
+        };
+
+        // Ensure parent directory exists (skip for in-memory databases)
+        if db_path.to_str() != Some(":memory:") {
+            if let Some(parent) = db_path.parent() {
+                std::fs::create_dir_all(parent)
+                    .context("Failed to create checkpoint database directory")?;
+            }
         }
 
         let conn = Connection::open(&db_path)
