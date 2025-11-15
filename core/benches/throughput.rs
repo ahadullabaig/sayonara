@@ -141,9 +141,8 @@ fn bench_pattern_generation(c: &mut Criterion) {
             let state = RandomState::new();
 
             for chunk in buffer.chunks_mut(8) {
-                
                 let len = chunk.len();
-                
+
                 let value = state.hash_one(len);
                 let bytes = value.to_le_bytes();
                 let copy_len = len.min(8);

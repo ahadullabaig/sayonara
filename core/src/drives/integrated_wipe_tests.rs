@@ -423,10 +423,12 @@ fn test_zone_count_calculation() {
 #[test]
 fn test_raid_member_count() {
     // Test RAID member iteration logic
-    let member_drives = ["/dev/sda".to_string(),
+    let member_drives = [
+        "/dev/sda".to_string(),
         "/dev/sdb".to_string(),
         "/dev/sdc".to_string(),
-        "/dev/sdd".to_string()];
+        "/dev/sdd".to_string(),
+    ];
 
     assert_eq!(member_drives.len(), 4);
 

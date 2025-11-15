@@ -45,11 +45,8 @@ impl RandomWipe {
         // Execute with recovery
         let context = ErrorContext::new("random_wipe", device_path);
         coordinator.execute_with_recovery("random_wipe", context, || -> DriveResult<()> {
-            Self::write_random(&mut io_handle, size).map_err(|e| {
-                DriveError::IoError(std::io::Error::other(
-                    format!("{}", e),
-                ))
-            })?;
+            Self::write_random(&mut io_handle, size)
+                .map_err(|e| DriveError::IoError(std::io::Error::other(format!("{}", e))))?;
             Ok(())
         })?;
 

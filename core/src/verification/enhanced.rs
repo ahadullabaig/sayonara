@@ -905,14 +905,15 @@ impl EnhancedVerification {
             // Check for all known file signatures
             for sig in Self::FILE_SIGNATURES {
                 if buffer.len() > sig.offset + sig.pattern.len()
-                    && &buffer[sig.offset..sig.offset + sig.pattern.len()] == sig.pattern {
-                        found_signatures.push(FileSignatureMatch {
-                            signature_name: sig.name.to_string(),
-                            offset,
-                            pattern_length: sig.pattern.len(),
-                            confidence: sig.confidence,
-                        });
-                    }
+                    && &buffer[sig.offset..sig.offset + sig.pattern.len()] == sig.pattern
+                {
+                    found_signatures.push(FileSignatureMatch {
+                        signature_name: sig.name.to_string(),
+                        offset,
+                        pattern_length: sig.pattern.len(),
+                        confidence: sig.confidence,
+                    });
+                }
             }
         }
 
@@ -1470,15 +1471,16 @@ impl EnhancedVerification {
         let mut signatures_found = false;
         for sig in Self::FILE_SIGNATURES {
             if data.len() > sig.offset + sig.pattern.len()
-                && data.windows(sig.pattern.len()).any(|w| w == sig.pattern) {
-                    signatures_found = true;
-                    detected_sigs.push(FileSignatureMatch {
-                        signature_name: sig.name.to_string(),
-                        offset: 0,
-                        pattern_length: sig.pattern.len(),
-                        confidence: sig.confidence,
-                    });
-                }
+                && data.windows(sig.pattern.len()).any(|w| w == sig.pattern)
+            {
+                signatures_found = true;
+                detected_sigs.push(FileSignatureMatch {
+                    signature_name: sig.name.to_string(),
+                    offset: 0,
+                    pattern_length: sig.pattern.len(),
+                    confidence: sig.confidence,
+                });
+            }
         }
 
         // Check for structured data

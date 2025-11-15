@@ -61,11 +61,8 @@ impl DoDWipe {
             println!("\n🔄 Pass 1/3: Writing 0x00");
             let context = ErrorContext::new("dod_pass_1", device_path);
             coordinator.execute_with_recovery("pass_1", context, || -> DriveResult<()> {
-                Self::write_pattern(&mut io_handle, size, Self::PASS_1_PATTERN).map_err(|e| {
-                    DriveError::IoError(std::io::Error::other(
-                        format!("{}", e),
-                    ))
-                })?;
+                Self::write_pattern(&mut io_handle, size, Self::PASS_1_PATTERN)
+                    .map_err(|e| DriveError::IoError(std::io::Error::other(format!("{}", e))))?;
                 Ok(())
             })?;
             coordinator.maybe_checkpoint(
@@ -85,11 +82,8 @@ impl DoDWipe {
             println!("\n🔄 Pass 2/3: Writing 0xFF");
             let context = ErrorContext::new("dod_pass_2", device_path);
             coordinator.execute_with_recovery("pass_2", context, || -> DriveResult<()> {
-                Self::write_pattern(&mut io_handle, size, Self::PASS_2_PATTERN).map_err(|e| {
-                    DriveError::IoError(std::io::Error::other(
-                        format!("{}", e),
-                    ))
-                })?;
+                Self::write_pattern(&mut io_handle, size, Self::PASS_2_PATTERN)
+                    .map_err(|e| DriveError::IoError(std::io::Error::other(format!("{}", e))))?;
                 Ok(())
             })?;
             coordinator.maybe_checkpoint(
@@ -109,11 +103,8 @@ impl DoDWipe {
             println!("\n🔄 Pass 3/3: Writing random data");
             let context = ErrorContext::new("dod_pass_3", device_path);
             coordinator.execute_with_recovery("pass_3", context, || -> DriveResult<()> {
-                Self::write_random(&mut io_handle, size).map_err(|e| {
-                    DriveError::IoError(std::io::Error::other(
-                        format!("{}", e),
-                    ))
-                })?;
+                Self::write_random(&mut io_handle, size)
+                    .map_err(|e| DriveError::IoError(std::io::Error::other(format!("{}", e))))?;
                 Ok(())
             })?;
             coordinator.maybe_checkpoint(

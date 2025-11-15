@@ -402,10 +402,12 @@ mod tests {
 
     #[test]
     fn test_method_performance_ordering() {
-        let methods = [IOMethod::OptimizedDirect,
+        let methods = [
+            IOMethod::OptimizedDirect,
             IOMethod::MemoryMapped,
             IOMethod::Buffered,
-            IOMethod::Synchronous];
+            IOMethod::Synchronous,
+        ];
 
         // Verify performance decreases
         for i in 0..methods.len() - 1 {

@@ -179,11 +179,7 @@ mod algorithm_functional_tests {
 
         // First 4 should be random (None)
         for (i, pattern) in patterns.iter().take(4).enumerate() {
-            assert!(
-                pattern.0.is_none(),
-                "Pattern {} should be random",
-                i + 1
-            );
+            assert!(pattern.0.is_none(), "Pattern {} should be random", i + 1);
         }
 
         // Last 4 should be random (None)

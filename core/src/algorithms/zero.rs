@@ -60,11 +60,8 @@ impl ZeroWipe {
         // Execute with recovery
         let context = ErrorContext::new("zero_wipe", device_path);
         coordinator.execute_with_recovery("zero_wipe", context, || -> DriveResult<()> {
-            Self::write_zeros(&mut io_handle, size).map_err(|e| {
-                DriveError::IoError(std::io::Error::other(
-                    format!("{}", e),
-                ))
-            })?;
+            Self::write_zeros(&mut io_handle, size)
+                .map_err(|e| DriveError::IoError(std::io::Error::other(format!("{}", e))))?;
             Ok(())
         })?;
 

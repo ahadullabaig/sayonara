@@ -555,10 +555,12 @@ mod tests {
 
     #[test]
     fn test_wipe_algorithm_variants() {
-        let algos = [WipeAlgorithm::Zeros,
+        let algos = [
+            WipeAlgorithm::Zeros,
             WipeAlgorithm::Ones,
             WipeAlgorithm::Random,
-            WipeAlgorithm::Pattern(0xAA)];
+            WipeAlgorithm::Pattern(0xAA),
+        ];
 
         assert_eq!(algos.len(), 4);
     }

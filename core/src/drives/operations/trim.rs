@@ -173,11 +173,8 @@ impl TrimOperations {
 
         use crate::io::{IOConfig, OptimizedIO};
         let config = IOConfig::small_read_optimized();
-        let mut handle = OptimizedIO::open(device_path, config).map_err(|e| {
-            DriveError::IoError(std::io::Error::other(
-                e.to_string(),
-            ))
-        })?;
+        let mut handle = OptimizedIO::open(device_path, config)
+            .map_err(|e| DriveError::IoError(std::io::Error::other(e.to_string())))?;
 
         // Sample random locations
         let device_size = Self::get_device_size(device_path)?;

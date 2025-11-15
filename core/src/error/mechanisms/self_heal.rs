@@ -503,10 +503,12 @@ mod tests {
 
     #[test]
     fn test_heal_method_ordering_by_risk() {
-        let mut methods = [HealMethod::ReloadDriver,
+        let mut methods = [
+            HealMethod::ReloadDriver,
             HealMethod::ResetDevice,
             HealMethod::ResetController,
-            HealMethod::PowerCycle];
+            HealMethod::PowerCycle,
+        ];
 
         // Sort by risk level
         methods.sort_by_key(|m| m.risk_level());

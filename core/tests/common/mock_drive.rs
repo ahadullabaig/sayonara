@@ -145,12 +145,10 @@ pub mod loopback {
             .output()?;
 
         if !output.status.success() {
-            return Err(std::io::Error::other(
-                format!(
-                    "Failed to create sparse file: {}",
-                    String::from_utf8_lossy(&output.stderr)
-                ),
-            ));
+            return Err(std::io::Error::other(format!(
+                "Failed to create sparse file: {}",
+                String::from_utf8_lossy(&output.stderr)
+            )));
         }
 
         // Attach to loop device
@@ -159,12 +157,10 @@ pub mod loopback {
             .output()?;
 
         if !output.status.success() {
-            return Err(std::io::Error::other(
-                format!(
-                    "Failed to create loop device: {}",
-                    String::from_utf8_lossy(&output.stderr)
-                ),
-            ));
+            return Err(std::io::Error::other(format!(
+                "Failed to create loop device: {}",
+                String::from_utf8_lossy(&output.stderr)
+            )));
         }
 
         let loop_device = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -177,12 +173,10 @@ pub mod loopback {
         let output = Command::new("losetup").args(["-d", loop_device]).output()?;
 
         if !output.status.success() {
-            return Err(std::io::Error::other(
-                format!(
-                    "Failed to detach loop device: {}",
-                    String::from_utf8_lossy(&output.stderr)
-                ),
-            ));
+            return Err(std::io::Error::other(format!(
+                "Failed to detach loop device: {}",
+                String::from_utf8_lossy(&output.stderr)
+            )));
         }
 
         Ok(())

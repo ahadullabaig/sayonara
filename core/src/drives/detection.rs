@@ -421,10 +421,9 @@ impl DriveDetector {
 
         for line in mounts.lines() {
             let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() >= 2
-                && parts[1] == "/" && parts[0].starts_with(device_path) {
-                    return Ok(true);
-                }
+            if parts.len() >= 2 && parts[1] == "/" && parts[0].starts_with(device_path) {
+                return Ok(true);
+            }
         }
 
         // Check if boot partition is on this device

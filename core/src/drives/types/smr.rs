@@ -86,7 +86,10 @@ pub struct Zone {
 impl Zone {
     /// Check if zone needs to be reset before writing
     pub fn needs_reset(&self) -> bool {
-        matches!(self.zone_condition, ZoneCondition::Full | ZoneCondition::Closed)
+        matches!(
+            self.zone_condition,
+            ZoneCondition::Full | ZoneCondition::Closed
+        )
     }
 
     /// Check if zone can be written to
