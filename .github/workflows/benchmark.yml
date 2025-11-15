@@ -1,0 +1,156 @@
+name: Performance Benchmarks
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'core/src/**'
+      - 'core/benches/**'
+      - '.github/workflows/benchmark.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'core/src/**'
+      - 'core/benches/**'
+      - '.github/workflows/benchmark.yml'
+  # Allow manual trigger
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+defaults:
+  run:
+    working-directory: ./core
+
+jobs:
+  benchmark:
+    name: Run Performance Benchmarks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for comparison
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      - name: Cache cargo index
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-git-
+
+      - name: Cache cargo build
+        uses: actions/cache@v3
+        with:
+          path: core/target
+          key: ${{ runner.os }}-cargo-benchmark-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-benchmark-
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libssl-dev \
+            pkg-config \
+            build-essential
+
+      - name: Download baseline benchmark results
+        uses: actions/download-artifact@v3
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        with:
+          name: benchmark-baseline
+          path: core/benchmarks/
+
+      - name: Run benchmarks
+        run: |
+          mkdir -p benchmarks/current
+          cargo bench --no-fail-fast -- --save-baseline current 2>&1 | tee benchmarks/current/benchmark_output.txt
+
+      - name: Check for performance regressions
+        if: github.event_name == 'pull_request'
+        run: |
+          chmod +x scripts/check_performance_regression.sh
+          ./scripts/check_performance_regression.sh || echo "::warning::Performance regression detected"
+
+      - name: Upload current benchmark results
+        uses: actions/upload-artifact@v3
+        with:
+          name: benchmark-results-${{ github.sha }}
+          path: |
+            core/target/criterion/
+            core/benchmarks/current/
+          retention-days: 90
+
+      - name: Update baseline (main branch only)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: actions/upload-artifact@v3
+        with:
+          name: benchmark-baseline
+          path: |
+            core/target/criterion/
+            core/benchmarks/current/
+          retention-days: 365
+
+      - name: Comment PR with benchmark results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        continue-on-error: true
+        with:
+          script: |
+            const fs = require('fs');
+            const output = fs.readFileSync('core/benchmarks/current/benchmark_output.txt', 'utf8');
+
+            // Extract summary (last 50 lines)
+            const lines = output.split('\n');
+            const summary = lines.slice(-50).join('\n');
+
+            const comment = `## 📊 Performance Benchmark Results
+
+            <details>
+            <summary>Click to view benchmark summary</summary>
+
+            \`\`\`
+            ${summary}
+            \`\`\`
+
+            </details>
+
+            **Full results:** Download the \`benchmark-results-${{ github.sha }}\` artifact
+
+            _Note: Benchmarks run on GitHub Actions runners may have high variance. For accurate results, run benchmarks locally._
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Display benchmark summary
+        run: |
+          echo "✓ Benchmarks completed successfully"
+          echo ""
+          echo "Benchmark suites run:"
+          ls -1 target/criterion/ || echo "No criterion results found"
+          echo ""
+          echo "Results saved to artifacts"

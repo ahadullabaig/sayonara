@@ -1,0 +1,238 @@
+name: Security Audit
+
+on:
+  push:
+    branches: [ main, ahad ]
+    paths:
+      - 'core/Cargo.toml'
+      - 'core/Cargo.lock'
+      - '.github/workflows/security.yml'
+      - 'core/deny.toml'
+  pull_request:
+    branches: [ main, ahad ]
+    paths:
+      - 'core/Cargo.toml'
+      - 'core/Cargo.lock'
+      - '.github/workflows/security.yml'
+      - 'core/deny.toml'
+  schedule:
+    # Run security audit weekly (every Monday at 9:00 AM UTC)
+    - cron: '0 9 * * 1'
+  # Allow manual trigger
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+defaults:
+  run:
+    working-directory: ./core
+
+jobs:
+  # Job 1: Vulnerability scanning with cargo-audit
+  audit:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Cache cargo-audit
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/bin/cargo-audit
+          key: ${{ runner.os }}-cargo-audit
+          restore-keys: |
+            ${{ runner.os }}-cargo-audit
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+        continue-on-error: false
+
+      - name: Run cargo audit
+        id: audit
+        run: |
+          cargo audit --json > audit-report.json || true
+          cargo audit
+
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-audit-report
+          path: core/audit-report.json
+          retention-days: 90
+
+      - name: Check for vulnerabilities
+        run: |
+          if cargo audit --deny warnings; then
+            echo "✓ No vulnerabilities found"
+          else
+            echo "::warning::Security vulnerabilities detected. Please review."
+            exit 1
+          fi
+
+  # Job 2: License compliance and dependency checking with cargo-deny
+  deny:
+    name: License & Dependency Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Cache cargo-deny
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/bin/cargo-deny
+          key: ${{ runner.os }}-cargo-deny
+          restore-keys: |
+            ${{ runner.os }}-cargo-deny
+
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked
+        continue-on-error: false
+
+      - name: Run cargo deny (advisories)
+        run: cargo deny check advisories
+
+      - name: Run cargo deny (licenses)
+        run: cargo deny check licenses
+
+      - name: Run cargo deny (bans)
+        run: cargo deny check bans
+
+      - name: Run cargo deny (sources)
+        run: cargo deny check sources
+
+      - name: Generate deny report
+        if: always()
+        run: |
+          cargo deny check --format json > deny-report.json || true
+
+      - name: Upload deny report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: deny-report
+          path: core/deny-report.json
+          retention-days: 90
+
+  # Job 3: Create GitHub issue for security vulnerabilities
+  create-issue:
+    name: Create Security Issue
+    runs-on: ubuntu-latest
+    needs: [audit, deny]
+    if: failure()
+
+    permissions:
+      issues: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download audit report
+        uses: actions/download-artifact@v3
+        continue-on-error: true
+        with:
+          name: security-audit-report
+          path: ./reports/
+
+      - name: Create GitHub issue for vulnerabilities
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            let auditReport = '';
+
+            try {
+              auditReport = fs.readFileSync('./reports/audit-report.json', 'utf8');
+            } catch (e) {
+              auditReport = 'Audit report not available';
+            }
+
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🔒 Security Audit Failed - Vulnerabilities Detected',
+              body: `## Security Audit Report
+
+            **Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            **Branch:** \`${{ github.ref }}\`
+            **Commit:** ${{ github.sha }}
+            **Triggered by:** ${{ github.event_name }}
+
+            ### Action Required
+
+            Security vulnerabilities or license compliance issues were detected in dependencies.
+
+            ### Steps to Resolve
+
+            1. Review the audit report attached to the workflow run
+            2. Update affected dependencies to patched versions
+            3. If no patch is available, consider alternatives or mitigation strategies
+            4. Re-run the security workflow to verify fixes
+
+            ### Commands
+
+            \`\`\`bash
+            # Check vulnerabilities locally
+            cd core
+            cargo audit
+
+            # Check license compliance
+            cargo deny check
+
+            # Update dependencies
+            cargo update
+            \`\`\`
+
+            ### Resources
+
+            - [RustSec Advisory Database](https://rustsec.org/)
+            - [cargo-audit Documentation](https://github.com/RustSec/rustsec/tree/main/cargo-audit)
+            - [cargo-deny Documentation](https://embarkstudios.github.io/cargo-deny/)
+
+            ---
+
+            **This issue was automatically created by the Security Audit workflow.**
+            `,
+              labels: ['security', 'dependencies', 'automated']
+            });
+
+            console.log(`Created issue #${issue.data.number}`);
+
+  # Job 4: Security summary
+  summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [audit, deny]
+    if: always()
+
+    steps:
+      - name: Display summary
+        run: |
+          echo "================================"
+          echo "  Security Audit Summary"
+          echo "================================"
+          echo ""
+          echo "Audit Status: ${{ needs.audit.result }}"
+          echo "Deny Status:  ${{ needs.deny.result }}"
+          echo ""
+          if [ "${{ needs.audit.result }}" = "success" ] && [ "${{ needs.deny.result }}" = "success" ]; then
+            echo "✓ All security checks passed"
+          else
+            echo "⚠ Security issues detected - review workflow logs"
+          fi

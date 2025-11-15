@@ -1,0 +1,81 @@
+# Tarpaulin Configuration for Sayonara Wipe
+#
+# Code coverage configuration using cargo-tarpaulin
+# Documentation: https://github.com/xd009642/tarpaulin
+
+[tarpaulin]
+# Coverage output formats
+# - Xml: Codecov/Coveralls compatible
+# - Html: Human-readable HTML report
+# - Lcov: Alternative XML format
+out = ["Xml", "Html", "Lcov"]
+
+# Output directory for coverage reports
+output-dir = "coverage"
+
+# Exclude specific files/directories from coverage
+exclude = [
+    "tests/*",
+    "benches/*",
+    "*/mock_*",
+    "*/test_helpers.rs",
+    "*/common/*",
+]
+
+# Exclude specific modules/functions
+exclude-lines = [
+    "unreachable",
+    "unimplemented",
+    "panic",
+    "#\\[cfg\\(test\\)\\]",
+]
+
+# Test timeout (in seconds)
+# Some hardware simulation tests may take longer
+timeout = 600
+
+# Run all tests (including integration tests)
+all-features = true
+workspace = true
+
+# Use LLVM engine for more accurate coverage
+# Note: Requires LLVM to be installed
+engine = "llvm"
+
+# Follow symbolic links
+follow-exec = true
+
+# Generate coverage for all crates in workspace
+all = true
+
+# Fail fast on first test failure
+fail-fast = false
+
+# Number of parallel jobs (0 = auto-detect)
+jobs = 0
+
+# Verbose output
+verbose = true
+
+# Release mode (faster, but less debug info)
+release = false
+
+# Skip clean before coverage run
+# Set to true to speed up re-runs (use with caution)
+skip-clean = false
+
+# Count hits (how many times a line was executed)
+count = true
+
+# Target specific tests
+# Uncomment to run only specific test types
+# run-types = ["Tests", "Doctests"]
+
+# Ignore panics in code coverage
+# Set to true if you have intentional panic tests
+ignore-panics = false
+
+# Environment variables for tests
+[env]
+SAYONARA_TEST_MODE = "1"
+RUST_BACKTRACE = "1"

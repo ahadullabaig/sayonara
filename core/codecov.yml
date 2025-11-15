@@ -1,0 +1,113 @@
+# Codecov Configuration for Sayonara Wipe
+#
+# Documentation: https://docs.codecov.com/docs/codecov-yaml
+#
+# This file configures how Codecov processes coverage reports and when
+# it reports success/failure on pull requests.
+
+# Coverage targets and thresholds
+coverage:
+  # Precision of coverage percentage (2 decimal places)
+  precision: 2
+
+  # Round coverage percentage (down, up, nearest)
+  round: down
+
+  # Range for color-coding (red at 0%, green at 100%)
+  range: "0...100"
+
+  # Status checks configuration
+  status:
+    # Project-wide coverage
+    project:
+      default:
+        # Target coverage percentage
+        target: 90%
+
+        # Allow coverage to drop by this much and still pass
+        threshold: 1%
+
+        # Only report status after N builds
+        # (useful when branch is new and has few commits)
+        informational: false
+
+        # Require coverage to be present
+        if_ci_failed: error
+
+    # Per-patch (PR) coverage
+    patch:
+      default:
+        # Target coverage for new code in PR
+        target: 80%
+
+        # Threshold for patch coverage
+        threshold: 5%
+
+        # Only post status if patch has changes
+        only_pulls: true
+
+# Comment configuration for pull requests
+comment:
+  # Post coverage comment on PRs
+  require_changes: true
+
+  # Comment layout
+  layout: "header, diff, files, footer"
+
+  # Show file-level coverage in comment
+  behavior: default
+
+  # After N builds, post comment
+  after_n_builds: 1
+
+# Ignore specific paths from coverage
+ignore:
+  - "tests/**"
+  - "benches/**"
+  - "*/tests.rs"
+  - "*/test_*.rs"
+  - "*/mock_*.rs"
+  - "*/common/**"
+  - "examples/**"
+  - "scripts/**"
+
+# Codecov checks
+codecov:
+  # Require CI to pass before processing coverage
+  require_ci_to_pass: yes
+
+  # Notify settings
+  notify:
+    # Wait for N builds before notifying
+    after_n_builds: 1
+
+# GitHub checks integration
+github_checks:
+  annotations: true
+
+# Pull request comments
+parsers:
+  gcov:
+    branch_detection:
+      conditional: yes
+      loop: yes
+      method: no
+      macro: no
+
+# Flag-based coverage (for different test types)
+flags:
+  unittests:
+    # Paths this flag applies to
+    paths:
+      - src/
+
+    # Carryforward behavior (use previous coverage if new report missing)
+    carryforward: true
+
+# Coverage display settings
+ui:
+  # Hide coverage for complexity (focus on line coverage)
+  hide_complexity: false
+
+  # Hide density (coverage per file size)
+  hide_density: false

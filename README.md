@@ -4,6 +4,11 @@
 [![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org/)
 [![Security](https://img.shields.io/badge/security-hardened-green.svg)](core/README.md)
 
+[![CI](https://github.com/TheShiveshNetwork/sayonara/workflows/Continuous%20Integration/badge.svg)](https://github.com/TheShiveshNetwork/sayonara/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/TheShiveshNetwork/sayonara/branch/main/graph/badge.svg)](https://codecov.io/gh/TheShiveshNetwork/sayonara)
+[![Security Audit](https://github.com/TheShiveshNetwork/sayonara/workflows/Security%20Audit/badge.svg)](https://github.com/TheShiveshNetwork/sayonara/actions/workflows/security.yml)
+[![Docker](https://img.shields.io/badge/docker-ghcr.io-blue)](https://github.com/TheShiveshNetwork/sayonara/pkgs/container/sayonara)
+
 [![DoD 5220.22-M](https://img.shields.io/badge/DoD-5220.22--M-blue)](https://www.dss.mil/)
 [![NIST 800-88](https://img.shields.io/badge/NIST-800--88-blue)](https://csrc.nist.gov/)
 [![PCI DSS](https://img.shields.io/badge/PCI-DSS%20v3.2.1-blue)](https://www.pcisecuritystandards.org/)

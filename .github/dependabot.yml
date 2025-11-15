@@ -1,0 +1,158 @@
+# Dependabot Configuration for Sayonara Wipe
+#
+# Automatically creates pull requests to update dependencies and GitHub Actions.
+# Documentation: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+
+version: 2
+
+updates:
+  # Rust/Cargo dependencies
+  - package-ecosystem: "cargo"
+    directory: "/core"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+
+    # PR settings
+    open-pull-requests-limit: 5
+
+    # Reviewer settings
+    reviewers:
+      - "TheShiveshNetwork"
+
+    # Labels
+    labels:
+      - "dependencies"
+      - "rust"
+      - "automated"
+
+    # Commit message prefix
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(dev-deps)"
+
+    # Allow both direct and indirect updates
+    # - "security" = only security updates
+    # - "all" = all updates
+    allow:
+      - dependency-type: "all"
+
+    # Ignore specific dependencies (if needed)
+    ignore:
+      # Example: Ignore patch updates for stable crates
+      # - dependency-name: "tokio"
+      #   update-types: ["version-update:semver-patch"]
+
+    # Rebase strategy
+    rebase-strategy: "auto"
+
+  # GitHub Actions dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "10:00"
+      timezone: "UTC"
+
+    open-pull-requests-limit: 3
+
+    reviewers:
+      - "TheShiveshNetwork"
+
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "automated"
+
+    commit-message:
+      prefix: "ci"
+
+    rebase-strategy: "auto"
+
+  # Docker dependencies (if using FROM images in Dockerfile)
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+      timezone: "UTC"
+
+    open-pull-requests-limit: 2
+
+    reviewers:
+      - "TheShiveshNetwork"
+
+    labels:
+      - "dependencies"
+      - "docker"
+      - "automated"
+
+    commit-message:
+      prefix: "build(docker)"
+
+    # Only update major/minor versions for Docker base images
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
+
+    rebase-strategy: "auto"
+
+# ============================================================================
+# Dependabot Behavior Notes
+# ============================================================================
+#
+# 1. Automatic PR Creation:
+#    - Dependabot creates PRs for outdated dependencies
+#    - Each PR updates a single dependency (or group if configured)
+#    - PRs include changelog, release notes, and commits
+#
+# 2. Security Updates:
+#    - Security updates are created immediately (not on schedule)
+#    - Labeled with "security" automatically
+#    - Should be merged ASAP
+#
+# 3. Version Update Types:
+#    - semver-major: Breaking changes (e.g., 1.0.0 -> 2.0.0)
+#    - semver-minor: New features (e.g., 1.1.0 -> 1.2.0)
+#    - semver-patch: Bug fixes (e.g., 1.1.1 -> 1.1.2)
+#
+# 4. Auto-merge (optional, requires GitHub setting):
+#    - Enable auto-merge in repo settings
+#    - Dependabot will auto-merge PRs that pass CI
+#    - Useful for patch updates
+#
+# 5. Grouping Updates (optional):
+#    # groups:
+#    #   dev-dependencies:
+#    #     patterns:
+#    #       - "dev-*"
+#    #     update-types:
+#    #       - "patch"
+#    #       - "minor"
+#
+# 6. Pull Request Limits:
+#    - `open-pull-requests-limit` prevents too many open PRs
+#    - Dependabot waits for existing PRs to be merged/closed
+#    - Set based on team capacity
+#
+# ============================================================================
+# Recommended Workflow
+# ============================================================================
+#
+# 1. Review Dependabot PRs weekly
+# 2. Check CI status (all tests pass?)
+# 3. Review changelog/release notes
+# 4. Merge if:
+#    - CI passes
+#    - No breaking changes
+#    - Changelog looks reasonable
+# 5. For major version updates:
+#    - Test locally first
+#    - Review migration guide
+#    - Update code if needed
+#
+# ============================================================================
