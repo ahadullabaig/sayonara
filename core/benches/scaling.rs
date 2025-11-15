@@ -1,9 +1,7 @@
 /// Scaling benchmarks for concurrent operations
 ///
 /// Measures performance scaling from 1 to 10 concurrent drive operations.
-
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId, Throughput};
-use std::fs::File;
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use std::io::Write;
 use std::thread;
 use tempfile::NamedTempFile;
@@ -201,8 +199,8 @@ fn bench_workload_distribution(c: &mut Criterion) {
 
 // Benchmark lock-free vs locked operations
 fn bench_synchronization_overhead(c: &mut Criterion) {
-    use std::sync::{Arc, Mutex};
     use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::{Arc, Mutex};
 
     let mut group = c.benchmark_group("synchronization_overhead");
 

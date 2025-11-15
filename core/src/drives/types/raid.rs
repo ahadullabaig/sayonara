@@ -3,14 +3,14 @@
 // Support for detecting and safely wiping RAID array members
 
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use std::process::Command;
-use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum RAIDType {
-    SoftwareRAID,    // Linux mdadm
-    HardwareRAID,    // Controller-based
-    FakeRAID,        // BIOS/firmware RAID (Intel RST)
+    SoftwareRAID, // Linux mdadm
+    HardwareRAID, // Controller-based
+    FakeRAID,     // BIOS/firmware RAID (Intel RST)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -32,9 +32,9 @@ pub struct MetadataRegion {
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum MetadataLocation {
-    Start,  // Beginning of drive
-    End,    // End of drive
-    Both,   // Both ends
+    Start, // Beginning of drive
+    End,   // End of drive
+    Both,  // Both ends
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,9 +79,7 @@ impl RAIDArray {
     }
 
     fn is_hardware_raid_member(device_path: &str) -> Result<bool> {
-        let output = Command::new("sg_inq")
-            .arg(device_path)
-            .output();
+        let output = Command::new("sg_inq").arg(device_path).output();
 
         if let Ok(output) = output {
             let stdout = String::from_utf8_lossy(&output.stdout);
@@ -134,13 +132,11 @@ impl RAIDArray {
 
     fn find_metadata_locations(raid_type: &RAIDType) -> Vec<MetadataRegion> {
         match raid_type {
-            RAIDType::SoftwareRAID => vec![
-                MetadataRegion {
-                    location: MetadataLocation::End,
-                    offset: 0,  // At end of device
-                    size: 4096,
-                }
-            ],
+            RAIDType::SoftwareRAID => vec![MetadataRegion {
+                location: MetadataLocation::End,
+                offset: 0, // At end of device
+                size: 4096,
+            }],
             _ => Vec::new(),
         }
     }

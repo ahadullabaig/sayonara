@@ -1,8 +1,7 @@
 /// Adaptive tuning benchmarks
 ///
 /// Measures performance tuning and metrics tracking overhead.
-
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId, Throughput};
+use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
 use std::time::{Duration, Instant};
 
 // Simplified metrics tracker for benchmarking
@@ -112,10 +111,10 @@ fn bench_adaptive_buffer_sizing(c: &mut Criterion) {
 
     // Simulate different throughput levels
     let throughput_levels = vec![
-        ("slow_hdd", 100 * 1024 * 1024u64),      // 100 MB/s
-        ("fast_hdd", 200 * 1024 * 1024u64),      // 200 MB/s
-        ("sata_ssd", 500 * 1024 * 1024u64),      // 500 MB/s
-        ("nvme_ssd", 3000 * 1024 * 1024u64),     // 3 GB/s
+        ("slow_hdd", 100 * 1024 * 1024u64),  // 100 MB/s
+        ("fast_hdd", 200 * 1024 * 1024u64),  // 200 MB/s
+        ("sata_ssd", 500 * 1024 * 1024u64),  // 500 MB/s
+        ("nvme_ssd", 3000 * 1024 * 1024u64), // 3 GB/s
     ];
 
     for (name, throughput) in throughput_levels {
@@ -144,10 +143,10 @@ fn bench_degradation_detection(c: &mut Criterion) {
     let baseline_throughput = 500 * 1024 * 1024u64; // 500 MB/s
 
     let test_cases = vec![
-        ("normal", 480 * 1024 * 1024),       // 96% of baseline
-        ("slight_deg", 350 * 1024 * 1024),   // 70% of baseline
-        ("degraded", 200 * 1024 * 1024),     // 40% of baseline
-        ("severe_deg", 100 * 1024 * 1024),   // 20% of baseline
+        ("normal", 480 * 1024 * 1024),     // 96% of baseline
+        ("slight_deg", 350 * 1024 * 1024), // 70% of baseline
+        ("degraded", 200 * 1024 * 1024),   // 40% of baseline
+        ("severe_deg", 100 * 1024 * 1024), // 20% of baseline
     ];
 
     for (name, current_throughput) in test_cases {
@@ -169,9 +168,9 @@ fn bench_queue_depth_adaptation(c: &mut Criterion) {
 
     // Simulate latency-based queue depth tuning
     let latency_scenarios = vec![
-        ("low_latency", 100),      // 100 microseconds
-        ("medium_latency", 1000),  // 1 millisecond
-        ("high_latency", 10000),   // 10 milliseconds
+        ("low_latency", 100),     // 100 microseconds
+        ("medium_latency", 1000), // 1 millisecond
+        ("high_latency", 10000),  // 10 milliseconds
     ];
 
     for (name, latency_us) in latency_scenarios {

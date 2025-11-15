@@ -3,24 +3,21 @@
 // This module provides high-level wipe operations that integrate the OptimizedIO
 // engine with advanced drive types (SMR, Optane, Hybrid, eMMC, RAID, NVMe).
 
-use anyhow::Result;
-use crate::io::{OptimizedIO, IOConfig, IOHandle};
-use crate::crypto::secure_rng::secure_random_bytes;
-use crate::ui::progress::ProgressBar;
-use super::types::smr::SMRDrive;
-use super::types::optane::OptaneDrive;
-use super::types::hybrid::HybridDrive;
 use super::types::emmc::EMMCDevice;
-use super::types::raid::RAIDArray;
+use super::types::hybrid::HybridDrive;
 use super::types::nvme::advanced::{NVMeAdvanced, NVMeNamespace, NamespaceType};
+use super::types::optane::OptaneDrive;
+use super::types::raid::RAIDArray;
+use super::types::smr::SMRDrive;
+use crate::crypto::secure_rng::secure_random_bytes;
+use crate::io::{IOConfig, IOHandle, OptimizedIO};
+use crate::ui::progress::ProgressBar;
+use anyhow::Result;
 
 // ==================== SMR DRIVE INTEGRATION ====================
 
 /// Wipe an SMR drive using OptimizedIO with proper zone handling
-pub fn wipe_smr_drive_integrated(
-    smr_drive: &SMRDrive,
-    algorithm: WipeAlgorithm,
-) -> Result<()> {
+pub fn wipe_smr_drive_integrated(smr_drive: &SMRDrive, algorithm: WipeAlgorithm) -> Result<()> {
     println!("🔄 Starting SMR-aware integrated wipe");
     println!("   Drive: {}", smr_drive.device_path);
     println!("   Algorithm: {:?}", algorithm);
@@ -80,7 +77,7 @@ fn write_pattern_to_zone(
         // Write to zone
         let written = io_handle.write_at(
             &buffer.as_slice()[..write_size as usize],
-            offset + bytes_written
+            offset + bytes_written,
         )?;
 
         bytes_written += written as u64;
@@ -114,7 +111,10 @@ pub fn wipe_optane_drive_integrated(
 
         // Wipe each namespace
         for namespace in &optane_drive.namespaces {
-            println!("   Wiping namespace {}: {} bytes", namespace.nsid, namespace.capacity);
+            println!(
+                "   Wiping namespace {}: {} bytes",
+                namespace.nsid, namespace.capacity
+            );
 
             // 3D XPoint benefits from specific patterns
             // Pass 1: Write 0x00
@@ -134,21 +134,14 @@ pub fn wipe_optane_drive_integrated(
     Ok(())
 }
 
-fn wipe_namespace_with_pattern(
-    io_handle: &mut IOHandle,
-    size: u64,
-    pattern: u8,
-) -> Result<()> {
+fn wipe_namespace_with_pattern(io_handle: &mut IOHandle, size: u64, pattern: u8) -> Result<()> {
     Ok(OptimizedIO::sequential_write(io_handle, size, |buffer| {
         buffer.as_mut_slice().fill(pattern);
         Ok(())
     })?)
 }
 
-fn wipe_namespace_with_random(
-    io_handle: &mut IOHandle,
-    size: u64,
-) -> Result<()> {
+fn wipe_namespace_with_random(io_handle: &mut IOHandle, size: u64) -> Result<()> {
     Ok(OptimizedIO::sequential_write(io_handle, size, |buffer| {
         secure_random_bytes(buffer.as_mut_slice())?;
         Ok(())
@@ -158,13 +151,17 @@ fn wipe_namespace_with_random(
 // ==================== HYBRID DRIVE (SSHD) INTEGRATION ====================
 
 /// Wipe hybrid drive (SSHD) with separate cache and HDD handling
-pub fn wipe_hybrid_drive_integrated(
-    hybrid_drive: &mut HybridDrive,
-) -> Result<()> {
+pub fn wipe_hybrid_drive_integrated(hybrid_drive: &mut HybridDrive) -> Result<()> {
     println!("🔄 Starting Hybrid Drive (SSHD) integrated wipe");
     println!("   Drive: {}", hybrid_drive.device_path);
-    println!("   SSD Cache: {} GB", hybrid_drive.ssd_cache.cache_size / (1024 * 1024 * 1024));
-    println!("   HDD Capacity: {} GB", hybrid_drive.hdd_portion.capacity / (1024 * 1024 * 1024));
+    println!(
+        "   SSD Cache: {} GB",
+        hybrid_drive.ssd_cache.cache_size / (1024 * 1024 * 1024)
+    );
+    println!(
+        "   HDD Capacity: {} GB",
+        hybrid_drive.hdd_portion.capacity / (1024 * 1024 * 1024)
+    );
 
     // Step 1: Disable and wipe SSD cache
     println!("\n   Step 1: Disabling and wiping SSD cache...");
@@ -172,7 +169,10 @@ pub fn wipe_hybrid_drive_integrated(
 
     // Wipe pinned regions first
     if !hybrid_drive.pinned_data.is_empty() {
-        println!("   Found {} pinned cache regions", hybrid_drive.pinned_data.len());
+        println!(
+            "   Found {} pinned cache regions",
+            hybrid_drive.pinned_data.len()
+        );
         hybrid_drive.unpin_data()?;
     }
 
@@ -202,11 +202,7 @@ pub fn wipe_hybrid_drive_integrated(
     Ok(())
 }
 
-fn wipe_with_pattern_progress(
-    io_handle: &mut IOHandle,
-    size: u64,
-    pattern: u8,
-) -> Result<()> {
+fn wipe_with_pattern_progress(io_handle: &mut IOHandle, size: u64, pattern: u8) -> Result<()> {
     let mut bytes_written = 0u64;
     let mut bar = ProgressBar::new(48);
 
@@ -225,10 +221,7 @@ fn wipe_with_pattern_progress(
     Ok(())
 }
 
-fn wipe_with_random_progress(
-    io_handle: &mut IOHandle,
-    size: u64,
-) -> Result<()> {
+fn wipe_with_random_progress(io_handle: &mut IOHandle, size: u64) -> Result<()> {
     let mut bytes_written = 0u64;
     let mut bar = ProgressBar::new(48);
 
@@ -250,10 +243,7 @@ fn wipe_with_random_progress(
 // ==================== eMMC / UFS INTEGRATION ====================
 
 /// Wipe eMMC/UFS embedded storage
-pub fn wipe_emmc_drive_integrated(
-    emmc_drive: &EMMCDevice,
-    use_hardware_erase: bool,
-) -> Result<()> {
+pub fn wipe_emmc_drive_integrated(emmc_drive: &EMMCDevice, use_hardware_erase: bool) -> Result<()> {
     println!("🔄 Starting eMMC/UFS integrated wipe");
     println!("   Device: {}", emmc_drive.device_path);
 
@@ -281,7 +271,10 @@ fn wipe_emmc_software(emmc_drive: &EMMCDevice) -> Result<()> {
 
     // Wipe user data area
     let size = emmc_drive.user_data_area.size;
-    println!("   Wiping user data area: {} GB", size / (1024 * 1024 * 1024));
+    println!(
+        "   Wiping user data area: {} GB",
+        size / (1024 * 1024 * 1024)
+    );
 
     // Single pass random for embedded storage
     wipe_with_random_progress(&mut io_handle, size)?;
@@ -289,8 +282,11 @@ fn wipe_emmc_software(emmc_drive: &EMMCDevice) -> Result<()> {
     // Wipe boot partitions if present
     for boot_part in &emmc_drive.boot_partitions {
         if boot_part.size > 0 {
-            println!("   Wiping boot partition {}: {} MB",
-                     boot_part.partition_number, boot_part.size / (1024 * 1024));
+            println!(
+                "   Wiping boot partition {}: {} MB",
+                boot_part.partition_number,
+                boot_part.size / (1024 * 1024)
+            );
             wipe_with_pattern_progress(&mut io_handle, boot_part.size, 0x00)?;
         }
     }
@@ -304,10 +300,7 @@ fn wipe_emmc_software(emmc_drive: &EMMCDevice) -> Result<()> {
 // ==================== RAID ARRAY INTEGRATION ====================
 
 /// Wipe RAID array members individually
-pub fn wipe_raid_array_integrated(
-    raid_array: &RAIDArray,
-    wipe_metadata: bool,
-) -> Result<()> {
+pub fn wipe_raid_array_integrated(raid_array: &RAIDArray, wipe_metadata: bool) -> Result<()> {
     println!("🔄 Starting RAID Array integrated wipe");
     println!("   Array: {}", raid_array.device_path);
     println!("   Type: {:?}", raid_array.raid_type);
@@ -315,8 +308,12 @@ pub fn wipe_raid_array_integrated(
 
     // Wipe each member individually
     for (idx, member_path) in raid_array.member_drives.iter().enumerate() {
-        println!("\n   Wiping member {}/{}: {}",
-                 idx + 1, raid_array.member_drives.len(), member_path);
+        println!(
+            "\n   Wiping member {}/{}: {}",
+            idx + 1,
+            raid_array.member_drives.len(),
+            member_path
+        );
 
         let io_config = IOConfig::default();
         let mut io_handle = OptimizedIO::open(member_path, io_config)?;
@@ -352,10 +349,7 @@ pub fn wipe_raid_array_integrated(
 // ==================== NVME ADVANCED INTEGRATION ====================
 
 /// Wipe NVMe drive with advanced features (multiple namespaces, ZNS, etc.)
-pub fn wipe_nvme_advanced_integrated(
-    nvme_drive: &NVMeAdvanced,
-    use_format: bool,
-) -> Result<()> {
+pub fn wipe_nvme_advanced_integrated(nvme_drive: &NVMeAdvanced, use_format: bool) -> Result<()> {
     println!("🔄 Starting Advanced NVMe integrated wipe");
     println!("   Controller: {}", nvme_drive.controller_path);
     println!("   Model: {}", nvme_drive.model);
@@ -448,10 +442,7 @@ fn format_nvme_namespace(controller_path: &str, nsid: u32) -> Result<()> {
 }
 
 /// Wipe standard namespace with multiple passes
-fn wipe_namespace_multipass(
-    io_handle: &mut IOHandle,
-    size: u64,
-) -> Result<()> {
+fn wipe_namespace_multipass(io_handle: &mut IOHandle, size: u64) -> Result<()> {
     // Pass 1: Zeros
     println!("         Pass 1/3: zeros");
     wipe_with_pattern_progress(io_handle, size, 0x00)?;
@@ -468,10 +459,7 @@ fn wipe_namespace_multipass(
 }
 
 /// Wipe ZNS namespace with zone awareness
-fn wipe_zns_namespace(
-    io_handle: &mut IOHandle,
-    namespace: &NVMeNamespace,
-) -> Result<()> {
+fn wipe_zns_namespace(io_handle: &mut IOHandle, namespace: &NVMeNamespace) -> Result<()> {
     if let Some(zones) = &namespace.zones {
         println!("         Wiping {} zones", zones.len());
 
@@ -498,11 +486,7 @@ fn wipe_zns_namespace(
 }
 
 /// Wipe a single zone sequentially
-fn wipe_zone_sequential(
-    io_handle: &mut IOHandle,
-    offset: u64,
-    size: u64,
-) -> Result<()> {
+fn wipe_zone_sequential(io_handle: &mut IOHandle, offset: u64, size: u64) -> Result<()> {
     let mut bytes_written = 0u64;
 
     while bytes_written < size {
@@ -510,7 +494,10 @@ fn wipe_zone_sequential(
         secure_random_bytes(buffer.as_mut_slice())?;
 
         let to_write = (size - bytes_written).min(buffer.as_slice().len() as u64);
-        io_handle.write_at(&buffer.as_slice()[..to_write as usize], offset + bytes_written)?;
+        io_handle.write_at(
+            &buffer.as_slice()[..to_write as usize],
+            offset + bytes_written,
+        )?;
 
         bytes_written += to_write;
     }
@@ -520,10 +507,7 @@ fn wipe_zone_sequential(
 }
 
 /// Wipe Key-Value namespace
-fn wipe_kv_namespace(
-    io_handle: &mut IOHandle,
-    size: u64,
-) -> Result<()> {
+fn wipe_kv_namespace(io_handle: &mut IOHandle, size: u64) -> Result<()> {
     // For KV namespaces, we do a simple overwrite
     // Real implementation would enumerate and delete keys
     println!("         KV namespace wipe (simplified)");

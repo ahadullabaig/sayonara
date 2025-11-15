@@ -2,7 +2,6 @@
 ///
 /// This module provides utilities for mocking external command execution
 /// (smartctl, hdparm, blockdev, etc.) without actually running them.
-
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -48,7 +47,10 @@ impl MockCommandRegistry {
 
     /// Register a mock command response
     pub fn register(&mut self, command_key: &str, output: MockCommandOutput) {
-        self.commands.lock().unwrap().insert(command_key.to_string(), output);
+        self.commands
+            .lock()
+            .unwrap()
+            .insert(command_key.to_string(), output);
     }
 
     /// Get mock output for a command
@@ -94,7 +96,10 @@ SATA Version is:  SATA 3.2, 6.0 Gb/s (current: 6.0 Gb/s)
 Local Time is:    Thu Oct 30 12:00:00 2025 UTC
 SMART support is: Available - device has SMART capability.
 SMART support is: Enabled"#,
-            model, serial, size_gb * 1024 * 1024 * 1024, size_gb
+            model,
+            serial,
+            size_gb * 1024 * 1024 * 1024,
+            size_gb
         )
     }
 
@@ -120,7 +125,10 @@ SATA Version is:  SATA 3.3, 6.0 Gb/s (current: 6.0 Gb/s)
 Local Time is:    Thu Oct 30 12:00:00 2025 UTC
 SMART support is: Available - device has SMART capability.
 SMART support is: Enabled"#,
-            model, serial, size_gb * 1024 * 1024 * 1024, size_gb
+            model,
+            serial,
+            size_gb * 1024 * 1024 * 1024,
+            size_gb
         )
     }
 
@@ -145,9 +153,12 @@ Namespace 1 Size/Capacity: {} [{} GB]
 Namespace 1 Formatted LBA Size: 512
 Namespace 1 IEEE EUI-64: 002538 0123456789
 Local Time is:    Thu Oct 30 12:00:00 2025 UTC"#,
-            model, serial,
-            size_gb * 1024 * 1024 * 1024, size_gb,
-            size_gb * 1024 * 1024 * 1024, size_gb
+            model,
+            serial,
+            size_gb * 1024 * 1024 * 1024,
+            size_gb,
+            size_gb * 1024 * 1024 * 1024,
+            size_gb
         )
     }
 
@@ -168,7 +179,10 @@ Rotation Rate:    Solid State Device
 Device is:        Not in smartctl database
 ATA Version is:   ACS-2 T13/2015-D revision 3
 Local Time is:    Thu Oct 30 12:00:00 2025 UTC"#,
-            model, serial, size_gb * 1024 * 1024 * 1024, size_gb
+            model,
+            serial,
+            size_gb * 1024 * 1024 * 1024,
+            size_gb
         )
     }
 }
@@ -205,7 +219,8 @@ Commands/features:
 	   *	Power Management feature set
 	   *	Write cache
 	   *	WRITE_BUFFER command
-	   *	READ_BUFFER command"#.to_string()
+	   *	READ_BUFFER command"#
+            .to_string()
     }
 
     /// hdparm -N output with HPA
@@ -244,7 +259,8 @@ DCO is active"#,
     #[allow(dead_code)]
     pub fn no_dco() -> String {
         r#"/dev/sda:
-DCO feature set not supported"#.to_string()
+DCO feature set not supported"#
+            .to_string()
     }
 }
 
@@ -295,7 +311,8 @@ proc /proc proc rw,nosuid,nodev,noexec,relatime 0 0"#,
     pub fn no_mount() -> String {
         r#"/dev/sda1 / ext4 rw,relatime,errors=remount-ro 0 0
 proc /proc proc rw,nosuid,nodev,noexec,relatime 0 0
-sysfs /sys sysfs rw,nosuid,nodev,noexec,relatime 0 0"#.to_string()
+sysfs /sys sysfs rw,nosuid,nodev,noexec,relatime 0 0"#
+            .to_string()
     }
 
     /// /proc/cmdline with root device
@@ -335,7 +352,8 @@ sanicap   : 0x3
   Overwrite Supported: Yes
   Crypto Scramble Supported: No
 sqes      : 0x66
-cqes      : 0x44"#.to_string()
+cqes      : 0x44"#
+            .to_string()
     }
 
     /// nvme id-ctrl output without sanitize support
@@ -349,7 +367,8 @@ fr        : 1.0.0
 sanicap   : 0x0
   Crypto Erase Supported: No
   Block Erase Supported: No
-  Overwrite Supported: No"#.to_string()
+  Overwrite Supported: No"#
+            .to_string()
     }
 }
 
@@ -425,7 +444,8 @@ mod tests {
         assert!(ssd.contains("Solid State Device"));
         assert!(ssd.contains("TRIM Command"));
 
-        let nvme = MockSmartctlData::nvme_output("/dev/nvme0n1", "Samsung 980 PRO", "S123456", 1000);
+        let nvme =
+            MockSmartctlData::nvme_output("/dev/nvme0n1", "Samsung 980 PRO", "S123456", 1000);
         assert!(nvme.contains("Samsung 980 PRO"));
         assert!(nvme.contains("NVMe Version"));
     }

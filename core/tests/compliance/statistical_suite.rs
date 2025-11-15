@@ -1,3 +1,5 @@
+use anyhow::Result;
+use sayonara_wipe::crypto::secure_random_bytes;
 /// NIST SP 800-22 Statistical Test Suite
 ///
 /// These tests validate the statistical test implementations used for
@@ -12,10 +14,7 @@
 /// - Poker Test: 4-bit nibble distribution
 /// - Serial Test: 2-bit sequence distribution
 /// - Autocorrelation Test: Pattern independence
-
 use sayonara_wipe::verification::EnhancedVerification;
-use sayonara_wipe::crypto::secure_random_bytes;
-use anyhow::Result;
 
 // ==================== RUNS TEST ====================
 
@@ -38,7 +37,10 @@ fn test_runs_test_fails_on_all_zeros() -> Result<()> {
 
     let result = EnhancedVerification::runs_test(&data)?;
 
-    assert!(!result, "Runs test should fail for all zeros (no transitions)");
+    assert!(
+        !result,
+        "Runs test should fail for all zeros (no transitions)"
+    );
     Ok(())
 }
 
@@ -49,7 +51,10 @@ fn test_runs_test_fails_on_all_ones() -> Result<()> {
 
     let result = EnhancedVerification::runs_test(&data)?;
 
-    assert!(!result, "Runs test should fail for all ones (no transitions)");
+    assert!(
+        !result,
+        "Runs test should fail for all ones (no transitions)"
+    );
     Ok(())
 }
 
@@ -149,8 +154,10 @@ fn test_poker_test_chi_square_threshold() -> Result<()> {
     const CHI_SQUARE_THRESHOLD: f64 = 30.578;
 
     // Verify the threshold is reasonable
-    assert_eq!(CHI_SQUARE_THRESHOLD, 30.578,
-        "Poker test chi-square threshold should be 30.578");
+    assert_eq!(
+        CHI_SQUARE_THRESHOLD, 30.578,
+        "Poker test chi-square threshold should be 30.578"
+    );
     Ok(())
 }
 
@@ -185,8 +192,10 @@ fn test_serial_test_chi_square_threshold() -> Result<()> {
     // This is the critical value for 3 degrees of freedom at 0.01 significance
     const CHI_SQUARE_THRESHOLD: f64 = 11.345;
 
-    assert_eq!(CHI_SQUARE_THRESHOLD, 11.345,
-        "Serial test chi-square threshold should be 11.345");
+    assert_eq!(
+        CHI_SQUARE_THRESHOLD, 11.345,
+        "Serial test chi-square threshold should be 11.345"
+    );
     Ok(())
 }
 
@@ -200,7 +209,10 @@ fn test_autocorrelation_test_with_good_random_data() -> Result<()> {
 
     let result = EnhancedVerification::autocorrelation_test(&data)?;
 
-    assert!(result, "Autocorrelation test should pass for secure random data");
+    assert!(
+        result,
+        "Autocorrelation test should pass for secure random data"
+    );
     Ok(())
 }
 
@@ -215,7 +227,10 @@ fn test_autocorrelation_test_fails_on_repeating_pattern() -> Result<()> {
 
     let result = EnhancedVerification::autocorrelation_test(&data)?;
 
-    assert!(!result, "Autocorrelation test should fail for repeating pattern");
+    assert!(
+        !result,
+        "Autocorrelation test should fail for repeating pattern"
+    );
     Ok(())
 }
 
@@ -224,8 +239,10 @@ fn test_autocorrelation_threshold() -> Result<()> {
     // Autocorrelation must be <0.1 (normalized)
     const MAX_AUTOCORRELATION: f64 = 0.1;
 
-    assert_eq!(MAX_AUTOCORRELATION, 0.1,
-        "Autocorrelation threshold should be 0.1");
+    assert_eq!(
+        MAX_AUTOCORRELATION, 0.1,
+        "Autocorrelation threshold should be 0.1"
+    );
     Ok(())
 }
 

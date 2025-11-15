@@ -1,11 +1,11 @@
-use anyhow::Result;
-use crate::ui::progress::ProgressBar;
 use crate::crypto::secure_rng::get_secure_rng;
-use crate::io::{OptimizedIO, IOConfig, IOHandle};
+use crate::error::{ErrorContext, Progress, RecoveryCoordinator};
+use crate::io::{IOConfig, IOHandle, OptimizedIO};
+use crate::ui::progress::ProgressBar;
 use crate::DriveType;
-use crate::{DriveResult, DriveError};
 use crate::WipeConfig;
-use crate::error::{RecoveryCoordinator, Progress, ErrorContext};
+use crate::{DriveError, DriveResult};
+use anyhow::Result;
 use serde_json::json;
 
 pub struct RandomWipe;
@@ -17,7 +17,10 @@ impl RandomWipe {
         drive_type: DriveType,
         config: &WipeConfig,
     ) -> Result<()> {
-        println!("Starting single-pass random wipe with error recovery on {}", device_path);
+        println!(
+            "Starting single-pass random wipe with error recovery on {}",
+            device_path
+        );
 
         // Initialize recovery coordinator
         let mut coordinator = RecoveryCoordinator::new(device_path, config)?;
@@ -41,14 +44,27 @@ impl RandomWipe {
 
         // Execute with recovery
         let context = ErrorContext::new("random_wipe", device_path);
-        coordinator.execute_with_recovery("random_wipe", context, || -> DriveResult<()> { Self::write_random(&mut io_handle, size).map_err(|e| DriveError::IoError(std::io::Error::new(std::io::ErrorKind::Other, format!("{}", e))))?; Ok(()) })?;
+        coordinator.execute_with_recovery("random_wipe", context, || -> DriveResult<()> {
+            Self::write_random(&mut io_handle, size).map_err(|e| {
+                DriveError::IoError(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("{}", e),
+                ))
+            })?;
+            Ok(())
+        })?;
 
         // Save final checkpoint
-        coordinator.maybe_checkpoint("Random", 1, size, &Progress {
-            current_pass: 1,
-            bytes_written: size,
-            state: json!({"complete": true}),
-        })?;
+        coordinator.maybe_checkpoint(
+            "Random",
+            1,
+            size,
+            &Progress {
+                current_pass: 1,
+                bytes_written: size,
+                state: json!({"complete": true}),
+            },
+        )?;
 
         // Final sync
         io_handle.sync()?;

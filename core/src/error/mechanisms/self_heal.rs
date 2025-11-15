@@ -5,7 +5,6 @@
 /// - Device reset via sysfs
 /// - Controller reset commands
 /// - IPMI power cycling (for servers)
-
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
@@ -160,7 +159,10 @@ impl SelfHealer {
 
         // Verify device reappeared
         if !Path::new(device).exists() {
-            return Err(anyhow::anyhow!("Device {} did not reappear after driver reload", device));
+            return Err(anyhow::anyhow!(
+                "Device {} did not reappear after driver reload",
+                device
+            ));
         }
 
         Ok(())
@@ -187,7 +189,10 @@ impl SelfHealer {
         } else if dev_name.starts_with("hd") {
             Ok("ide".to_string())
         } else {
-            Err(anyhow::anyhow!("Cannot determine driver for device {}", device))
+            Err(anyhow::anyhow!(
+                "Cannot determine driver for device {}",
+                device
+            ))
         }
     }
 
@@ -212,7 +217,10 @@ impl SelfHealer {
             return self.reset_nvme_device(dev_name);
         }
 
-        Err(anyhow::anyhow!("Device type not supported for sysfs reset: {}", device))
+        Err(anyhow::anyhow!(
+            "Device type not supported for sysfs reset: {}",
+            device
+        ))
     }
 
     /// Reset SCSI/SATA device
@@ -228,8 +236,7 @@ impl SelfHealer {
 
         // Rescan SCSI bus
         let scan_pattern = "/sys/class/scsi_host/host*/scan";
-        let scan_paths = glob::glob(scan_pattern)
-            .context("Failed to glob scan paths")?;
+        let scan_paths = glob::glob(scan_pattern).context("Failed to glob scan paths")?;
 
         for path in scan_paths.flatten() {
             tracing::debug!("Writing '- - -' to {}", path.display());
@@ -253,7 +260,9 @@ impl SelfHealer {
     /// Reset NVMe device
     fn reset_nvme_device(&self, dev_name: &str) -> Result<()> {
         // Extract controller name (e.g., "nvme0" from "nvme0n1")
-        let ctrl_name = dev_name.split('n').next()
+        let ctrl_name = dev_name
+            .split('n')
+            .next()
             .ok_or_else(|| anyhow::anyhow!("Invalid NVMe device name"))?;
 
         // Reset via sysfs
@@ -282,9 +291,10 @@ impl SelfHealer {
         let device_link = format!("/sys/class/block/{}/device", device_name);
         if let Ok(real_path) = fs::read_link(&device_link) {
             // Extract PCI address from path
-            if let Some(pci_addr) = real_path.to_str()
-                .and_then(|s| s.split('/').find(|p| p.contains(":"))) {
-
+            if let Some(pci_addr) = real_path
+                .to_str()
+                .and_then(|s| s.split('/').find(|p| p.contains(":")))
+            {
                 // Remove device
                 let remove_path = format!("/sys/bus/pci/devices/{}/remove", pci_addr);
                 if Path::new(&remove_path).exists() {
@@ -320,7 +330,10 @@ impl SelfHealer {
             "megaraid" => self.reset_megaraid(),
             "hpsa" => self.reset_hpsa(),
             "mpt" => self.reset_mpt(),
-            _ => Err(anyhow::anyhow!("Controller reset not supported for type: {}", controller)),
+            _ => Err(anyhow::anyhow!(
+                "Controller reset not supported for type: {}",
+                controller
+            )),
         }
     }
 
@@ -337,7 +350,8 @@ impl SelfHealer {
         }
 
         // Check for LSI MPT
-        if Command::new("lspci").output()
+        if Command::new("lspci")
+            .output()
             .ok()
             .and_then(|o| String::from_utf8(o.stdout).ok())
             .map(|s| s.contains("LSI") || s.contains("MPT"))
@@ -459,7 +473,10 @@ mod tests {
 
     #[test]
     fn test_heal_method_properties() {
-        assert_eq!(HealMethod::ReloadDriver.description(), "Reload kernel driver");
+        assert_eq!(
+            HealMethod::ReloadDriver.description(),
+            "Reload kernel driver"
+        );
         assert_eq!(HealMethod::ReloadDriver.risk_level(), 3);
         assert!(HealMethod::ReloadDriver.estimated_recovery_time() > Duration::from_secs(0));
     }
@@ -497,10 +514,10 @@ mod tests {
         methods.sort_by_key(|m| m.risk_level());
 
         // Verify sorted order matches expected
-        assert_eq!(methods[0], HealMethod::ResetDevice);      // Risk 2
-        assert_eq!(methods[1], HealMethod::ReloadDriver);     // Risk 3
-        assert_eq!(methods[2], HealMethod::ResetController);  // Risk 5
-        assert_eq!(methods[3], HealMethod::PowerCycle);       // Risk 8
+        assert_eq!(methods[0], HealMethod::ResetDevice); // Risk 2
+        assert_eq!(methods[1], HealMethod::ReloadDriver); // Risk 3
+        assert_eq!(methods[2], HealMethod::ResetController); // Risk 5
+        assert_eq!(methods[3], HealMethod::PowerCycle); // Risk 8
     }
 
     #[test]

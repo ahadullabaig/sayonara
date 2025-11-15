@@ -1,5 +1,5 @@
 use std::io::{self, Write};
-use std::time::{Instant};
+use std::time::Instant;
 
 pub(crate) const CAT_FRAMES: [&str; 6] = [
     "ฅ(^･ω･^=)  ", // cat happy
@@ -69,9 +69,9 @@ impl ProgressBar {
 
         // Colors (ANSI) — subtle & modern
         // green for filled, gray for empty, cyan for percent label
-        let green = "\x1b[38;5;82m";   // bright green
-        let gray = "\x1b[38;5;240m";   // gray
-        let cyan = "\x1b[38;5;51m";    // cyan
+        let green = "\x1b[38;5;82m"; // bright green
+        let gray = "\x1b[38;5;240m"; // gray
+        let cyan = "\x1b[38;5;51m"; // cyan
         let bold = "\x1b[1m";
         let reset = "\x1b[0m";
 
@@ -81,10 +81,7 @@ impl ProgressBar {
 
         let bar_filled = filled_block.repeat(filled);
         let bar_empty = empty_block.repeat(empty);
-        let bar = format!(
-            "{}{}{}{}{}",
-            bold, green, bar_filled, reset, gray
-        ) + &bar_empty + reset;
+        let bar = format!("{}{}{}{}{}", bold, green, bar_filled, reset, gray) + &bar_empty + reset;
 
         // Speed and ETA
         let _info = String::new();

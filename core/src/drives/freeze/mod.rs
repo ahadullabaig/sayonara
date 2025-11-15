@@ -1,10 +1,10 @@
 // Consolidated freeze mitigation module
 
 // Submodules
-pub mod basic;           // Basic freeze mitigation (original implementation)
-pub mod advanced;        // Advanced freeze mitigation with strategies
-pub mod detection;       // Freeze reason detection
-pub mod strategies;      // Unfreeze strategies
+pub mod advanced; // Advanced freeze mitigation with strategies
+pub mod basic; // Basic freeze mitigation (original implementation)
+pub mod detection; // Freeze reason detection
+pub mod strategies; // Unfreeze strategies
 
 #[cfg(test)]
 mod tests;
@@ -12,29 +12,21 @@ mod tests;
 // Re-exports for convenience
 pub use basic::FreezeMitigation;
 
-pub use advanced::{
-    AdvancedFreezeMitigation,
-    FreezeMitigationConfig,
-    UnfreezeResult,
-    FreezeInfo,
-};
+pub use advanced::{AdvancedFreezeMitigation, FreezeInfo, FreezeMitigationConfig, UnfreezeResult};
 
-pub use detection::{
-    FreezeReason,
-    FreezeDetector,
-};
+pub use detection::{FreezeDetector, FreezeReason};
 
 pub use strategies::{
-    UnfreezeStrategy,
-    StrategyResult,
+    AcpiSleep,
+    IpmiPower,
+    KernelModule,
+    PcieHotReset,
     // Individual strategies
     SataLinkReset,
-    PcieHotReset,
-    AcpiSleep,
+    StrategyResult,
+    UnfreezeStrategy,
     UsbSuspend,
-    IpmiPower,
     VendorSpecific,
-    KernelModule,
 };
 
 /// Trait for freeze mitigation strategies (basic and advanced)
@@ -51,7 +43,10 @@ impl FreezeMitigationStrategy for basic::FreezeMitigation {
 
     fn is_frozen(&self, device_path: &str) -> crate::DriveResult<bool> {
         let status = basic::FreezeMitigation::get_freeze_status(device_path)?;
-        Ok(matches!(status, crate::FreezeStatus::Frozen | crate::FreezeStatus::FrozenByBIOS))
+        Ok(matches!(
+            status,
+            crate::FreezeStatus::Frozen | crate::FreezeStatus::FrozenByBIOS
+        ))
     }
 }
 
@@ -63,12 +58,13 @@ impl FreezeMitigationStrategy for advanced::AdvancedFreezeMitigation {
                 if result.success {
                     Ok(())
                 } else {
-                    Err(crate::DriveError::DriveFrozen(
-                        format!("Failed to unfreeze: {}", result.method_used)
-                    ))
+                    Err(crate::DriveError::DriveFrozen(format!(
+                        "Failed to unfreeze: {}",
+                        result.method_used
+                    )))
                 }
             }
-            Err(e) => Err(crate::DriveError::DriveFrozen(e.to_string()))
+            Err(e) => Err(crate::DriveError::DriveFrozen(e.to_string())),
         }
     }
 
@@ -81,7 +77,7 @@ impl FreezeMitigationStrategy for advanced::AdvancedFreezeMitigation {
 pub fn get_mitigation(use_advanced: bool) -> Box<dyn FreezeMitigationStrategy> {
     if use_advanced {
         Box::new(advanced::AdvancedFreezeMitigation::new(
-            FreezeMitigationConfig::default()
+            FreezeMitigationConfig::default(),
         ))
     } else {
         Box::new(basic::FreezeMitigation)

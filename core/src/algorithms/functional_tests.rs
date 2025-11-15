@@ -6,14 +6,13 @@
 /// - Random wipe algorithm
 /// - Zero wipe algorithm
 /// - Gutmann 35-pass wipe (pattern generation and helpers)
-
 #[cfg(test)]
 mod algorithm_functional_tests {
     use crate::algorithms::gutmann::GutmannWipe;
+    use crate::io::{IOConfig, OptimizedIO};
     use crate::{DriveType, WipeConfig};
-    use crate::io::{OptimizedIO, IOConfig};
-    use tempfile::NamedTempFile;
     use std::io::Write;
+    use tempfile::NamedTempFile;
 
     /// Helper to create a test file with initial data
     fn create_test_file(size: usize) -> NamedTempFile {
@@ -121,7 +120,11 @@ mod algorithm_functional_tests {
             }
         }
 
-        assert!(entropy > 7.0, "Random data should have high entropy (got {:.2})", entropy);
+        assert!(
+            entropy > 7.0,
+            "Random data should have high entropy (got {:.2})",
+            entropy
+        );
 
         Ok(())
     }
@@ -168,17 +171,29 @@ mod algorithm_functional_tests {
 
         // First 4 should be random (None)
         for i in 0..4 {
-            assert!(patterns[i].0.is_none(), "Pattern {} should be random", i + 1);
+            assert!(
+                patterns[i].0.is_none(),
+                "Pattern {} should be random",
+                i + 1
+            );
         }
 
         // Last 4 should be random (None)
         for i in 31..35 {
-            assert!(patterns[i].0.is_none(), "Pattern {} should be random", i + 1);
+            assert!(
+                patterns[i].0.is_none(),
+                "Pattern {} should be random",
+                i + 1
+            );
         }
 
         // Middle patterns should have specific byte sequences
         for i in 4..31 {
-            assert!(patterns[i].0.is_some(), "Pattern {} should have specific bytes", i + 1);
+            assert!(
+                patterns[i].0.is_some(),
+                "Pattern {} should have specific bytes",
+                i + 1
+            );
         }
     }
 
@@ -193,9 +208,21 @@ mod algorithm_functional_tests {
         assert_eq!(patterns[24].0, Some(&[0xFF][..]), "Pass 25 should be 0xFF");
 
         // Test MFM patterns
-        assert_eq!(patterns[6].0, Some(&[0x92, 0x49, 0x24][..]), "Pass 7 MFM pattern");
-        assert_eq!(patterns[7].0, Some(&[0x49, 0x24, 0x92][..]), "Pass 8 MFM pattern");
-        assert_eq!(patterns[8].0, Some(&[0x24, 0x92, 0x49][..]), "Pass 9 MFM pattern");
+        assert_eq!(
+            patterns[6].0,
+            Some(&[0x92, 0x49, 0x24][..]),
+            "Pass 7 MFM pattern"
+        );
+        assert_eq!(
+            patterns[7].0,
+            Some(&[0x49, 0x24, 0x92][..]),
+            "Pass 8 MFM pattern"
+        );
+        assert_eq!(
+            patterns[8].0,
+            Some(&[0x24, 0x92, 0x49][..]),
+            "Pass 9 MFM pattern"
+        );
     }
 
     #[test]
@@ -204,7 +231,11 @@ mod algorithm_functional_tests {
 
         // All patterns should have descriptions
         for (i, (_, description)) in patterns.iter().enumerate() {
-            assert!(!description.is_empty(), "Pattern {} should have description", i + 1);
+            assert!(
+                !description.is_empty(),
+                "Pattern {} should have description",
+                i + 1
+            );
         }
 
         // Check specific descriptions
@@ -223,10 +254,16 @@ mod algorithm_functional_tests {
         // Perfectly random should have ~8.0 entropy
         let random_data: Vec<u8> = (0..4096).map(|i| ((i * 31) % 256) as u8).collect();
         let entropy = GutmannWipe::calculate_entropy(&random_data);
-        assert!(entropy > 6.0, "Varied data should have entropy > 6.0 (got {:.2})", entropy);
+        assert!(
+            entropy > 6.0,
+            "Varied data should have entropy > 6.0 (got {:.2})",
+            entropy
+        );
 
         // Two values alternating should have 1.0 entropy
-        let alternating: Vec<u8> = (0..4096).map(|i| if i % 2 == 0 { 0x00 } else { 0xFF }).collect();
+        let alternating: Vec<u8> = (0..4096)
+            .map(|i| if i % 2 == 0 { 0x00 } else { 0xFF })
+            .collect();
         let entropy = GutmannWipe::calculate_entropy(&alternating);
         assert!(
             (entropy - 1.0).abs() < 0.1,
@@ -244,7 +281,10 @@ mod algorithm_functional_tests {
 
         // Should return one of the valid encoding types
         match encoding {
-            DriveEncoding::MFM | DriveEncoding::RLL | DriveEncoding::PRML | DriveEncoding::Unknown => {
+            DriveEncoding::MFM
+            | DriveEncoding::RLL
+            | DriveEncoding::PRML
+            | DriveEncoding::Unknown => {
                 // Valid encoding detected
             }
         }
@@ -350,8 +390,16 @@ mod algorithm_functional_tests {
             };
 
             // Config should be created successfully
-            assert!(config.max_buffer_size > 0, "{} config should have buffer size", name);
-            assert!(config.queue_depth > 0, "{} config should have queue depth", name);
+            assert!(
+                config.max_buffer_size > 0,
+                "{} config should have buffer size",
+                name
+            );
+            assert!(
+                config.queue_depth > 0,
+                "{} config should have queue depth",
+                name
+            );
         }
     }
 

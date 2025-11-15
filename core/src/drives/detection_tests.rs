@@ -1,6 +1,5 @@
 /// Comprehensive tests for drive detection module
 /// Tests cover drive type detection, capability detection, encryption detection
-
 #[cfg(test)]
 mod drive_detection_tests {
     use super::super::detection::DriveDetector;
@@ -171,7 +170,9 @@ mod drive_detection_tests {
 
     #[test]
     fn test_calculate_entropy_alternating() {
-        let data: Vec<u8> = (0..4096).map(|i| if i % 2 == 0 { 0x00 } else { 0xFF }).collect();
+        let data: Vec<u8> = (0..4096)
+            .map(|i| if i % 2 == 0 { 0x00 } else { 0xFF })
+            .collect();
         let entropy = DriveDetector::calculate_entropy(&data);
         assert!(
             (entropy - 1.0).abs() < 0.1,
@@ -184,7 +185,11 @@ mod drive_detection_tests {
     fn test_calculate_entropy_high_randomness() {
         let data: Vec<u8> = (0..4096).map(|i| ((i * 31) % 256) as u8).collect();
         let entropy = DriveDetector::calculate_entropy(&data);
-        assert!(entropy > 6.0, "Varied data should have entropy > 6.0 (got {:.2})", entropy);
+        assert!(
+            entropy > 6.0,
+            "Varied data should have entropy > 6.0 (got {:.2})",
+            entropy
+        );
     }
 
     #[test]
@@ -207,11 +212,13 @@ mod drive_detection_tests {
     #[test]
     fn test_calculate_entropy_encrypted_data() {
         // Simulate encrypted data with high entropy
-        let data: Vec<u8> = (0..65536).map(|i| {
-            ((i * 31 + 17) % 256) as u8
-        }).collect();
+        let data: Vec<u8> = (0..65536).map(|i| ((i * 31 + 17) % 256) as u8).collect();
         let entropy = DriveDetector::calculate_entropy(&data);
-        assert!(entropy > 7.0, "Encrypted-like data should have high entropy (got {:.2})", entropy);
+        assert!(
+            entropy > 7.0,
+            "Encrypted-like data should have high entropy (got {:.2})",
+            entropy
+        );
     }
 
     #[test]
@@ -234,7 +241,11 @@ mod drive_detection_tests {
         // NVMe path should override other indicators
         let output = "Rotation Rate: 7200 rpm\n";
         let drive_type = DriveDetector::determine_drive_type("/dev/nvme0n1", output)?;
-        assert_eq!(drive_type, DriveType::NVMe, "NVMe path should take priority");
+        assert_eq!(
+            drive_type,
+            DriveType::NVMe,
+            "NVMe path should take priority"
+        );
 
         Ok(())
     }
@@ -244,7 +255,10 @@ mod drive_detection_tests {
         // Empty data
         let empty: Vec<u8> = vec![];
         let entropy = DriveDetector::calculate_entropy(&empty);
-        assert!(entropy.is_nan() || entropy == 0.0, "Empty data entropy should be 0 or NaN");
+        assert!(
+            entropy.is_nan() || entropy == 0.0,
+            "Empty data entropy should be 0 or NaN"
+        );
 
         // Single byte
         let single = vec![0x42];
@@ -305,7 +319,10 @@ mod drive_detection_tests {
         // Low entropy data should not trigger
         let low_entropy_data = vec![0xAB; 65536];
         let entropy2 = DriveDetector::calculate_entropy(&low_entropy_data);
-        assert!(entropy2 < 7.5, "Non-encrypted data should have entropy < 7.5");
+        assert!(
+            entropy2 < 7.5,
+            "Non-encrypted data should have entropy < 7.5"
+        );
     }
 
     #[test]
@@ -318,7 +335,10 @@ mod drive_detection_tests {
 
         let sata_paths = vec!["/dev/sda", "/dev/sdb", "/dev/sdc"];
         for path in sata_paths {
-            assert!(!path.contains("nvme"), "SATA paths should not contain 'nvme'");
+            assert!(
+                !path.contains("nvme"),
+                "SATA paths should not contain 'nvme'"
+            );
         }
     }
 
@@ -346,7 +366,8 @@ ATA Version is:   ACS-2, ACS-3 T13/2161-D revision 3b
 
         // Test drive type detection - use non-existent device path
         // Note: using 7199 rpm instead of 7200 rpm to avoid "0 rpm" substring match bug
-        let drive_type = DriveDetector::determine_drive_type("/dev/test_seagate_fake", smartctl_output).unwrap();
+        let drive_type =
+            DriveDetector::determine_drive_type("/dev/test_seagate_fake", smartctl_output).unwrap();
         assert_eq!(drive_type, DriveType::HDD);
     }
 
@@ -387,7 +408,8 @@ Controller ID: 4
         let model = DriveDetector::extract_field(smartctl_output, "Model Number:");
         assert_eq!(model, Some("Samsung SSD 970 EVO 1TB".to_string()));
 
-        let drive_type = DriveDetector::determine_drive_type("/dev/nvme0n1", smartctl_output).unwrap();
+        let drive_type =
+            DriveDetector::determine_drive_type("/dev/nvme0n1", smartctl_output).unwrap();
         assert_eq!(drive_type, DriveType::NVMe);
     }
 
@@ -408,13 +430,37 @@ Controller ID: 4
     #[test]
     fn test_device_skip_edge_cases() {
         // Test edge cases
-        assert!(!DriveDetector::should_skip_device(""), "Empty string should not skip");
-        assert!(!DriveDetector::should_skip_device("sd"), "Partial name should not skip");
-        assert!(!DriveDetector::should_skip_device("sda"), "Real device name should not skip");
-        assert!(DriveDetector::should_skip_device("loop"), "Exact match should skip");
-        assert!(DriveDetector::should_skip_device("loops"), "starts_with loop - should skip");
-        assert!(DriveDetector::should_skip_device("loopback"), "starts_with loop - should skip");
-        assert!(!DriveDetector::should_skip_device("nvme0n1"), "NVMe device should not skip");
-        assert!(!DriveDetector::should_skip_device("myloop"), "loop not at start - should not skip");
+        assert!(
+            !DriveDetector::should_skip_device(""),
+            "Empty string should not skip"
+        );
+        assert!(
+            !DriveDetector::should_skip_device("sd"),
+            "Partial name should not skip"
+        );
+        assert!(
+            !DriveDetector::should_skip_device("sda"),
+            "Real device name should not skip"
+        );
+        assert!(
+            DriveDetector::should_skip_device("loop"),
+            "Exact match should skip"
+        );
+        assert!(
+            DriveDetector::should_skip_device("loops"),
+            "starts_with loop - should skip"
+        );
+        assert!(
+            DriveDetector::should_skip_device("loopback"),
+            "starts_with loop - should skip"
+        );
+        assert!(
+            !DriveDetector::should_skip_device("nvme0n1"),
+            "NVMe device should not skip"
+        );
+        assert!(
+            !DriveDetector::should_skip_device("myloop"),
+            "loop not at start - should not skip"
+        );
     }
 }

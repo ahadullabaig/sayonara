@@ -12,7 +12,10 @@ use serial_test::serial;
 #[serial]
 fn test_interrupt_initially_not_set() {
     reset_interrupted();
-    assert!(!is_interrupted(), "Interrupt flag should initially be not set");
+    assert!(
+        !is_interrupted(),
+        "Interrupt flag should initially be not set"
+    );
 }
 
 #[test]
@@ -29,7 +32,10 @@ fn test_interrupt_flag_persistence() {
     reset_interrupted();
     set_interrupted();
     assert!(is_interrupted());
-    assert!(is_interrupted(), "Flag should remain set on subsequent calls");
+    assert!(
+        is_interrupted(),
+        "Flag should remain set on subsequent calls"
+    );
 }
 
 // ==================== DRIVE ERROR TESTS ====================

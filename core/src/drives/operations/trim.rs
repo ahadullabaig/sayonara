@@ -22,7 +22,7 @@ impl TrimOperations {
 
         if !Self::supports_trim(device_path)? {
             return Err(DriveError::TRIMFailed(
-                "Device does not support TRIM".to_string()
+                "Device does not support TRIM".to_string(),
             ));
         }
 
@@ -32,7 +32,7 @@ impl TrimOperations {
             DriveType::SSD => Self::trim_ssd_device(device_path),
             DriveType::NVMe => Self::trim_nvme_device(device_path),
             _ => Err(DriveError::TRIMFailed(
-                "TRIM not supported for this drive type".to_string()
+                "TRIM not supported for this drive type".to_string(),
             )),
         }
     }
@@ -77,15 +77,14 @@ impl TrimOperations {
         let output = Command::new("blkdiscard")
             .args(["-v", device_path])
             .output()
-            .map_err(|e| DriveError::TRIMFailed(
-                format!("blkdiscard failed: {}", e)
-            ))?;
+            .map_err(|e| DriveError::TRIMFailed(format!("blkdiscard failed: {}", e)))?;
 
         if !output.status.success() {
             let error = String::from_utf8_lossy(&output.stderr);
-            return Err(DriveError::TRIMFailed(
-                format!("blkdiscard failed: {}", error)
-            ));
+            return Err(DriveError::TRIMFailed(format!(
+                "blkdiscard failed: {}",
+                error
+            )));
         }
 
         Ok(())
@@ -102,17 +101,20 @@ impl TrimOperations {
         // Create TRIM command
         // hdparm --trim-sector-ranges START:COUNT
         let output = Command::new("hdparm")
-            .args(["--trim-sector-ranges", &format!("0:{}", sectors), device_path])
+            .args([
+                "--trim-sector-ranges",
+                &format!("0:{}", sectors),
+                device_path,
+            ])
             .output()
-            .map_err(|e| DriveError::TRIMFailed(
-                format!("hdparm TRIM failed: {}", e)
-            ))?;
+            .map_err(|e| DriveError::TRIMFailed(format!("hdparm TRIM failed: {}", e)))?;
 
         if !output.status.success() {
             let error = String::from_utf8_lossy(&output.stderr);
-            return Err(DriveError::TRIMFailed(
-                format!("hdparm TRIM failed: {}", error)
-            ));
+            return Err(DriveError::TRIMFailed(format!(
+                "hdparm TRIM failed: {}",
+                error
+            )));
         }
 
         Ok(())
@@ -125,7 +127,7 @@ impl TrimOperations {
         // This would require unsafe Rust and libc bindings
         // For now, return an error
         Err(DriveError::TRIMFailed(
-            "Direct ioctl TRIM not implemented".to_string()
+            "Direct ioctl TRIM not implemented".to_string(),
         ))
     }
 
@@ -138,17 +140,28 @@ impl TrimOperations {
 
         // Create deallocate command
         let output = Command::new("nvme")
-            .args(["dsm", device_path, "-n", &nsid, "-d", "-a", "0", "-b", "0", "-s", "1"])
+            .args([
+                "dsm",
+                device_path,
+                "-n",
+                &nsid,
+                "-d",
+                "-a",
+                "0",
+                "-b",
+                "0",
+                "-s",
+                "1",
+            ])
             .output()
-            .map_err(|e| DriveError::TRIMFailed(
-                format!("NVMe deallocate failed: {}", e)
-            ))?;
+            .map_err(|e| DriveError::TRIMFailed(format!("NVMe deallocate failed: {}", e)))?;
 
         if !output.status.success() {
             let error = String::from_utf8_lossy(&output.stderr);
-            return Err(DriveError::TRIMFailed(
-                format!("NVMe deallocate failed: {}", error)
-            ));
+            return Err(DriveError::TRIMFailed(format!(
+                "NVMe deallocate failed: {}",
+                error
+            )));
         }
 
         Ok(())
@@ -158,10 +171,14 @@ impl TrimOperations {
     pub fn verify_trim_effectiveness(device_path: &str, sample_size: usize) -> DriveResult<bool> {
         println!("Verifying TRIM effectiveness...");
 
-        use crate::io::{OptimizedIO, IOConfig};
+        use crate::io::{IOConfig, OptimizedIO};
         let config = IOConfig::small_read_optimized();
-        let mut handle = OptimizedIO::open(device_path, config)
-            .map_err(|e| DriveError::IoError(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+        let mut handle = OptimizedIO::open(device_path, config).map_err(|e| {
+            DriveError::IoError(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                e.to_string(),
+            ))
+        })?;
 
         // Sample random locations
         let device_size = Self::get_device_size(device_path)?;
@@ -174,14 +191,15 @@ impl TrimOperations {
         for _ in 0..sample_size {
             let offset = rng.gen_range(0..device_size - 4096);
 
-            let buffer = OptimizedIO::read_range(&mut handle, offset, 4096)
-                .unwrap_or_else(|_| vec![]);
+            let buffer =
+                OptimizedIO::read_range(&mut handle, offset, 4096).unwrap_or_else(|_| vec![]);
 
             if !buffer.is_empty() {
                 // Check if buffer is all zeros or pattern indicating TRIM
-                if buffer.iter().all(|&b| b == 0) ||
-                    buffer.iter().all(|&b| b == 0xFF) ||
-                    Self::is_trim_pattern(&buffer) {
+                if buffer.iter().all(|&b| b == 0)
+                    || buffer.iter().all(|&b| b == 0xFF)
+                    || Self::is_trim_pattern(&buffer)
+                {
                     zero_count += 1;
                 }
                 total_checked += 1;
@@ -195,8 +213,10 @@ impl TrimOperations {
             false
         };
 
-        println!("TRIM verification: {}/{} samples showed TRIM patterns",
-                 zero_count, total_checked);
+        println!(
+            "TRIM verification: {}/{} samples showed TRIM patterns",
+            zero_count, total_checked
+        );
 
         Ok(effectiveness)
     }
@@ -235,16 +255,16 @@ impl TrimOperations {
         let output = Command::new("hdparm")
             .args(["-I", device_path])
             .output()
-            .map_err(|e| DriveError::HardwareCommandFailed(
-                format!("Failed to check TRIM support: {}", e)
-            ))?;
+            .map_err(|e| {
+                DriveError::HardwareCommandFailed(format!("Failed to check TRIM support: {}", e))
+            })?;
 
         let output_str = String::from_utf8_lossy(&output.stdout);
 
         // Look for TRIM support indicators
-        Ok(output_str.contains("Data Set Management TRIM supported") ||
-            output_str.contains("TRIM supported") ||
-            output_str.contains("Deterministic read data after TRIM"))
+        Ok(output_str.contains("Data Set Management TRIM supported")
+            || output_str.contains("TRIM supported")
+            || output_str.contains("Deterministic read data after TRIM"))
     }
 
     /// Get device size in bytes
@@ -252,15 +272,14 @@ impl TrimOperations {
         let output = Command::new("blockdev")
             .args(["--getsize64", device_path])
             .output()
-            .map_err(|e| DriveError::HardwareCommandFailed(
-                format!("Failed to get device size: {}", e)
-            ))?;
+            .map_err(|e| {
+                DriveError::HardwareCommandFailed(format!("Failed to get device size: {}", e))
+            })?;
 
         let size_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        size_str.parse::<u64>()
-            .map_err(|e| DriveError::HardwareCommandFailed(
-                format!("Failed to parse device size: {}", e)
-            ))
+        size_str.parse::<u64>().map_err(|e| {
+            DriveError::HardwareCommandFailed(format!("Failed to parse device size: {}", e))
+        })
     }
 
     /// Get drive type
@@ -273,14 +292,13 @@ impl TrimOperations {
         let output = Command::new("smartctl")
             .args(["-i", device_path])
             .output()
-            .map_err(|e| DriveError::HardwareCommandFailed(
-                format!("Failed to get drive type: {}", e)
-            ))?;
+            .map_err(|e| {
+                DriveError::HardwareCommandFailed(format!("Failed to get drive type: {}", e))
+            })?;
 
         let output_str = String::from_utf8_lossy(&output.stdout);
 
-        if output_str.contains("Solid State Device") ||
-            output_str.contains("0 rpm") {
+        if output_str.contains("Solid State Device") || output_str.contains("0 rpm") {
             Ok(DriveType::SSD)
         } else if output_str.contains("rpm") {
             Ok(DriveType::HDD)

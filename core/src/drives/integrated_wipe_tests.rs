@@ -92,9 +92,10 @@ fn test_get_device_size_with_valid_sysfs() -> Result<()> {
             let dev_name_str = dev_name.to_string_lossy();
 
             // Skip loop devices and other virtual devices
-            if dev_name_str.starts_with("loop") ||
-               dev_name_str.starts_with("ram") ||
-               dev_name_str.starts_with("dm-") {
+            if dev_name_str.starts_with("loop")
+                || dev_name_str.starts_with("ram")
+                || dev_name_str.starts_with("dm-")
+            {
                 continue;
             }
 
@@ -183,8 +184,11 @@ fn test_fill_buffer_multiple_patterns() {
     for pattern in patterns {
         let mut buffer = vec![0x00; 512];
         buffer.fill(pattern);
-        assert!(buffer.iter().all(|&b| b == pattern),
-                "Buffer should be filled with pattern 0x{:02X}", pattern);
+        assert!(
+            buffer.iter().all(|&b| b == pattern),
+            "Buffer should be filled with pattern 0x{:02X}",
+            pattern
+        );
     }
 }
 
@@ -197,7 +201,10 @@ fn test_write_size_calculation_full_buffer() {
     let buffer_size = 4096u64; // 4KB buffer
 
     let write_size = (size - bytes_written).min(buffer_size);
-    assert_eq!(write_size, buffer_size, "First write should use full buffer");
+    assert_eq!(
+        write_size, buffer_size,
+        "First write should use full buffer"
+    );
 }
 
 #[test]
@@ -217,7 +224,10 @@ fn test_write_size_calculation_exact_buffer() {
     let buffer_size = 4096u64;
 
     let write_size = (size - bytes_written).min(buffer_size);
-    assert_eq!(write_size, buffer_size, "Should use full buffer for exact fit");
+    assert_eq!(
+        write_size, buffer_size,
+        "Should use full buffer for exact fit"
+    );
 }
 
 #[test]
@@ -236,9 +246,7 @@ fn test_offset_calculation_sequential() {
     let start_offset = 0u64;
     let buffer_size = 4096u64;
 
-    let offsets: Vec<u64> = (0..10)
-        .map(|i| start_offset + (i * buffer_size))
-        .collect();
+    let offsets: Vec<u64> = (0..10).map(|i| start_offset + (i * buffer_size)).collect();
 
     assert_eq!(offsets[0], 0);
     assert_eq!(offsets[1], 4096);
@@ -300,16 +308,17 @@ fn test_progress_update_interval() {
     let update_interval = 100 * 1024 * 1024u64;
 
     let bytes_values = vec![
-        50 * 1024 * 1024u64,   // 50MB - no update
-        99 * 1024 * 1024u64,   // 99MB - no update
-        100 * 1024 * 1024u64,  // 100MB - update!
-        150 * 1024 * 1024u64,  // 150MB - no update
-        200 * 1024 * 1024u64,  // 200MB - update!
+        50 * 1024 * 1024u64,  // 50MB - no update
+        99 * 1024 * 1024u64,  // 99MB - no update
+        100 * 1024 * 1024u64, // 100MB - update!
+        150 * 1024 * 1024u64, // 150MB - no update
+        200 * 1024 * 1024u64, // 200MB - update!
     ];
 
     for bytes in bytes_values {
         let should_update = bytes % update_interval == 0;
-        let expected = bytes >= update_interval && (bytes / update_interval) * update_interval == bytes;
+        let expected =
+            bytes >= update_interval && (bytes / update_interval) * update_interval == bytes;
         assert_eq!(should_update, expected);
     }
 }
@@ -325,8 +334,12 @@ fn test_multipass_wipe_pattern_sequence() {
         let mut buffer = vec![0xAA; 1024]; // Start with different pattern
         buffer.fill(*pattern);
 
-        assert!(buffer.iter().all(|&b| b == *pattern),
-                "Pass {} should fill with 0x{:02X}", idx + 1, pattern);
+        assert!(
+            buffer.iter().all(|&b| b == *pattern),
+            "Pass {} should fill with 0x{:02X}",
+            idx + 1,
+            pattern
+        );
     }
 }
 
@@ -450,12 +463,13 @@ fn test_boot_partition_size_mb_conversion() {
 fn test_boot_partition_skip_zero_size() {
     // Test logic for skipping zero-size partitions
     let boot_partitions = vec![
-        ("boot0", 4 * 1024 * 1024u64),  // 4MB - should wipe
-        ("boot1", 4 * 1024 * 1024u64),  // 4MB - should wipe
-        ("boot2", 0u64),                // 0 bytes - should skip
+        ("boot0", 4 * 1024 * 1024u64), // 4MB - should wipe
+        ("boot1", 4 * 1024 * 1024u64), // 4MB - should wipe
+        ("boot2", 0u64),               // 0 bytes - should skip
     ];
 
-    let non_zero: Vec<_> = boot_partitions.iter()
+    let non_zero: Vec<_> = boot_partitions
+        .iter()
         .filter(|(_, size)| *size > 0)
         .collect();
 

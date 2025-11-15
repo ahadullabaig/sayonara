@@ -1,6 +1,6 @@
 // Memory-mapped I/O engine for fast verification
 
-use super::{IOResult, IOError};
+use super::{IOError, IOResult};
 use std::fs::File;
 
 /// Memory-mapped file for fast read operations
@@ -20,9 +20,7 @@ impl MmapEngine {
         let mmap = unsafe {
             MmapOptions::new()
                 .map(file)
-                .map_err(|e| IOError::OperationFailed(
-                    format!("Failed to mmap file: {}", e)
-                ))?
+                .map_err(|e| IOError::OperationFailed(format!("Failed to mmap file: {}", e)))?
         };
 
         Ok(Self { mmap })
@@ -31,7 +29,7 @@ impl MmapEngine {
     #[cfg(not(target_os = "linux"))]
     pub fn new(_file: &File) -> IOResult<Self> {
         Err(IOError::PlatformNotSupported(
-            "Memory mapping not implemented for this platform".to_string()
+            "Memory mapping not implemented for this platform".to_string(),
         ))
     }
 
@@ -42,9 +40,11 @@ impl MmapEngine {
         let end = offset + size;
 
         if end > self.mmap.len() {
-            return Err(IOError::OperationFailed(
-                format!("Read beyond mmap bounds: {} > {}", end, self.mmap.len())
-            ));
+            return Err(IOError::OperationFailed(format!(
+                "Read beyond mmap bounds: {} > {}",
+                end,
+                self.mmap.len()
+            )));
         }
 
         Ok(&self.mmap[offset..end])
@@ -53,7 +53,7 @@ impl MmapEngine {
     #[cfg(not(target_os = "linux"))]
     pub fn read_at(&self, _offset: u64, _size: usize) -> IOResult<&[u8]> {
         Err(IOError::PlatformNotSupported(
-            "Memory mapping not implemented".to_string()
+            "Memory mapping not implemented".to_string(),
         ))
     }
 
@@ -87,10 +87,9 @@ impl MmapEngine {
     /// Advise the kernel about access patterns
     #[cfg(target_os = "linux")]
     pub fn advise_sequential(&self) -> IOResult<()> {
-        self.mmap.advise(memmap2::Advice::Sequential)
-            .map_err(|e| IOError::OperationFailed(
-                format!("madvise failed: {}", e)
-            ))
+        self.mmap
+            .advise(memmap2::Advice::Sequential)
+            .map_err(|e| IOError::OperationFailed(format!("madvise failed: {}", e)))
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -101,10 +100,9 @@ impl MmapEngine {
     /// Advise random access pattern
     #[cfg(target_os = "linux")]
     pub fn advise_random(&self) -> IOResult<()> {
-        self.mmap.advise(memmap2::Advice::Random)
-            .map_err(|e| IOError::OperationFailed(
-                format!("madvise failed: {}", e)
-            ))
+        self.mmap
+            .advise(memmap2::Advice::Random)
+            .map_err(|e| IOError::OperationFailed(format!("madvise failed: {}", e)))
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -115,10 +113,9 @@ impl MmapEngine {
     /// Tell kernel we will need this data soon
     #[cfg(target_os = "linux")]
     pub fn advise_willneed(&self) -> IOResult<()> {
-        self.mmap.advise(memmap2::Advice::WillNeed)
-            .map_err(|e| IOError::OperationFailed(
-                format!("madvise failed: {}", e)
-            ))
+        self.mmap
+            .advise(memmap2::Advice::WillNeed)
+            .map_err(|e| IOError::OperationFailed(format!("madvise failed: {}", e)))
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -144,9 +141,7 @@ impl MmapMutEngine {
         let mmap = unsafe {
             MmapOptions::new()
                 .map_mut(file)
-                .map_err(|e| IOError::OperationFailed(
-                    format!("Failed to mmap file: {}", e)
-                ))?
+                .map_err(|e| IOError::OperationFailed(format!("Failed to mmap file: {}", e)))?
         };
 
         Ok(Self { mmap })
@@ -155,7 +150,7 @@ impl MmapMutEngine {
     #[cfg(not(target_os = "linux"))]
     pub fn new(_file: &File) -> IOResult<Self> {
         Err(IOError::PlatformNotSupported(
-            "Memory mapping not implemented for this platform".to_string()
+            "Memory mapping not implemented for this platform".to_string(),
         ))
     }
 
@@ -166,9 +161,11 @@ impl MmapMutEngine {
         let end = offset + data.len();
 
         if end > self.mmap.len() {
-            return Err(IOError::OperationFailed(
-                format!("Write beyond mmap bounds: {} > {}", end, self.mmap.len())
-            ));
+            return Err(IOError::OperationFailed(format!(
+                "Write beyond mmap bounds: {} > {}",
+                end,
+                self.mmap.len()
+            )));
         }
 
         self.mmap[offset..end].copy_from_slice(data);
@@ -178,17 +175,16 @@ impl MmapMutEngine {
     #[cfg(not(target_os = "linux"))]
     pub fn write_at(&mut self, _offset: u64, _data: &[u8]) -> IOResult<usize> {
         Err(IOError::PlatformNotSupported(
-            "Memory mapping not implemented".to_string()
+            "Memory mapping not implemented".to_string(),
         ))
     }
 
     /// Flush changes to disk
     #[cfg(target_os = "linux")]
     pub fn flush(&self) -> IOResult<()> {
-        self.mmap.flush()
-            .map_err(|e| IOError::OperationFailed(
-                format!("mmap flush failed: {}", e)
-            ))
+        self.mmap
+            .flush()
+            .map_err(|e| IOError::OperationFailed(format!("mmap flush failed: {}", e)))
     }
 
     #[cfg(not(target_os = "linux"))]
@@ -199,10 +195,9 @@ impl MmapMutEngine {
     /// Flush asynchronously
     #[cfg(target_os = "linux")]
     pub fn flush_async(&self) -> IOResult<()> {
-        self.mmap.flush_async()
-            .map_err(|e| IOError::OperationFailed(
-                format!("mmap async flush failed: {}", e)
-            ))
+        self.mmap
+            .flush_async()
+            .map_err(|e| IOError::OperationFailed(format!("mmap async flush failed: {}", e)))
     }
 
     #[cfg(not(target_os = "linux"))]

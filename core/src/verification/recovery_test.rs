@@ -1,7 +1,7 @@
-use anyhow::Result;
 use crate::crypto::secure_rng::secure_random_bytes;
+use crate::io::{IOConfig, OptimizedIO};
 use crate::ui::progress::ProgressBar;
-use crate::io::{OptimizedIO, IOConfig};
+use anyhow::Result;
 
 pub struct RecoveryTest;
 

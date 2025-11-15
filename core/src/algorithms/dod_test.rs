@@ -5,13 +5,12 @@
 /// - Checkpoint/resume functionality
 /// - Error recovery integration
 /// - Pattern correctness
-
 #[cfg(test)]
 mod dod_algorithm_tests {
-    use crate::DriveType;
     use crate::io::IOConfig;
-    use tempfile::NamedTempFile;
+    use crate::DriveType;
     use std::io::{Read, Seek, SeekFrom};
+    use tempfile::NamedTempFile;
 
     #[test]
     fn test_dod_constants() {
@@ -19,11 +18,23 @@ mod dod_algorithm_tests {
         use crate::algorithms::dod::DoDWipe;
 
         // DoD 5220.22-M specifies exactly 3 passes
-        assert_eq!(DoDWipe::PASS_COUNT, 3, "DoD 5220.22-M requires exactly 3 passes");
+        assert_eq!(
+            DoDWipe::PASS_COUNT,
+            3,
+            "DoD 5220.22-M requires exactly 3 passes"
+        );
 
         // Verify pattern constants match the standard
-        assert_eq!(DoDWipe::PASS_1_PATTERN, 0x00, "Pass 1 must be all zeros per DoD 5220.22-M");
-        assert_eq!(DoDWipe::PASS_2_PATTERN, 0xFF, "Pass 2 must be all ones per DoD 5220.22-M");
+        assert_eq!(
+            DoDWipe::PASS_1_PATTERN,
+            0x00,
+            "Pass 1 must be all zeros per DoD 5220.22-M"
+        );
+        assert_eq!(
+            DoDWipe::PASS_2_PATTERN,
+            0xFF,
+            "Pass 2 must be all ones per DoD 5220.22-M"
+        );
         // Pass 3 is cryptographically secure random data (verified in functional tests)
     }
 
@@ -43,8 +54,10 @@ mod dod_algorithm_tests {
         let mut read_buffer = vec![0u8; size];
         temp_file.read_exact(&mut read_buffer).unwrap();
 
-        assert!(read_buffer.iter().all(|&b| b == pattern_byte),
-               "All bytes should match pattern");
+        assert!(
+            read_buffer.iter().all(|&b| b == pattern_byte),
+            "All bytes should match pattern"
+        );
     }
 
     #[test]
@@ -54,7 +67,10 @@ mod dod_algorithm_tests {
         let buffer = vec![pattern; 1024];
 
         assert_eq!(buffer.len(), 1024);
-        assert!(buffer.iter().all(|&b| b == 0x00), "All bytes should be zero");
+        assert!(
+            buffer.iter().all(|&b| b == 0x00),
+            "All bytes should be zero"
+        );
     }
 
     #[test]
@@ -64,7 +80,10 @@ mod dod_algorithm_tests {
         let buffer = vec![pattern; 1024];
 
         assert_eq!(buffer.len(), 1024);
-        assert!(buffer.iter().all(|&b| b == 0xFF), "All bytes should be 0xFF");
+        assert!(
+            buffer.iter().all(|&b| b == 0xFF),
+            "All bytes should be 0xFF"
+        );
     }
 
     #[test]
@@ -73,8 +92,11 @@ mod dod_algorithm_tests {
         let drive_size = 1024 * 1024 * 100u64; // 100 MB
         let expected_total = drive_size * 3;
 
-        assert_eq!(expected_total, drive_size * 3,
-                  "Total data written should be 3x drive size");
+        assert_eq!(
+            expected_total,
+            drive_size * 3,
+            "Total data written should be 3x drive size"
+        );
     }
 
     #[test]
@@ -85,7 +107,10 @@ mod dod_algorithm_tests {
 
         for pass in passes {
             let expected_bytes = drive_size * pass;
-            assert!(expected_bytes > 0, "Bytes written should increase with each pass");
+            assert!(
+                expected_bytes > 0,
+                "Bytes written should increase with each pass"
+            );
         }
     }
 
@@ -93,9 +118,9 @@ mod dod_algorithm_tests {
     fn test_dod_resume_logic() {
         // Test resume from each pass
         let test_cases = vec![
-            (0, vec![1, 2, 3]),  // Start from beginning, run all passes
-            (1, vec![2, 3]),      // Resume from pass 2
-            (2, vec![3]),         // Resume from pass 3
+            (0, vec![1, 2, 3]), // Start from beginning, run all passes
+            (1, vec![2, 3]),    // Resume from pass 2
+            (2, vec![3]),       // Resume from pass 3
         ];
 
         for (start_pass, expected_remaining) in test_cases {
@@ -104,19 +129,18 @@ mod dod_algorithm_tests {
                 .map(|p| (p + 1) as u8)
                 .collect();
 
-            assert_eq!(remaining_passes, expected_remaining,
-                      "Resume from pass {} should run passes {:?}", start_pass, expected_remaining);
+            assert_eq!(
+                remaining_passes, expected_remaining,
+                "Resume from pass {} should run passes {:?}",
+                start_pass, expected_remaining
+            );
         }
     }
 
     #[test]
     fn test_dod_io_config_selection() {
         // Test I/O configuration based on drive type
-        let drive_types = vec![
-            DriveType::NVMe,
-            DriveType::SSD,
-            DriveType::HDD,
-        ];
+        let drive_types = vec![DriveType::NVMe, DriveType::SSD, DriveType::HDD];
 
         for drive_type in drive_types {
             let config = match drive_type {
@@ -140,8 +164,10 @@ mod dod_algorithm_tests {
         for bytes_written in bytes_written_samples {
             let progress = (bytes_written as f64 / total_size as f64) * 100.0;
 
-            assert!(progress >= 0.0 && progress <= 100.0,
-                   "Progress should be between 0 and 100");
+            assert!(
+                progress >= 0.0 && progress <= 100.0,
+                "Progress should be between 0 and 100"
+            );
 
             if bytes_written == total_size {
                 assert_eq!(progress, 100.0, "Progress should be 100% when complete");
@@ -155,7 +181,11 @@ mod dod_algorithm_tests {
         let pass_sequence = vec![1, 2, 3];
 
         for (idx, pass) in pass_sequence.iter().enumerate() {
-            assert_eq!(*pass, (idx + 1) as i32, "Passes should execute in order 1, 2, 3");
+            assert_eq!(
+                *pass,
+                (idx + 1) as i32,
+                "Passes should execute in order 1, 2, 3"
+            );
         }
     }
 
@@ -200,7 +230,11 @@ mod dod_algorithm_tests {
         let random_data: Vec<u8> = (0..file_size).map(|i| (i % 256) as u8).collect();
         std::fs::write(file_path, &random_data)?;
         let data = std::fs::read(file_path)?;
-        assert_eq!(data.len(), file_size as usize, "Pass 3 should write correct size");
+        assert_eq!(
+            data.len(),
+            file_size as usize,
+            "Pass 3 should write correct size"
+        );
 
         Ok(())
     }
@@ -214,7 +248,10 @@ mod dod_algorithm_tests {
         buffer.fill(0x00);
 
         assert_eq!(buffer.len(), size);
-        assert!(buffer.iter().all(|&b| b == 0x00), "Buffer should be filled with zeros");
+        assert!(
+            buffer.iter().all(|&b| b == 0x00),
+            "Buffer should be filled with zeros"
+        );
     }
 
     #[test]
@@ -226,7 +263,10 @@ mod dod_algorithm_tests {
         buffer.fill(0xFF);
 
         assert_eq!(buffer.len(), size);
-        assert!(buffer.iter().all(|&b| b == 0xFF), "Buffer should be filled with ones");
+        assert!(
+            buffer.iter().all(|&b| b == 0xFF),
+            "Buffer should be filled with ones"
+        );
     }
 
     #[test]
@@ -236,27 +276,35 @@ mod dod_algorithm_tests {
 
         // Pass 1 verification
         let pass1 = vec![0x00u8; size];
-        assert!(pass1.iter().all(|&b| b == 0x00), "Pass 1 verification failed");
+        assert!(
+            pass1.iter().all(|&b| b == 0x00),
+            "Pass 1 verification failed"
+        );
 
         // Pass 2 verification
         let pass2 = vec![0xFFu8; size];
-        assert!(pass2.iter().all(|&b| b == 0xFF), "Pass 2 verification failed");
+        assert!(
+            pass2.iter().all(|&b| b == 0xFF),
+            "Pass 2 verification failed"
+        );
 
         // Pass 3 verification (random should not match pass1 or pass2)
         let pass3: Vec<u8> = (0..size).map(|i| ((i * 31) % 256) as u8).collect();
-        assert!(pass3.iter().any(|&b| b != 0x00), "Pass 3 should differ from pass 1");
-        assert!(pass3.iter().any(|&b| b != 0xFF), "Pass 3 should differ from pass 2");
+        assert!(
+            pass3.iter().any(|&b| b != 0x00),
+            "Pass 3 should differ from pass 1"
+        );
+        assert!(
+            pass3.iter().any(|&b| b != 0xFF),
+            "Pass 3 should differ from pass 2"
+        );
     }
 
     #[test]
     fn test_dod_error_context_creation() {
         // Test error context for each pass
         let _device = "/dev/sda";
-        let pass_contexts = vec![
-            ("dod_pass_1", 1),
-            ("dod_pass_2", 2),
-            ("dod_pass_3", 3),
-        ];
+        let pass_contexts = vec![("dod_pass_1", 1), ("dod_pass_2", 2), ("dod_pass_3", 3)];
 
         for (context_name, pass_num) in pass_contexts {
             assert!(context_name.contains("dod"));

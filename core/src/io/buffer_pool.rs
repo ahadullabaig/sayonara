@@ -1,10 +1,9 @@
 // Aligned buffer pool for Direct I/O with huge pages and NUMA support
 
-use super::{IOResult, IOError};
+use super::{IOError, IOResult};
 use std::alloc::{alloc, dealloc, Layout};
 use std::ptr::NonNull;
 use std::sync::{Arc, Mutex};
-
 
 /// Alignment requirements for Direct I/O
 pub const SECTOR_SIZE: usize = 512;
@@ -31,7 +30,7 @@ pub struct AlignedBuffer {
     layout: Layout,
     size: usize,
     alignment: usize,
-    #[allow(dead_code)]  // Used for debugging and introspection
+    #[allow(dead_code)] // Used for debugging and introspection
     strategy: AllocStrategy,
     #[cfg(target_os = "linux")]
     mmap_region: Option<(*mut libc::c_void, usize)>,
@@ -39,12 +38,17 @@ pub struct AlignedBuffer {
 
 impl AlignedBuffer {
     /// Create a new aligned buffer with strategy
-    pub fn new_with_strategy(size: usize, alignment: usize, strategy: AllocStrategy) -> IOResult<Self> {
+    pub fn new_with_strategy(
+        size: usize,
+        alignment: usize,
+        strategy: AllocStrategy,
+    ) -> IOResult<Self> {
         // Ensure alignment is power of 2
         if !alignment.is_power_of_two() {
-            return Err(IOError::AlignmentError(
-                format!("Alignment {} is not a power of 2", alignment)
-            ));
+            return Err(IOError::AlignmentError(format!(
+                "Alignment {} is not a power of 2",
+                alignment
+            )));
         }
 
         // Ensure size is multiple of alignment
@@ -70,9 +74,10 @@ impl AlignedBuffer {
         let ptr = unsafe {
             let raw_ptr = alloc(layout);
             if raw_ptr.is_null() {
-                return Err(IOError::AllocationFailed(
-                    format!("Failed to allocate {} bytes", aligned_size)
-                ));
+                return Err(IOError::AllocationFailed(format!(
+                    "Failed to allocate {} bytes",
+                    aligned_size
+                )));
             }
             NonNull::new_unchecked(raw_ptr)
         };
@@ -94,7 +99,11 @@ impl AlignedBuffer {
     }
 
     #[cfg(target_os = "linux")]
-    fn allocate_huge_pages(size: usize, alignment: usize, strategy: AllocStrategy) -> IOResult<Self> {
+    fn allocate_huge_pages(
+        size: usize,
+        alignment: usize,
+        strategy: AllocStrategy,
+    ) -> IOResult<Self> {
         let huge_page_size = match strategy {
             AllocStrategy::HugePages2MB => HUGE_PAGE_2MB,
             AllocStrategy::HugePages1GB => HUGE_PAGE_1GB,
@@ -122,9 +131,10 @@ impl AlignedBuffer {
             // Check alignment
             if (addr as usize) % alignment != 0 {
                 libc::munmap(addr, aligned_size);
-                return Err(IOError::AlignmentError(
-                    format!("Huge page allocation not aligned to {}", alignment)
-                ));
+                return Err(IOError::AlignmentError(format!(
+                    "Huge page allocation not aligned to {}",
+                    alignment
+                )));
             }
 
             let ptr = NonNull::new_unchecked(addr as *mut u8);
@@ -266,9 +276,10 @@ impl BufferPool {
         // Check if we can allocate more
         let mut count = self.allocated_count.lock().unwrap();
         if *count >= self.max_buffers {
-            return Err(IOError::AllocationFailed(
-                format!("Buffer pool exhausted (max: {})", self.max_buffers)
-            ));
+            return Err(IOError::AllocationFailed(format!(
+                "Buffer pool exhausted (max: {})",
+                self.max_buffers
+            )));
         }
 
         *count += 1;
@@ -338,7 +349,7 @@ impl Drop for PooledBuffer {
         // Return to pool
         let buffer = std::mem::replace(
             &mut self.buffer,
-            AlignedBuffer::new(0, SECTOR_SIZE).unwrap()
+            AlignedBuffer::new(0, SECTOR_SIZE).unwrap(),
         );
 
         let mut pool = self.pool.lock().unwrap();

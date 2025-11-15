@@ -1,6 +1,6 @@
-use crate::{DriveError, DriveResult};
 use crate::SEDType;
-use anyhow::{Result, anyhow};
+use crate::{DriveError, DriveResult};
+use anyhow::{anyhow, Result};
 use std::process::Command;
 
 #[derive(Debug, Clone)]
@@ -20,7 +20,10 @@ pub struct SEDManager;
 impl SEDManager {
     /// Detect and return comprehensive SED information
     pub fn detect_sed(device_path: &str) -> DriveResult<SEDInfo> {
-        println!("Detecting self-encrypting drive capabilities for {}...", device_path);
+        println!(
+            "Detecting self-encrypting drive capabilities for {}...",
+            device_path
+        );
 
         // Try multiple detection methods in order of preference
         if let Ok(info) = Self::detect_opal(device_path) {
@@ -68,9 +71,7 @@ impl SEDManager {
 
         // Try nvme for NVMe OPAL
         if device_path.contains("nvme") {
-            let output = Command::new("nvme")
-                .args(["id-ctrl", device_path])
-                .output();
+            let output = Command::new("nvme").args(["id-ctrl", device_path]).output();
 
             if let Ok(output) = output {
                 let output_str = String::from_utf8_lossy(&output.stdout);
@@ -123,9 +124,7 @@ impl SEDManager {
     /// Detect TCG Enterprise SED
     fn detect_tcg_enterprise(device_path: &str) -> Result<SEDInfo> {
         // TCG Enterprise detection via sg_readcap and sg_opcodes
-        let output = Command::new("sg_opcodes")
-            .args([device_path])
-            .output();
+        let output = Command::new("sg_opcodes").args([device_path]).output();
 
         if let Ok(output) = output {
             let output_str = String::from_utf8_lossy(&output.stdout);
@@ -158,18 +157,16 @@ impl SEDManager {
 
     /// Detect ATA Security (non-OPAL)
     fn detect_ata_security(device_path: &str) -> Result<SEDInfo> {
-        let output = Command::new("hdparm")
-            .args(["-I", device_path])
-            .output();
+        let output = Command::new("hdparm").args(["-I", device_path]).output();
 
         if let Ok(output) = output {
             let output_str = String::from_utf8_lossy(&output.stdout);
-            
+
             if output_str.contains("Security:") {
                 let enabled = output_str.contains("enabled");
                 let locked = output_str.contains("locked");
                 let frozen = output_str.contains("frozen") && !output_str.contains("not frozen");
-                
+
                 if output_str.contains("supported") {
                     return Ok(SEDInfo {
                         sed_type: SEDType::ATASecurity,
@@ -191,7 +188,7 @@ impl SEDManager {
     /// Detect proprietary encryption (Samsung, Crucial, WD, etc.)
     fn detect_proprietary(device_path: &str) -> Result<SEDInfo> {
         let drive_info = Self::get_drive_model(device_path)?;
-        
+
         // Samsung specific
         if drive_info.contains("Samsung") {
             if drive_info.contains("EVO") || drive_info.contains("PRO") {
@@ -247,7 +244,7 @@ impl SEDManager {
 
         if !sed_info.supports_crypto_erase {
             return Err(DriveError::CryptoEraseFailed(
-                "Device does not support cryptographic erase".to_string()
+                "Device does not support cryptographic erase".to_string(),
             ));
         }
 
@@ -258,7 +255,7 @@ impl SEDManager {
             SEDType::EDrive => Self::edrive_crypto_erase(device_path),
             SEDType::Proprietary(vendor) => Self::proprietary_crypto_erase(device_path, vendor),
             SEDType::None => Err(DriveError::CryptoEraseFailed(
-                "No SED capabilities detected".to_string()
+                "No SED capabilities detected".to_string(),
             )),
         }
     }
@@ -282,9 +279,9 @@ impl SEDManager {
         // Try PSID revert if available
         println!("Attempting PSID revert (requires physical label PSID)...");
         // This would require user input for PSID
-        
+
         Err(DriveError::CryptoEraseFailed(
-            "OPAL crypto erase requires valid credentials or PSID".to_string()
+            "OPAL crypto erase requires valid credentials or PSID".to_string(),
         ))
     }
 
@@ -306,7 +303,7 @@ impl SEDManager {
         }
 
         Err(DriveError::CryptoEraseFailed(
-            "TCG Enterprise crypto erase failed".to_string()
+            "TCG Enterprise crypto erase failed".to_string(),
         ))
     }
 
@@ -314,21 +311,35 @@ impl SEDManager {
     fn ata_secure_erase(device_path: &str) -> DriveResult<()> {
         // This is handled by existing secure erase code
         println!("Using ATA Secure Erase for crypto erase...");
-        
+
         // Set temporary password and erase
         let password = "temporary_erase_pwd";
-        
+
         let output = Command::new("hdparm")
-            .args(["--user-master", "u", "--security-set-pass", password, device_path])
+            .args([
+                "--user-master",
+                "u",
+                "--security-set-pass",
+                password,
+                device_path,
+            ])
             .output()
             .map_err(|e| DriveError::CryptoEraseFailed(format!("Failed to set password: {}", e)))?;
 
         if !output.status.success() {
-            return Err(DriveError::CryptoEraseFailed("Failed to set security password".to_string()));
+            return Err(DriveError::CryptoEraseFailed(
+                "Failed to set security password".to_string(),
+            ));
         }
 
         let output = Command::new("hdparm")
-            .args(["--user-master", "u", "--security-erase", password, device_path])
+            .args([
+                "--user-master",
+                "u",
+                "--security-erase",
+                password,
+                device_path,
+            ])
             .output()
             .map_err(|e| DriveError::CryptoEraseFailed(format!("Secure erase failed: {}", e)))?;
 
@@ -336,7 +347,9 @@ impl SEDManager {
             println!("ATA Secure Erase completed");
             Ok(())
         } else {
-            Err(DriveError::CryptoEraseFailed("ATA Secure Erase failed".to_string()))
+            Err(DriveError::CryptoEraseFailed(
+                "ATA Secure Erase failed".to_string(),
+            ))
         }
     }
 
@@ -384,7 +397,8 @@ impl SEDManager {
     fn check_opal_enabled(device_path: &str) -> bool {
         if let Ok(output) = Command::new("sedutil-cli")
             .args(["--isValidSED", device_path])
-            .output() {
+            .output()
+        {
             return output.status.success();
         }
         false
@@ -393,9 +407,7 @@ impl SEDManager {
     /// Check Samsung encryption status
     fn check_samsung_encryption(device_path: &str) -> bool {
         // Check via smartctl for Samsung-specific attributes
-        if let Ok(output) = Command::new("smartctl")
-            .args(["-A", device_path])
-            .output() {
+        if let Ok(output) = Command::new("smartctl").args(["-A", device_path]).output() {
             let output_str = String::from_utf8_lossy(&output.stdout);
             // Samsung SSDs report encryption status in vendor-specific attributes
             return output_str.contains("Encrypted");
@@ -410,7 +422,7 @@ impl SEDManager {
             .output()?;
 
         let output_str = String::from_utf8_lossy(&output.stdout);
-        
+
         for line in output_str.lines() {
             if line.contains("Device Model:") || line.contains("Model Number:") {
                 if let Some(model) = line.split(':').nth(1) {
@@ -430,7 +442,7 @@ impl SEDManager {
             .ok()?;
 
         let output_str = String::from_utf8_lossy(&output.stdout);
-        
+
         for line in output_str.lines() {
             if line.contains("Firmware Version:") || line.contains("Revision:") {
                 if let Some(version) = line.split(':').nth(1) {
@@ -460,12 +472,20 @@ impl SEDManager {
                     println!("Drive unlocked successfully");
                     Ok(())
                 } else {
-                    Err(DriveError::UnlockFailed("Invalid password or unlock failed".to_string()))
+                    Err(DriveError::UnlockFailed(
+                        "Invalid password or unlock failed".to_string(),
+                    ))
                 }
             }
             SEDType::ATASecurity => {
                 let output = Command::new("hdparm")
-                    .args(["--user-master", "u", "--security-unlock", password, device_path])
+                    .args([
+                        "--user-master",
+                        "u",
+                        "--security-unlock",
+                        password,
+                        device_path,
+                    ])
                     .output()
                     .map_err(|e| DriveError::UnlockFailed(format!("Failed to unlock: {}", e)))?;
 
@@ -473,10 +493,14 @@ impl SEDManager {
                     println!("Drive unlocked successfully");
                     Ok(())
                 } else {
-                    Err(DriveError::UnlockFailed("Invalid password or unlock failed".to_string()))
+                    Err(DriveError::UnlockFailed(
+                        "Invalid password or unlock failed".to_string(),
+                    ))
                 }
             }
-            _ => Err(DriveError::UnlockFailed("Unlock not supported for this SED type".to_string()))
+            _ => Err(DriveError::UnlockFailed(
+                "Unlock not supported for this SED type".to_string(),
+            )),
         }
     }
 
@@ -485,19 +509,23 @@ impl SEDManager {
         println!("Verifying cryptographic erase effectiveness...");
 
         // Read some sectors to check for encrypted vs zeros/random
-        use crate::io::{OptimizedIO, IOConfig};
+        use crate::io::{IOConfig, OptimizedIO};
 
         let config = IOConfig::small_read_optimized();
-        let mut handle = OptimizedIO::open(device_path, config)
-            .map_err(|e| DriveError::IoError(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+        let mut handle = OptimizedIO::open(device_path, config).map_err(|e| {
+            DriveError::IoError(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                e.to_string(),
+            ))
+        })?;
 
         let mut all_zero = true;
         let mut all_ff = true;
 
         // Sample multiple locations
-        for offset in [0, 1024*1024, 1024*1024*1024].iter() {
-            let buffer = OptimizedIO::read_range(&mut handle, *offset, 4096)
-                .unwrap_or_else(|_| vec![]);
+        for offset in [0, 1024 * 1024, 1024 * 1024 * 1024].iter() {
+            let buffer =
+                OptimizedIO::read_range(&mut handle, *offset, 4096).unwrap_or_else(|_| vec![]);
 
             if !buffer.is_empty() {
                 if !buffer.iter().all(|&b| b == 0) {

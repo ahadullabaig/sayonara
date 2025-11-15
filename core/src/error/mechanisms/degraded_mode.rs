@@ -2,7 +2,6 @@
 ///
 /// This module defines degraded operation modes that allow the wipe to continue
 /// with reduced functionality when errors prevent full operation.
-
 use crate::WipeConfig;
 use serde::{Deserialize, Serialize};
 

@@ -1,14 +1,12 @@
 /// Simplified integration tests for error recovery mechanisms
 ///
 /// Tests core recovery functionality that is publicly exposed
-
 mod common;
 
-use sayonara_wipe::error::checkpoint::{Checkpoint, CheckpointManager};
-use sayonara_wipe::error::classification::{ErrorContext, ErrorClassifier};
-use sayonara_wipe::error::mechanisms::BadSectorHandler;
-use sayonara_wipe::DriveError;
 use anyhow::Result;
+use sayonara_wipe::error::checkpoint::{Checkpoint, CheckpointManager};
+use sayonara_wipe::error::classification::{ErrorClassifier, ErrorContext};
+use sayonara_wipe::error::mechanisms::BadSectorHandler;
 
 #[test]
 fn test_error_context_creation_for_pass() {
@@ -35,8 +33,14 @@ fn test_error_context_with_metadata() {
         .with_metadata("drive_type", "NVMe")
         .with_metadata("capacity_gb", "500");
 
-    assert_eq!(context.metadata.get("drive_type"), Some(&"NVMe".to_string()));
-    assert_eq!(context.metadata.get("capacity_gb"), Some(&"500".to_string()));
+    assert_eq!(
+        context.metadata.get("drive_type"),
+        Some(&"NVMe".to_string())
+    );
+    assert_eq!(
+        context.metadata.get("capacity_gb"),
+        Some(&"500".to_string())
+    );
 }
 
 #[test]
@@ -208,13 +212,7 @@ fn test_checkpoint_cleanup_removes_old_entries() -> Result<()> {
     let mut manager = CheckpointManager::new(None)?;
 
     // Create an old checkpoint
-    let mut old_checkpoint = Checkpoint::new(
-        "/dev/old",
-        "DoD",
-        "old-op",
-        3,
-        100_000_000_000,
-    );
+    let mut old_checkpoint = Checkpoint::new("/dev/old", "DoD", "old-op", 3, 100_000_000_000);
 
     // Manually set it to 40 days old
     old_checkpoint.created_at = Utc::now() - Duration::days(40);
@@ -222,13 +220,8 @@ fn test_checkpoint_cleanup_removes_old_entries() -> Result<()> {
     manager.save(&old_checkpoint)?;
 
     // Create a recent checkpoint
-    let recent_checkpoint = Checkpoint::new(
-        "/dev/recent",
-        "Gutmann",
-        "recent-op",
-        35,
-        500_000_000_000,
-    );
+    let recent_checkpoint =
+        Checkpoint::new("/dev/recent", "Gutmann", "recent-op", 35, 500_000_000_000);
     manager.save(&recent_checkpoint)?;
 
     // Clean up old checkpoints (older than 30 days)

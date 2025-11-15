@@ -4,7 +4,7 @@
 // These tests focus on testable logic, helper functions, and algorithm conversions.
 
 use super::*;
-use crate::{Algorithm, WipeConfig, DriveType};
+use crate::{Algorithm, DriveType, WipeConfig};
 use anyhow::Result;
 
 // ==================== ALGORITHM CONVERSION TESTS ====================
@@ -197,7 +197,11 @@ fn test_generate_pattern_different_sizes() -> Result<()> {
 
     for size in sizes {
         let pattern = orchestrator.generate_pattern(size)?;
-        assert_eq!(pattern.len(), size, "Pattern size should match requested size");
+        assert_eq!(
+            pattern.len(),
+            size,
+            "Pattern size should match requested size"
+        );
     }
 
     Ok(())
@@ -281,7 +285,11 @@ fn test_orchestrator_creation_with_different_algorithms() -> Result<()> {
         };
 
         let result = WipeOrchestrator::new("/dev/null".to_string(), config);
-        assert!(result.is_ok(), "Should create orchestrator with algorithm {:?}", algo);
+        assert!(
+            result.is_ok(),
+            "Should create orchestrator with algorithm {:?}",
+            algo
+        );
     }
 
     Ok(())
@@ -300,37 +308,42 @@ fn test_drive_type_detection_nvme_patterns() {
 
     for path in nvme_paths {
         let info = WipeOrchestrator::create_basic_drive_info(path).unwrap();
-        assert_eq!(info.drive_type, DriveType::NVMe, "Should detect {} as NVMe", path);
+        assert_eq!(
+            info.drive_type,
+            DriveType::NVMe,
+            "Should detect {} as NVMe",
+            path
+        );
     }
 }
 
 #[test]
 fn test_drive_type_detection_emmc_patterns() {
-    let emmc_paths = vec![
-        "/dev/mmcblk0",
-        "/dev/mmcblk1",
-        "/dev/mmcblk0p1",
-    ];
+    let emmc_paths = vec!["/dev/mmcblk0", "/dev/mmcblk1", "/dev/mmcblk0p1"];
 
     for path in emmc_paths {
         let info = WipeOrchestrator::create_basic_drive_info(path).unwrap();
-        assert_eq!(info.drive_type, DriveType::EMMC, "Should detect {} as EMMC", path);
+        assert_eq!(
+            info.drive_type,
+            DriveType::EMMC,
+            "Should detect {} as EMMC",
+            path
+        );
     }
 }
 
 #[test]
 fn test_drive_type_detection_hdd_patterns() {
-    let hdd_paths = vec![
-        "/dev/sda",
-        "/dev/sdb",
-        "/dev/sdc",
-        "/dev/hda",
-        "/dev/vda",
-    ];
+    let hdd_paths = vec!["/dev/sda", "/dev/sdb", "/dev/sdc", "/dev/hda", "/dev/vda"];
 
     for path in hdd_paths {
         let info = WipeOrchestrator::create_basic_drive_info(path).unwrap();
-        assert_eq!(info.drive_type, DriveType::HDD, "Should detect {} as HDD (default)", path);
+        assert_eq!(
+            info.drive_type,
+            DriveType::HDD,
+            "Should detect {} as HDD (default)",
+            path
+        );
     }
 }
 
@@ -362,7 +375,10 @@ fn test_orchestrator_with_custom_config() -> Result<()> {
     let orchestrator = WipeOrchestrator::new("/dev/null".to_string(), config)?;
 
     assert_eq!(orchestrator.config.algorithm, Algorithm::Gutmann);
-    assert_eq!(orchestrator.config.handle_hpa_dco, crate::HPADCOHandling::TemporaryRemove);
+    assert_eq!(
+        orchestrator.config.handle_hpa_dco,
+        crate::HPADCOHandling::TemporaryRemove
+    );
 
     Ok(())
 }
@@ -371,11 +387,7 @@ fn test_orchestrator_with_custom_config() -> Result<()> {
 
 #[test]
 fn test_create_drive_info_with_special_paths() -> Result<()> {
-    let special_paths = vec![
-        "/dev/null",
-        "/dev/zero",
-        "/dev/random",
-    ];
+    let special_paths = vec!["/dev/null", "/dev/zero", "/dev/random"];
 
     for path in special_paths {
         let result = WipeOrchestrator::create_basic_drive_info(path);

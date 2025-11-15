@@ -1,10 +1,10 @@
 use crate::{DriveError, DriveResult, FreezeStatus};
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
+use std::fs;
+use std::path::Path;
 use std::process::Command;
 use std::thread;
 use std::time::Duration;
-use std::fs;
-use std::path::Path;
 
 pub struct FreezeMitigation;
 
@@ -28,7 +28,7 @@ impl FreezeMitigation {
             }
             FreezeStatus::SecurityLocked => {
                 return Err(DriveError::DriveFrozen(
-                    "Drive is security locked and cannot be unfrozen without password".to_string()
+                    "Drive is security locked and cannot be unfrozen without password".to_string(),
                 ));
             }
             _ => {}
@@ -36,10 +36,22 @@ impl FreezeMitigation {
 
         // Try multiple unfreezing methods in order of preference
         let methods: Vec<(&str, fn(&str) -> Result<()>)> = vec![
-            ("Sleep/Wake", Self::unfreeze_via_sleep as fn(&str) -> Result<()>),
-            ("Hot-plug", Self::unfreeze_via_hotplug as fn(&str) -> Result<()>),
-            ("Link PM", Self::unfreeze_via_link_power as fn(&str) -> Result<()>),
-            ("Power Cycle", Self::unfreeze_via_power_cycle as fn(&str) -> Result<()>),
+            (
+                "Sleep/Wake",
+                Self::unfreeze_via_sleep as fn(&str) -> Result<()>,
+            ),
+            (
+                "Hot-plug",
+                Self::unfreeze_via_hotplug as fn(&str) -> Result<()>,
+            ),
+            (
+                "Link PM",
+                Self::unfreeze_via_link_power as fn(&str) -> Result<()>,
+            ),
+            (
+                "Power Cycle",
+                Self::unfreeze_via_power_cycle as fn(&str) -> Result<()>,
+            ),
         ];
 
         for (method_name, method_fn) in methods {
@@ -59,9 +71,10 @@ impl FreezeMitigation {
             println!("{} method failed, trying next...", method_name);
         }
 
-        Err(DriveError::DriveFrozen(
-            format!("Failed to unfreeze drive {} after trying all methods", device_path)
-        ))
+        Err(DriveError::DriveFrozen(format!(
+            "Failed to unfreeze drive {} after trying all methods",
+            device_path
+        )))
     }
 
     /// Get the freeze status of a drive
@@ -69,9 +82,7 @@ impl FreezeMitigation {
         let output = Command::new("hdparm")
             .args(["-I", device_path])
             .output()
-            .map_err(|e| DriveError::HardwareCommandFailed(
-                format!("hdparm failed: {}", e)
-            ))?;
+            .map_err(|e| DriveError::HardwareCommandFailed(format!("hdparm failed: {}", e)))?;
 
         let output_str = String::from_utf8_lossy(&output.stdout);
 
@@ -172,7 +183,10 @@ impl FreezeMitigation {
 
         // Find the ATA port for this device
         let ata_port = Self::find_ata_port(device_name)?;
-        let link_pm_path = format!("/sys/class/ata_port/{}/link_power_management_policy", ata_port);
+        let link_pm_path = format!(
+            "/sys/class/ata_port/{}/link_power_management_policy",
+            ata_port
+        );
 
         if !Path::new(&link_pm_path).exists() {
             return Err(anyhow!("Link power management not available"));
@@ -237,8 +251,8 @@ impl FreezeMitigation {
             current_path = parent;
         }
 
-        let authorize_path = authorize_path
-            .ok_or_else(|| anyhow!("Cannot find USB authorize control"))?;
+        let authorize_path =
+            authorize_path.ok_or_else(|| anyhow!("Cannot find USB authorize control"))?;
 
         // Power cycle
         fs::write(&authorize_path, b"0")
@@ -301,6 +315,9 @@ impl FreezeMitigation {
     /// Check if secure erase is blocked due to freeze
     pub fn is_secure_erase_blocked(device_path: &str) -> DriveResult<bool> {
         let status = Self::get_freeze_status(device_path)?;
-        Ok(matches!(status, FreezeStatus::Frozen | FreezeStatus::FrozenByBIOS))
+        Ok(matches!(
+            status,
+            FreezeStatus::Frozen | FreezeStatus::FrozenByBIOS
+        ))
     }
 }

@@ -3,8 +3,7 @@
 /// This module provides atomic, persistent checkpoint storage using SQLite.
 /// Checkpoints are saved every 60 seconds OR every 1GB written, whichever comes first.
 /// All database operations use transactions for atomicity and must complete in <100ms.
-
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Duration, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
@@ -179,8 +178,7 @@ impl CheckpointManager {
             }
         }
 
-        let conn = Connection::open(&db_path)
-            .context("Failed to open checkpoint database")?;
+        let conn = Connection::open(&db_path).context("Failed to open checkpoint database")?;
 
         // Enable WAL mode for better concurrency and crash resilience
         conn.pragma_update(None, "journal_mode", "WAL")
@@ -210,8 +208,9 @@ impl CheckpointManager {
 
     /// Initialize database schema
     fn initialize_schema(&mut self) -> Result<()> {
-        self.conn.execute_batch(
-            r#"
+        self.conn
+            .execute_batch(
+                r#"
             CREATE TABLE IF NOT EXISTS checkpoints (
                 id TEXT PRIMARY KEY NOT NULL,
                 device_path TEXT NOT NULL,
@@ -236,8 +235,8 @@ impl CheckpointManager {
             CREATE INDEX IF NOT EXISTS idx_operation ON checkpoints(operation_id);
             CREATE INDEX IF NOT EXISTS idx_device_algo ON checkpoints(device_path, algorithm);
             "#,
-        )
-        .context("Failed to create checkpoint schema")?;
+            )
+            .context("Failed to create checkpoint schema")?;
 
         Ok(())
     }
@@ -252,13 +251,15 @@ impl CheckpointManager {
         // Serialize complex fields to JSON
         let sectors_json = serde_json::to_string(&checkpoint.sectors_completed)
             .context("Failed to serialize sectors_completed")?;
-        let state_json = serde_json::to_string(&checkpoint.state)
-            .context("Failed to serialize state")?;
-        let config_json = serde_json::to_string(&checkpoint.config)
-            .context("Failed to serialize config")?;
+        let state_json =
+            serde_json::to_string(&checkpoint.state).context("Failed to serialize state")?;
+        let config_json =
+            serde_json::to_string(&checkpoint.config).context("Failed to serialize config")?;
 
         // Use transaction for atomicity
-        let tx = self.conn.transaction()
+        let tx = self
+            .conn
+            .transaction()
             .context("Failed to begin transaction")?;
 
         tx.execute(
@@ -301,7 +302,8 @@ impl CheckpointManager {
         )
         .context("Failed to insert checkpoint")?;
 
-        tx.commit().context("Failed to commit checkpoint transaction")?;
+        tx.commit()
+            .context("Failed to commit checkpoint transaction")?;
 
         let elapsed = start.elapsed();
         if elapsed.as_millis() > 100 {
@@ -320,8 +322,10 @@ impl CheckpointManager {
 
     /// Load most recent checkpoint for device and algorithm
     pub fn load(&self, device_path: &str, algorithm: &str) -> Result<Option<Checkpoint>> {
-        let row = self.conn.query_row(
-            r#"
+        let row = self
+            .conn
+            .query_row(
+                r#"
             SELECT id, device_path, algorithm, operation_id,
                    current_pass, total_passes, bytes_written, total_size,
                    sectors_completed, state, config,
@@ -331,57 +335,60 @@ impl CheckpointManager {
             ORDER BY updated_at DESC
             LIMIT 1
             "#,
-            params![device_path, algorithm],
-            |row| {
-                Ok(Checkpoint {
-                    id: row.get(0)?,
-                    device_path: row.get(1)?,
-                    algorithm: row.get(2)?,
-                    operation_id: row.get(3)?,
-                    current_pass: row.get::<_, i64>(4)? as usize,
-                    total_passes: row.get::<_, i64>(5)? as usize,
-                    bytes_written: row.get::<_, i64>(6)? as u64,
-                    total_size: row.get::<_, i64>(7)? as u64,
-                    sectors_completed: {
-                        let json: String = row.get(8)?;
-                        serde_json::from_str(&json).unwrap_or_default()
-                    },
-                    state: {
-                        let json: String = row.get(9)?;
-                        serde_json::from_str(&json).unwrap_or(serde_json::Value::Null)
-                    },
-                    config: {
-                        let json: String = row.get(10)?;
-                        serde_json::from_str(&json).unwrap_or(serde_json::Value::Null)
-                    },
-                    created_at: {
-                        let s: String = row.get(11)?;
-                        DateTime::parse_from_rfc3339(&s)
-                            .ok()
-                            .map(|dt| dt.with_timezone(&Utc))
-                            .unwrap_or_else(Utc::now)
-                    },
-                    updated_at: {
-                        let s: String = row.get(12)?;
-                        DateTime::parse_from_rfc3339(&s)
-                            .ok()
-                            .map(|dt| dt.with_timezone(&Utc))
-                            .unwrap_or_else(Utc::now)
-                    },
-                    error_count: row.get::<_, i64>(13)? as u32,
-                    last_error: row.get(14)?,
-                })
-            },
-        ).optional()
-        .context("Failed to load checkpoint")?;
+                params![device_path, algorithm],
+                |row| {
+                    Ok(Checkpoint {
+                        id: row.get(0)?,
+                        device_path: row.get(1)?,
+                        algorithm: row.get(2)?,
+                        operation_id: row.get(3)?,
+                        current_pass: row.get::<_, i64>(4)? as usize,
+                        total_passes: row.get::<_, i64>(5)? as usize,
+                        bytes_written: row.get::<_, i64>(6)? as u64,
+                        total_size: row.get::<_, i64>(7)? as u64,
+                        sectors_completed: {
+                            let json: String = row.get(8)?;
+                            serde_json::from_str(&json).unwrap_or_default()
+                        },
+                        state: {
+                            let json: String = row.get(9)?;
+                            serde_json::from_str(&json).unwrap_or(serde_json::Value::Null)
+                        },
+                        config: {
+                            let json: String = row.get(10)?;
+                            serde_json::from_str(&json).unwrap_or(serde_json::Value::Null)
+                        },
+                        created_at: {
+                            let s: String = row.get(11)?;
+                            DateTime::parse_from_rfc3339(&s)
+                                .ok()
+                                .map(|dt| dt.with_timezone(&Utc))
+                                .unwrap_or_else(Utc::now)
+                        },
+                        updated_at: {
+                            let s: String = row.get(12)?;
+                            DateTime::parse_from_rfc3339(&s)
+                                .ok()
+                                .map(|dt| dt.with_timezone(&Utc))
+                                .unwrap_or_else(Utc::now)
+                        },
+                        error_count: row.get::<_, i64>(13)? as u32,
+                        last_error: row.get(14)?,
+                    })
+                },
+            )
+            .optional()
+            .context("Failed to load checkpoint")?;
 
         Ok(row)
     }
 
     /// Load checkpoint by ID
     pub fn load_by_id(&self, checkpoint_id: &str) -> Result<Option<Checkpoint>> {
-        let row = self.conn.query_row(
-            r#"
+        let row = self
+            .conn
+            .query_row(
+                r#"
             SELECT id, device_path, algorithm, operation_id,
                    current_pass, total_passes, bytes_written, total_size,
                    sectors_completed, state, config,
@@ -389,60 +396,63 @@ impl CheckpointManager {
             FROM checkpoints
             WHERE id = ?1
             "#,
-            params![checkpoint_id],
-            |row| {
-                Ok(Checkpoint {
-                    id: row.get(0)?,
-                    device_path: row.get(1)?,
-                    algorithm: row.get(2)?,
-                    operation_id: row.get(3)?,
-                    current_pass: row.get::<_, i64>(4)? as usize,
-                    total_passes: row.get::<_, i64>(5)? as usize,
-                    bytes_written: row.get::<_, i64>(6)? as u64,
-                    total_size: row.get::<_, i64>(7)? as u64,
-                    sectors_completed: {
-                        let json: String = row.get(8)?;
-                        serde_json::from_str(&json).unwrap_or_default()
-                    },
-                    state: {
-                        let json: String = row.get(9)?;
-                        serde_json::from_str(&json).unwrap_or(serde_json::Value::Null)
-                    },
-                    config: {
-                        let json: String = row.get(10)?;
-                        serde_json::from_str(&json).unwrap_or(serde_json::Value::Null)
-                    },
-                    created_at: {
-                        let s: String = row.get(11)?;
-                        DateTime::parse_from_rfc3339(&s)
-                            .ok()
-                            .map(|dt| dt.with_timezone(&Utc))
-                            .unwrap_or_else(Utc::now)
-                    },
-                    updated_at: {
-                        let s: String = row.get(12)?;
-                        DateTime::parse_from_rfc3339(&s)
-                            .ok()
-                            .map(|dt| dt.with_timezone(&Utc))
-                            .unwrap_or_else(Utc::now)
-                    },
-                    error_count: row.get::<_, i64>(13)? as u32,
-                    last_error: row.get(14)?,
-                })
-            },
-        ).optional()
-        .context("Failed to load checkpoint by ID")?;
+                params![checkpoint_id],
+                |row| {
+                    Ok(Checkpoint {
+                        id: row.get(0)?,
+                        device_path: row.get(1)?,
+                        algorithm: row.get(2)?,
+                        operation_id: row.get(3)?,
+                        current_pass: row.get::<_, i64>(4)? as usize,
+                        total_passes: row.get::<_, i64>(5)? as usize,
+                        bytes_written: row.get::<_, i64>(6)? as u64,
+                        total_size: row.get::<_, i64>(7)? as u64,
+                        sectors_completed: {
+                            let json: String = row.get(8)?;
+                            serde_json::from_str(&json).unwrap_or_default()
+                        },
+                        state: {
+                            let json: String = row.get(9)?;
+                            serde_json::from_str(&json).unwrap_or(serde_json::Value::Null)
+                        },
+                        config: {
+                            let json: String = row.get(10)?;
+                            serde_json::from_str(&json).unwrap_or(serde_json::Value::Null)
+                        },
+                        created_at: {
+                            let s: String = row.get(11)?;
+                            DateTime::parse_from_rfc3339(&s)
+                                .ok()
+                                .map(|dt| dt.with_timezone(&Utc))
+                                .unwrap_or_else(Utc::now)
+                        },
+                        updated_at: {
+                            let s: String = row.get(12)?;
+                            DateTime::parse_from_rfc3339(&s)
+                                .ok()
+                                .map(|dt| dt.with_timezone(&Utc))
+                                .unwrap_or_else(Utc::now)
+                        },
+                        error_count: row.get::<_, i64>(13)? as u32,
+                        last_error: row.get(14)?,
+                    })
+                },
+            )
+            .optional()
+            .context("Failed to load checkpoint by ID")?;
 
         Ok(row)
     }
 
     /// Delete checkpoint (after successful completion)
     pub fn delete(&mut self, checkpoint_id: &str) -> Result<()> {
-        let deleted = self.conn.execute(
-            "DELETE FROM checkpoints WHERE id = ?1",
-            params![checkpoint_id],
-        )
-        .context("Failed to delete checkpoint")?;
+        let deleted = self
+            .conn
+            .execute(
+                "DELETE FROM checkpoints WHERE id = ?1",
+                params![checkpoint_id],
+            )
+            .context("Failed to delete checkpoint")?;
 
         if deleted == 0 {
             return Err(anyhow!("Checkpoint not found: {}", checkpoint_id));
@@ -453,19 +463,23 @@ impl CheckpointManager {
 
     /// Delete checkpoint by device and algorithm
     pub fn delete_by_device(&mut self, device_path: &str, algorithm: &str) -> Result<usize> {
-        let deleted = self.conn.execute(
-            "DELETE FROM checkpoints WHERE device_path = ?1 AND algorithm = ?2",
-            params![device_path, algorithm],
-        )
-        .context("Failed to delete checkpoint by device")?;
+        let deleted = self
+            .conn
+            .execute(
+                "DELETE FROM checkpoints WHERE device_path = ?1 AND algorithm = ?2",
+                params![device_path, algorithm],
+            )
+            .context("Failed to delete checkpoint by device")?;
 
         Ok(deleted)
     }
 
     /// List all checkpoints
     pub fn list_all(&self) -> Result<Vec<Checkpoint>> {
-        let mut stmt = self.conn.prepare(
-            r#"
+        let mut stmt = self
+            .conn
+            .prepare(
+                r#"
             SELECT id, device_path, algorithm, operation_id,
                    current_pass, total_passes, bytes_written, total_size,
                    sectors_completed, state, config,
@@ -473,52 +487,53 @@ impl CheckpointManager {
             FROM checkpoints
             ORDER BY updated_at DESC
             "#,
-        )
-        .context("Failed to prepare list query")?;
+            )
+            .context("Failed to prepare list query")?;
 
-        let checkpoints = stmt.query_map([], |row| {
-            Ok(Checkpoint {
-                id: row.get(0)?,
-                device_path: row.get(1)?,
-                algorithm: row.get(2)?,
-                operation_id: row.get(3)?,
-                current_pass: row.get::<_, i64>(4)? as usize,
-                total_passes: row.get::<_, i64>(5)? as usize,
-                bytes_written: row.get::<_, i64>(6)? as u64,
-                total_size: row.get::<_, i64>(7)? as u64,
-                sectors_completed: {
-                    let json: String = row.get(8)?;
-                    serde_json::from_str(&json).unwrap_or_default()
-                },
-                state: {
-                    let json: String = row.get(9)?;
-                    serde_json::from_str(&json).unwrap_or(serde_json::Value::Null)
-                },
-                config: {
-                    let json: String = row.get(10)?;
-                    serde_json::from_str(&json).unwrap_or(serde_json::Value::Null)
-                },
-                created_at: {
-                    let s: String = row.get(11)?;
-                    DateTime::parse_from_rfc3339(&s)
-                        .ok()
-                        .map(|dt| dt.with_timezone(&Utc))
-                        .unwrap_or_else(Utc::now)
-                },
-                updated_at: {
-                    let s: String = row.get(12)?;
-                    DateTime::parse_from_rfc3339(&s)
-                        .ok()
-                        .map(|dt| dt.with_timezone(&Utc))
-                        .unwrap_or_else(Utc::now)
-                },
-                error_count: row.get::<_, i64>(13)? as u32,
-                last_error: row.get(14)?,
+        let checkpoints = stmt
+            .query_map([], |row| {
+                Ok(Checkpoint {
+                    id: row.get(0)?,
+                    device_path: row.get(1)?,
+                    algorithm: row.get(2)?,
+                    operation_id: row.get(3)?,
+                    current_pass: row.get::<_, i64>(4)? as usize,
+                    total_passes: row.get::<_, i64>(5)? as usize,
+                    bytes_written: row.get::<_, i64>(6)? as u64,
+                    total_size: row.get::<_, i64>(7)? as u64,
+                    sectors_completed: {
+                        let json: String = row.get(8)?;
+                        serde_json::from_str(&json).unwrap_or_default()
+                    },
+                    state: {
+                        let json: String = row.get(9)?;
+                        serde_json::from_str(&json).unwrap_or(serde_json::Value::Null)
+                    },
+                    config: {
+                        let json: String = row.get(10)?;
+                        serde_json::from_str(&json).unwrap_or(serde_json::Value::Null)
+                    },
+                    created_at: {
+                        let s: String = row.get(11)?;
+                        DateTime::parse_from_rfc3339(&s)
+                            .ok()
+                            .map(|dt| dt.with_timezone(&Utc))
+                            .unwrap_or_else(Utc::now)
+                    },
+                    updated_at: {
+                        let s: String = row.get(12)?;
+                        DateTime::parse_from_rfc3339(&s)
+                            .ok()
+                            .map(|dt| dt.with_timezone(&Utc))
+                            .unwrap_or_else(Utc::now)
+                    },
+                    error_count: row.get::<_, i64>(13)? as u32,
+                    last_error: row.get(14)?,
+                })
             })
-        })
-        .context("Failed to query checkpoints")?
-        .collect::<Result<Vec<_>, _>>()
-        .context("Failed to collect checkpoints")?;
+            .context("Failed to query checkpoints")?
+            .collect::<Result<Vec<_>, _>>()
+            .context("Failed to collect checkpoints")?;
 
         Ok(checkpoints)
     }
@@ -534,22 +549,22 @@ impl CheckpointManager {
     /// Clean up stale checkpoints older than max_age
     pub fn cleanup_stale(&mut self, max_age: Duration) -> Result<usize> {
         let cutoff = Utc::now() - max_age;
-        let deleted = self.conn.execute(
-            "DELETE FROM checkpoints WHERE updated_at < ?1",
-            params![cutoff.to_rfc3339()],
-        )
-        .context("Failed to cleanup stale checkpoints")?;
+        let deleted = self
+            .conn
+            .execute(
+                "DELETE FROM checkpoints WHERE updated_at < ?1",
+                params![cutoff.to_rfc3339()],
+            )
+            .context("Failed to cleanup stale checkpoints")?;
 
         Ok(deleted)
     }
 
     /// Get database statistics
     pub fn stats(&self) -> Result<CheckpointStats> {
-        let total: i64 = self.conn.query_row(
-            "SELECT COUNT(*) FROM checkpoints",
-            [],
-            |row| row.get(0),
-        )?;
+        let total: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM checkpoints", [], |row| row.get(0))?;
 
         let size_bytes = std::fs::metadata(&self.db_path)
             .map(|m| m.len())
@@ -564,7 +579,8 @@ impl CheckpointManager {
 
     /// Vacuum the database to reclaim space
     pub fn vacuum(&self) -> Result<()> {
-        self.conn.execute("VACUUM", [])
+        self.conn
+            .execute("VACUUM", [])
             .context("Failed to vacuum database")?;
         Ok(())
     }
@@ -748,6 +764,10 @@ mod tests {
         let elapsed = start.elapsed();
 
         // Must complete in <100ms as per spec
-        assert!(elapsed.as_millis() < 100, "Checkpoint save took {}ms", elapsed.as_millis());
+        assert!(
+            elapsed.as_millis() < 100,
+            "Checkpoint save took {}ms",
+            elapsed.as_millis()
+        );
     }
 }

@@ -5,24 +5,17 @@
 /// - Loading and resuming
 /// - Error handling and recovery
 /// - Stale checkpoint cleanup
-
 mod common;
 
-use sayonara_wipe::error::checkpoint::{Checkpoint, CheckpointManager};
-use chrono::{Duration, Utc};
 use anyhow::Result;
+use chrono::{Duration, Utc};
+use sayonara_wipe::error::checkpoint::{Checkpoint, CheckpointManager};
 
 #[test]
 fn test_checkpoint_creation_and_save() -> Result<()> {
     let mut manager = CheckpointManager::new(None)?;
 
-    let checkpoint = Checkpoint::new(
-        "/dev/sda",
-        "Gutmann",
-        "test-op-001",
-        35,
-        500_000_000_000,
-    );
+    let checkpoint = Checkpoint::new("/dev/sda", "Gutmann", "test-op-001", 35, 500_000_000_000);
 
     assert_eq!(checkpoint.device_path, "/dev/sda");
     assert_eq!(checkpoint.algorithm, "Gutmann");
@@ -40,13 +33,7 @@ fn test_checkpoint_load_and_resume() -> Result<()> {
     let mut manager = CheckpointManager::new(None)?;
 
     // Create and save initial checkpoint
-    let mut checkpoint = Checkpoint::new(
-        "/dev/sda",
-        "Gutmann",
-        "test-op-002",
-        35,
-        500_000_000_000,
-    );
+    let mut checkpoint = Checkpoint::new("/dev/sda", "Gutmann", "test-op-002", 35, 500_000_000_000);
 
     checkpoint.update_progress(10, 150_000_000_000);
     manager.save(&checkpoint)?;
@@ -68,13 +55,7 @@ fn test_checkpoint_load_and_resume() -> Result<()> {
 fn test_checkpoint_update_progress() -> Result<()> {
     let mut manager = CheckpointManager::new(None)?;
 
-    let mut checkpoint = Checkpoint::new(
-        "/dev/sdb",
-        "DoD",
-        "test-op-003",
-        3,
-        250_000_000_000,
-    );
+    let mut checkpoint = Checkpoint::new("/dev/sdb", "DoD", "test-op-003", 3, 250_000_000_000);
 
     // Initial state
     assert_eq!(checkpoint.current_pass, 0);
@@ -99,45 +80,42 @@ fn test_checkpoint_update_progress() -> Result<()> {
 fn test_checkpoint_error_recording() -> Result<()> {
     let mut manager = CheckpointManager::new(None)?;
 
-    let mut checkpoint = Checkpoint::new(
-        "/dev/sdc",
-        "Random",
-        "test-op-004",
-        1,
-        100_000_000_000,
-    );
+    let mut checkpoint = Checkpoint::new("/dev/sdc", "Random", "test-op-004", 1, 100_000_000_000);
 
     // Record first error
     checkpoint.record_error("I/O error at sector 12345");
     assert_eq!(checkpoint.error_count, 1);
-    assert_eq!(checkpoint.last_error, Some("I/O error at sector 12345".to_string()));
+    assert_eq!(
+        checkpoint.last_error,
+        Some("I/O error at sector 12345".to_string())
+    );
 
     manager.save(&checkpoint)?;
 
     // Record second error
     checkpoint.record_error("Timeout waiting for device");
     assert_eq!(checkpoint.error_count, 2);
-    assert_eq!(checkpoint.last_error, Some("Timeout waiting for device".to_string()));
+    assert_eq!(
+        checkpoint.last_error,
+        Some("Timeout waiting for device".to_string())
+    );
 
     manager.save(&checkpoint)?;
 
     // Verify persistence
     let loaded = manager.load("/dev/sdc", "Random")?.unwrap();
     assert_eq!(loaded.error_count, 2);
-    assert_eq!(loaded.last_error, Some("Timeout waiting for device".to_string()));
+    assert_eq!(
+        loaded.last_error,
+        Some("Timeout waiting for device".to_string())
+    );
 
     Ok(())
 }
 
 #[test]
 fn test_checkpoint_completion_percentage() -> Result<()> {
-    let mut checkpoint = Checkpoint::new(
-        "/dev/sdd",
-        "Zero",
-        "test-op-005",
-        1,
-        1_000_000_000,
-    );
+    let mut checkpoint = Checkpoint::new("/dev/sdd", "Zero", "test-op-005", 1, 1_000_000_000);
 
     // 0% complete
     assert_eq!(checkpoint.completion_percentage(), 0.0);
@@ -161,13 +139,7 @@ fn test_checkpoint_completion_percentage() -> Result<()> {
 fn test_checkpoint_delete() -> Result<()> {
     let mut manager = CheckpointManager::new(None)?;
 
-    let checkpoint = Checkpoint::new(
-        "/dev/sde",
-        "Gutmann",
-        "test-op-006",
-        35,
-        500_000_000_000,
-    );
+    let checkpoint = Checkpoint::new("/dev/sde", "Gutmann", "test-op-006", 35, 500_000_000_000);
 
     manager.save(&checkpoint)?;
 
@@ -189,13 +161,7 @@ fn test_checkpoint_delete() -> Result<()> {
 fn test_checkpoint_delete_by_device() -> Result<()> {
     let mut manager = CheckpointManager::new(None)?;
 
-    let checkpoint = Checkpoint::new(
-        "/dev/sdf",
-        "DoD",
-        "test-op-007",
-        3,
-        250_000_000_000,
-    );
+    let checkpoint = Checkpoint::new("/dev/sdf", "DoD", "test-op-007", 3, 250_000_000_000);
 
     manager.save(&checkpoint)?;
 
@@ -244,13 +210,8 @@ fn test_checkpoint_stale_cleanup() -> Result<()> {
     let mut manager = CheckpointManager::new(None)?;
 
     // Create an old checkpoint (simulate by setting old timestamp)
-    let mut old_checkpoint = Checkpoint::new(
-        "/dev/sdj",
-        "Gutmann",
-        "old-op-011",
-        35,
-        500_000_000_000,
-    );
+    let mut old_checkpoint =
+        Checkpoint::new("/dev/sdj", "Gutmann", "old-op-011", 35, 500_000_000_000);
 
     // Set created_at to 40 days ago
     old_checkpoint.created_at = Utc::now() - Duration::days(40);
@@ -258,13 +219,7 @@ fn test_checkpoint_stale_cleanup() -> Result<()> {
     manager.save(&old_checkpoint)?;
 
     // Create a recent checkpoint
-    let recent_checkpoint = Checkpoint::new(
-        "/dev/sdk",
-        "DoD",
-        "recent-op-012",
-        3,
-        250_000_000_000,
-    );
+    let recent_checkpoint = Checkpoint::new("/dev/sdk", "DoD", "recent-op-012", 3, 250_000_000_000);
     manager.save(&recent_checkpoint)?;
 
     // Clean up checkpoints older than 30 days
@@ -324,10 +279,7 @@ fn test_checkpoint_should_save_logic() -> Result<()> {
     let mut manager = CheckpointManager::new(None)?;
 
     // Set intervals: 100 milliseconds time interval, 1MB bytes interval
-    manager.set_intervals(
-        std::time::Duration::from_millis(100),
-        1024 * 1024,
-    );
+    manager.set_intervals(std::time::Duration::from_millis(100), 1024 * 1024);
 
     // Initially should NOT save (no time has passed, no bytes written)
     assert!(!manager.should_save(0));
@@ -348,13 +300,7 @@ fn test_checkpoint_should_save_logic() -> Result<()> {
 
 #[test]
 fn test_checkpoint_progress_description() -> Result<()> {
-    let mut checkpoint = Checkpoint::new(
-        "/dev/sdm",
-        "Gutmann",
-        "op-015",
-        35,
-        1_000_000_000,
-    );
+    let mut checkpoint = Checkpoint::new("/dev/sdm", "Gutmann", "op-015", 35, 1_000_000_000);
 
     checkpoint.update_progress(10, 300_000_000);
 
@@ -375,9 +321,6 @@ fn test_checkpoint_progress_description() -> Result<()> {
 
 #[test]
 fn test_checkpoint_concurrent_access() -> Result<()> {
-    use std::sync::Arc;
-    use std::thread;
-
     // Create a manager with file-based database for concurrent access test
     let temp_dir = tempfile::tempdir()?;
     let db_path = temp_dir.path().join("concurrent_test.db");
@@ -385,13 +328,7 @@ fn test_checkpoint_concurrent_access() -> Result<()> {
     let mut manager1 = CheckpointManager::new(Some(db_path.to_str().unwrap()))?;
 
     // Save checkpoint from first manager
-    let checkpoint = Checkpoint::new(
-        "/dev/sdn",
-        "DoD",
-        "concurrent-op-016",
-        3,
-        100_000_000_000,
-    );
+    let checkpoint = Checkpoint::new("/dev/sdn", "DoD", "concurrent-op-016", 3, 100_000_000_000);
     manager1.save(&checkpoint)?;
 
     // Load from second manager (different connection)

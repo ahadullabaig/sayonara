@@ -1,9 +1,9 @@
+#![allow(dead_code)]
 /// Test assertion helpers for mock drive verification
 ///
 /// Provides reusable assertion functions for validating wipe operations
 /// across different drive types and test scenarios.
-
-use super::mock_drive_v2::{MockDrive, MockDriveStats};
+use super::mock_drive_v2::MockDrive;
 use anyhow::Result;
 
 /// Assert that wipe completed successfully with expected number of passes
@@ -105,10 +105,7 @@ pub fn assert_stats_reasonable(mock: &MockDrive) -> Result<()> {
     let stats = mock.stats();
 
     // Check that some data was written
-    anyhow::ensure!(
-        stats.bytes_written > 0,
-        "No data was written to drive"
-    );
+    anyhow::ensure!(stats.bytes_written > 0, "No data was written to drive");
 
     // Check temperature is in reasonable range
     anyhow::ensure!(
@@ -127,8 +124,16 @@ pub fn print_mock_stats(mock: &MockDrive, label: &str) {
     println!("  Model: {}", mock.config.model);
     println!("  Type: {:?}", mock.config.drive_type);
     println!("  Size: {} MB", mock.config.size / (1024 * 1024));
-    println!("  Bytes Written: {} ({} MB)", stats.bytes_written, stats.bytes_written / (1024 * 1024));
-    println!("  Bytes Read: {} ({} MB)", stats.bytes_read, stats.bytes_read / (1024 * 1024));
+    println!(
+        "  Bytes Written: {} ({} MB)",
+        stats.bytes_written,
+        stats.bytes_written / (1024 * 1024)
+    );
+    println!(
+        "  Bytes Read: {} ({} MB)",
+        stats.bytes_read,
+        stats.bytes_read / (1024 * 1024)
+    );
     println!("  Write Count: {}", stats.write_count);
     println!("  Temperature: {} °C", stats.current_temperature);
     println!("  Errors: {}", stats.error_count);

@@ -11,12 +11,20 @@ mod tests {
         // All zeros - minimum entropy
         let zeros = vec![0u8; 10000];
         let entropy = EnhancedVerification::calculate_entropy(&zeros).unwrap();
-        assert!(entropy < 0.1, "All zeros should have near-zero entropy, got {}", entropy);
+        assert!(
+            entropy < 0.1,
+            "All zeros should have near-zero entropy, got {}",
+            entropy
+        );
 
         // All ones - minimum entropy
         let ones = vec![0xFF; 10000];
         let entropy = EnhancedVerification::calculate_entropy(&ones).unwrap();
-        assert!(entropy < 0.1, "All ones should have near-zero entropy, got {}", entropy);
+        assert!(
+            entropy < 0.1,
+            "All ones should have near-zero entropy, got {}",
+            entropy
+        );
 
         // Perfect distribution - maximum entropy
         let mut perfect = Vec::new();
@@ -26,14 +34,22 @@ mod tests {
             }
         }
         let entropy = EnhancedVerification::calculate_entropy(&perfect).unwrap();
-        assert!(entropy > 7.99, "Perfect distribution should have ~8 bits entropy, got {}", entropy);
+        assert!(
+            entropy > 7.99,
+            "Perfect distribution should have ~8 bits entropy, got {}",
+            entropy
+        );
 
         // Random data - high entropy
         use crate::crypto::secure_rng::secure_random_bytes;
         let mut random = vec![0u8; 10000];
         secure_random_bytes(&mut random).unwrap();
         let entropy = EnhancedVerification::calculate_entropy(&random).unwrap();
-        assert!(entropy > 7.5, "Random data should have high entropy, got {}", entropy);
+        assert!(
+            entropy > 7.5,
+            "Random data should have high entropy, got {}",
+            entropy
+        );
     }
 
     #[test]
@@ -58,7 +74,11 @@ mod tests {
         let chi_square = EnhancedVerification::chi_square_test(&data).unwrap();
 
         // Chi-square should be close to 0 for perfect uniform distribution
-        assert!(chi_square < 300.0, "Chi-square too high for uniform distribution: {}", chi_square);
+        assert!(
+            chi_square < 300.0,
+            "Chi-square too high for uniform distribution: {}",
+            chi_square
+        );
     }
 
     #[test]
@@ -68,7 +88,11 @@ mod tests {
         let chi_square = EnhancedVerification::chi_square_test(&data).unwrap();
 
         // Chi-square should be very high
-        assert!(chi_square > 1000.0, "Chi-square should be high for non-uniform distribution: {}", chi_square);
+        assert!(
+            chi_square > 1000.0,
+            "Chi-square should be high for non-uniform distribution: {}",
+            chi_square
+        );
     }
 
     // ==================== PATTERN ANALYSIS TESTS ====================
@@ -83,7 +107,10 @@ mod tests {
         }
 
         let analysis = EnhancedVerification::analyze_patterns(&data)?;
-        assert!(analysis.repeating_patterns_found, "Should detect repeating patterns");
+        assert!(
+            analysis.repeating_patterns_found,
+            "Should detect repeating patterns"
+        );
 
         Ok(())
     }
@@ -99,8 +126,14 @@ mod tests {
         data[5000..5003].copy_from_slice(b"\xFF\xD8\xFF");
 
         let analysis = EnhancedVerification::analyze_patterns(&data)?;
-        assert!(analysis.known_file_signatures, "Should detect file signatures");
-        assert!(analysis.detected_signatures.len() >= 2, "Should find at least 2 signatures");
+        assert!(
+            analysis.known_file_signatures,
+            "Should detect file signatures"
+        );
+        assert!(
+            analysis.detected_signatures.len() >= 2,
+            "Should find at least 2 signatures"
+        );
 
         Ok(())
     }
@@ -116,11 +149,16 @@ mod tests {
         // Random data should not have known file signatures
         // (extremely unlikely, but possible by chance)
         // We test for the absence of common signatures
-        let common_sigs = analysis.detected_signatures.iter()
+        let common_sigs = analysis
+            .detected_signatures
+            .iter()
             .filter(|s| s.signature_name == "PDF" || s.signature_name == "JPEG")
             .count();
 
-        assert_eq!(common_sigs, 0, "Random data should not have common file signatures");
+        assert_eq!(
+            common_sigs, 0,
+            "Random data should not have common file signatures"
+        );
 
         Ok(())
     }
@@ -215,8 +253,10 @@ mod tests {
         let mut data = vec![0u8; 1000];
         data[100..108].copy_from_slice(b"PASSWORD");
 
-        assert!(EnhancedVerification::detect_suspicious_data(&data),
-                "Should detect PASSWORD string");
+        assert!(
+            EnhancedVerification::detect_suspicious_data(&data),
+            "Should detect PASSWORD string"
+        );
     }
 
     #[test]
@@ -225,8 +265,10 @@ mod tests {
         let mut data = vec![0u8; 1000];
         secure_random_bytes(&mut data).unwrap();
 
-        assert!(!EnhancedVerification::detect_suspicious_data(&data),
-                "Random data should not be flagged as suspicious");
+        assert!(
+            !EnhancedVerification::detect_suspicious_data(&data),
+            "Random data should not be flagged as suspicious"
+        );
     }
 
     #[test]
@@ -234,8 +276,10 @@ mod tests {
         // Low entropy data (structured)
         let data = vec![0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF].repeat(100);
 
-        assert!(EnhancedVerification::detect_suspicious_data(&data),
-                "Low entropy data should be flagged as suspicious");
+        assert!(
+            EnhancedVerification::detect_suspicious_data(&data),
+            "Low entropy data should be flagged as suspicious"
+        );
     }
 
     // ==================== FILE SIGNATURE TESTS ====================
@@ -244,18 +288,22 @@ mod tests {
     fn test_file_signature_database_completeness() {
         let signatures = EnhancedVerification::FILE_SIGNATURES;
 
-        assert!(signatures.len() >= 30, "Should have at least 30 file signatures");
+        assert!(
+            signatures.len() >= 30,
+            "Should have at least 30 file signatures"
+        );
 
         // Check for key signatures
-        let signature_names: Vec<&str> = signatures.iter()
-            .map(|s| s.name)
-            .collect();
+        let signature_names: Vec<&str> = signatures.iter().map(|s| s.name).collect();
 
         assert!(signature_names.contains(&"PDF"), "Should include PDF");
         assert!(signature_names.contains(&"JPEG"), "Should include JPEG");
         assert!(signature_names.contains(&"PNG"), "Should include PNG");
         assert!(signature_names.contains(&"ZIP"), "Should include ZIP");
-        assert!(signature_names.contains(&"Windows EXE"), "Should include EXE");
+        assert!(
+            signature_names.contains(&"Windows EXE"),
+            "Should include EXE"
+        );
         assert!(signature_names.contains(&"Linux ELF"), "Should include ELF");
     }
 
@@ -264,10 +312,16 @@ mod tests {
         let signatures = EnhancedVerification::FILE_SIGNATURES;
 
         for sig in signatures {
-            assert!(sig.confidence >= 0.0 && sig.confidence <= 1.0,
-                    "Confidence for {} should be between 0 and 1", sig.name);
-            assert!(!sig.pattern.is_empty(),
-                    "Pattern for {} should not be empty", sig.name);
+            assert!(
+                sig.confidence >= 0.0 && sig.confidence <= 1.0,
+                "Confidence for {} should be between 0 and 1",
+                sig.name
+            );
+            assert!(
+                !sig.pattern.is_empty(),
+                "Pattern for {} should not be empty",
+                sig.name
+            );
         }
     }
 
@@ -299,12 +353,8 @@ mod tests {
             ntfs_mft: false,
         };
 
-        let risk = EnhancedVerification::calculate_recovery_risk(
-            &photorec,
-            &testdisk,
-            &filesystem,
-            None,
-        );
+        let risk =
+            EnhancedVerification::calculate_recovery_risk(&photorec, &testdisk, &filesystem, None);
 
         assert_eq!(risk, RecoveryRisk::None, "Should have no recovery risk");
     }
@@ -313,14 +363,12 @@ mod tests {
     fn test_recovery_risk_critical() {
         let photorec = PhotoRecResults {
             signatures_scanned: 50,
-            signatures_found: vec![
-                FileSignatureMatch {
-                    signature_name: "PDF".to_string(),
-                    offset: 1000,
-                    pattern_length: 4,
-                    confidence: 0.99,
-                },
-            ],
+            signatures_found: vec![FileSignatureMatch {
+                signature_name: "PDF".to_string(),
+                offset: 1000,
+                pattern_length: 4,
+                confidence: 0.99,
+            }],
             recoverable_files_estimated: 100,
             confidence: 0.95,
             would_succeed: true,
@@ -342,15 +390,14 @@ mod tests {
             ntfs_mft: true,
         };
 
-        let risk = EnhancedVerification::calculate_recovery_risk(
-            &photorec,
-            &testdisk,
-            &filesystem,
-            None,
-        );
+        let risk =
+            EnhancedVerification::calculate_recovery_risk(&photorec, &testdisk, &filesystem, None);
 
-        assert!(matches!(risk, RecoveryRisk::High | RecoveryRisk::Critical),
-                "Should have high or critical recovery risk, got {:?}", risk);
+        assert!(
+            matches!(risk, RecoveryRisk::High | RecoveryRisk::Critical),
+            "Should have high or critical recovery risk, got {:?}",
+            risk
+        );
     }
 
     // ==================== CONFIDENCE LEVEL TESTS ====================
@@ -370,7 +417,11 @@ mod tests {
         let confidence = EnhancedVerification::calculate_confidence_level(&pre_wipe, &post_wipe);
 
         // Perfect conditions should yield very high confidence (typically 94-100%)
-        assert!(confidence >= 93.0, "Perfect wipe should have >=93% confidence, got {}", confidence);
+        assert!(
+            confidence >= 93.0,
+            "Perfect wipe should have >=93% confidence, got {}",
+            confidence
+        );
     }
 
     #[test]
@@ -387,7 +438,11 @@ mod tests {
 
         let confidence = EnhancedVerification::calculate_confidence_level(&pre_wipe, &post_wipe);
 
-        assert!(confidence < 50.0, "Poor wipe should have <50% confidence, got {}", confidence);
+        assert!(
+            confidence < 50.0,
+            "Poor wipe should have <50% confidence, got {}",
+            confidence
+        );
     }
 
     // ==================== HEAT MAP TESTS ====================
@@ -434,7 +489,10 @@ mod tests {
         let post_wipe = create_poor_post_wipe_analysis();
         let standards = EnhancedVerification::determine_compliance(&post_wipe, 70.0);
 
-        assert!(standards.len() < 3, "Should meet few standards at low confidence");
+        assert!(
+            standards.len() < 3,
+            "Should meet few standards at low confidence"
+        );
     }
 
     // ==================== HELPER FUNCTIONS ====================
@@ -520,14 +578,12 @@ mod tests {
                 known_file_signatures: true,
                 structured_data_detected: true,
                 compression_ratio: 0.5,
-                detected_signatures: vec![
-                    FileSignatureMatch {
-                        signature_name: "PDF".to_string(),
-                        offset: 1000,
-                        pattern_length: 4,
-                        confidence: 0.99,
-                    },
-                ],
+                detected_signatures: vec![FileSignatureMatch {
+                    signature_name: "PDF".to_string(),
+                    offset: 1000,
+                    pattern_length: 4,
+                    confidence: 0.99,
+                }],
             },
             statistical_tests: StatisticalTests {
                 runs_test_passed: false,
@@ -558,14 +614,12 @@ mod tests {
             recovery_simulation: RecoverySimulationResults {
                 photorec_results: PhotoRecResults {
                     signatures_scanned: 50,
-                    signatures_found: vec![
-                        FileSignatureMatch {
-                            signature_name: "PDF".to_string(),
-                            offset: 1000,
-                            pattern_length: 4,
-                            confidence: 0.99,
-                        },
-                    ],
+                    signatures_found: vec![FileSignatureMatch {
+                        signature_name: "PDF".to_string(),
+                        offset: 1000,
+                        pattern_length: 4,
+                        confidence: 0.99,
+                    }],
                     recoverable_files_estimated: 100,
                     confidence: 0.95,
                     would_succeed: true,

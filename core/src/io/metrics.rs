@@ -1,7 +1,7 @@
 // Performance metrics tracking for I/O operations
 
-use std::time::{Duration, Instant};
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 /// Real-time I/O metrics
 #[derive(Debug, Clone)]
@@ -198,15 +198,20 @@ impl PerformanceStats {
     pub fn print(&self) {
         println!("I/O Performance Statistics:");
         println!("  ⏱️  Elapsed: {:.2}s", self.elapsed.as_secs_f64());
-        println!("  📊 Bytes Processed: {} ({:.2} GB)",
-                 self.bytes_processed,
-                 self.bytes_processed as f64 / (1024.0 * 1024.0 * 1024.0));
+        println!(
+            "  📊 Bytes Processed: {} ({:.2} GB)",
+            self.bytes_processed,
+            self.bytes_processed as f64 / (1024.0 * 1024.0 * 1024.0)
+        );
         println!("  🔄 Operations: {}", self.operations_count);
         println!("  ❌ Errors: {}", self.errors);
         println!("  ⚡ Throughput: {}", self.throughput_human());
         println!("  🎯 IOPS: {}", self.iops_human());
         println!("  ⏲️  Latency:");
-        println!("     Average: {:.2}ms", self.avg_latency.as_secs_f64() * 1000.0);
+        println!(
+            "     Average: {:.2}ms",
+            self.avg_latency.as_secs_f64() * 1000.0
+        );
         println!("     P50: {:.2}ms", self.p50_latency.as_secs_f64() * 1000.0);
         println!("     P95: {:.2}ms", self.p95_latency.as_secs_f64() * 1000.0);
         println!("     P99: {:.2}ms", self.p99_latency.as_secs_f64() * 1000.0);
@@ -248,7 +253,10 @@ impl PerformanceTuner {
         self.tune_if_needed(&current_stats);
 
         // Return current parameters
-        (*self.buffer_size.lock().unwrap(), *self.queue_depth.lock().unwrap())
+        (
+            *self.buffer_size.lock().unwrap(),
+            *self.queue_depth.lock().unwrap(),
+        )
     }
 
     /// Adaptive tuning based on performance
@@ -263,12 +271,16 @@ impl PerformanceTuner {
             let current = stats.throughput_bps;
 
             // If throughput is degrading, try increasing buffer size
-            if current < baseline_throughput * 8 / 10 {  // < 80% of baseline
+            if current < baseline_throughput * 8 / 10 {
+                // < 80% of baseline
                 let mut buffer_size = self.buffer_size.lock().unwrap();
-                if *buffer_size < 16 * 1024 * 1024 {  // Max 16MB
+                if *buffer_size < 16 * 1024 * 1024 {
+                    // Max 16MB
                     *buffer_size *= 2;
-                    println!("📈 Tuning: Increased buffer size to {} MB",
-                             *buffer_size / (1024 * 1024));
+                    println!(
+                        "📈 Tuning: Increased buffer size to {} MB",
+                        *buffer_size / (1024 * 1024)
+                    );
                 }
             }
 
@@ -276,7 +288,7 @@ impl PerformanceTuner {
             if stats.avg_latency > Duration::from_millis(100) {
                 let mut queue_depth = self.queue_depth.lock().unwrap();
                 if *queue_depth > 2 {
-                    *queue_depth = (*queue_depth * 3) / 4;  // Reduce by 25%
+                    *queue_depth = (*queue_depth * 3) / 4; // Reduce by 25%
                     println!("📉 Tuning: Reduced queue depth to {}", *queue_depth);
                 }
             }

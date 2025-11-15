@@ -25,7 +25,10 @@ pub struct HPADCOManager;
 impl HPADCOManager {
     /// Detect and return HPA information
     pub fn detect_hpa(device_path: &str) -> DriveResult<Option<HPAInfo>> {
-        println!("Checking for Hidden Protected Area (HPA) on {}...", device_path);
+        println!(
+            "Checking for Hidden Protected Area (HPA) on {}...",
+            device_path
+        );
 
         // Get native max address
         let native_max = Self::get_native_max_address(device_path)?;
@@ -37,8 +40,10 @@ impl HPADCOManager {
             let hidden_sectors = native_max - current_max;
             let hidden_bytes = hidden_sectors * 512; // Assuming 512-byte sectors
 
-            println!("HPA detected: {} sectors ({} bytes) hidden",
-                     hidden_sectors, hidden_bytes);
+            println!(
+                "HPA detected: {} sectors ({} bytes) hidden",
+                hidden_sectors, hidden_bytes
+            );
 
             Ok(Some(HPAInfo {
                 enabled: true,
@@ -55,7 +60,10 @@ impl HPADCOManager {
 
     /// Detect and return DCO information
     pub fn detect_dco(device_path: &str) -> DriveResult<Option<DCOInfo>> {
-        println!("Checking for Device Configuration Overlay (DCO) on {}...", device_path);
+        println!(
+            "Checking for Device Configuration Overlay (DCO) on {}...",
+            device_path
+        );
 
         // Check if DCO is supported and enabled
         let dco_status = Self::get_dco_status(device_path)?;
@@ -65,8 +73,10 @@ impl HPADCOManager {
                 let hidden_sectors = real_max - dco_max;
                 let hidden_bytes = hidden_sectors * 512;
 
-                println!("DCO detected: {} sectors ({} bytes) hidden",
-                         hidden_sectors, hidden_bytes);
+                println!(
+                    "DCO detected: {} sectors ({} bytes) hidden",
+                    hidden_sectors, hidden_bytes
+                );
 
                 return Ok(Some(DCOInfo {
                     enabled: true,
@@ -90,17 +100,23 @@ impl HPADCOManager {
 
         // Use hdparm to set max address to native max
         let output = Command::new("hdparm")
-            .args(["--yes-i-know-what-i-am-doing", "-N", &format!("{}", native_max), device_path])
+            .args([
+                "--yes-i-know-what-i-am-doing",
+                "-N",
+                &format!("{}", native_max),
+                device_path,
+            ])
             .output()
-            .map_err(|e| DriveError::HardwareCommandFailed(
-                format!("Failed to remove HPA: {}", e)
-            ))?;
+            .map_err(|e| {
+                DriveError::HardwareCommandFailed(format!("Failed to remove HPA: {}", e))
+            })?;
 
         if !output.status.success() {
             let error = String::from_utf8_lossy(&output.stderr);
-            return Err(DriveError::HardwareCommandFailed(
-                format!("Failed to remove HPA: {}", error)
-            ));
+            return Err(DriveError::HardwareCommandFailed(format!(
+                "Failed to remove HPA: {}",
+                error
+            )));
         }
 
         println!("HPA temporarily removed. Full capacity now accessible.");
@@ -109,20 +125,29 @@ impl HPADCOManager {
 
     /// Restore HPA to original settings
     pub fn restore_hpa(device_path: &str, original_max_sectors: u64) -> DriveResult<()> {
-        println!("Restoring HPA on {} to {} sectors...", device_path, original_max_sectors);
+        println!(
+            "Restoring HPA on {} to {} sectors...",
+            device_path, original_max_sectors
+        );
 
         let output = Command::new("hdparm")
-            .args(["--yes-i-know-what-i-am-doing", "-N", &format!("{}", original_max_sectors), device_path])
+            .args([
+                "--yes-i-know-what-i-am-doing",
+                "-N",
+                &format!("{}", original_max_sectors),
+                device_path,
+            ])
             .output()
-            .map_err(|e| DriveError::HardwareCommandFailed(
-                format!("Failed to restore HPA: {}", e)
-            ))?;
+            .map_err(|e| {
+                DriveError::HardwareCommandFailed(format!("Failed to restore HPA: {}", e))
+            })?;
 
         if !output.status.success() {
             let error = String::from_utf8_lossy(&output.stderr);
-            return Err(DriveError::HardwareCommandFailed(
-                format!("Failed to restore HPA: {}", error)
-            ));
+            return Err(DriveError::HardwareCommandFailed(format!(
+                "Failed to restore HPA: {}",
+                error
+            )));
         }
 
         println!("HPA restored to original configuration");
@@ -139,9 +164,9 @@ impl HPADCOManager {
         let output = Command::new("hdparm")
             .args(["--dco-restore", device_path])
             .output()
-            .map_err(|e| DriveError::HardwareCommandFailed(
-                format!("Failed to remove DCO: {}", e)
-            ))?;
+            .map_err(|e| {
+                DriveError::HardwareCommandFailed(format!("Failed to remove DCO: {}", e))
+            })?;
 
         if !output.status.success() {
             // Try alternative method with HDIO_DRIVE_CMD
@@ -157,9 +182,12 @@ impl HPADCOManager {
         let output = Command::new("hdparm")
             .args(["-N", device_path])
             .output()
-            .map_err(|e| DriveError::HardwareCommandFailed(
-                format!("Failed to get native max address: {}", e)
-            ))?;
+            .map_err(|e| {
+                DriveError::HardwareCommandFailed(format!(
+                    "Failed to get native max address: {}",
+                    e
+                ))
+            })?;
 
         let output_str = String::from_utf8_lossy(&output.stdout);
 
@@ -190,9 +218,9 @@ impl HPADCOManager {
         let output = Command::new("hdparm")
             .args(["-N", device_path])
             .output()
-            .map_err(|e| DriveError::HardwareCommandFailed(
-                format!("Failed to get max address: {}", e)
-            ))?;
+            .map_err(|e| {
+                DriveError::HardwareCommandFailed(format!("Failed to get max address: {}", e))
+            })?;
 
         let output_str = String::from_utf8_lossy(&output.stdout);
 
@@ -261,14 +289,13 @@ impl HPADCOManager {
     /// Extract number from a line of text
     pub(crate) fn extract_number_from_line(line: &str) -> Option<u64> {
         // Find all numeric sequences in the line
-        let parts: Vec<&str> = line.split(|c: char| !c.is_numeric())
+        let parts: Vec<&str> = line
+            .split(|c: char| !c.is_numeric())
             .filter(|s| !s.is_empty())
             .collect();
 
         // Return the largest number (likely the sector count)
-        parts.iter()
-            .filter_map(|s| s.parse::<u64>().ok())
-            .max()
+        parts.iter().filter_map(|s| s.parse::<u64>().ok()).max()
     }
 
     /// Remove DCO via direct ATA command
@@ -291,7 +318,7 @@ impl HPADCOManager {
         }
 
         Err(DriveError::HardwareCommandFailed(
-            "DCO removal not supported or failed".to_string()
+            "DCO removal not supported or failed".to_string(),
         ))
     }
 
@@ -300,9 +327,9 @@ impl HPADCOManager {
         let output = Command::new("smartctl")
             .args(["-i", device_path])
             .output()
-            .map_err(|e| DriveError::HardwareCommandFailed(
-                format!("Failed to get drive info: {}", e)
-            ))?;
+            .map_err(|e| {
+                DriveError::HardwareCommandFailed(format!("Failed to get drive info: {}", e))
+            })?;
 
         let output_str = String::from_utf8_lossy(&output.stdout);
 
@@ -313,7 +340,8 @@ impl HPADCOManager {
                 // "User Capacity: 512,110,190,592 bytes [512 GB]"
                 if let Some(bytes_str) = line.split("bytes").next() {
                     if let Some(num_part) = bytes_str.split(':').nth(1) {
-                        let clean_num = num_part.chars()
+                        let clean_num = num_part
+                            .chars()
                             .filter(|c| c.is_numeric())
                             .collect::<String>();
                         if let Ok(bytes) = clean_num.parse::<u64>() {
@@ -333,15 +361,14 @@ impl HPADCOManager {
         let output = Command::new("blockdev")
             .args(["--getsz", device_path])
             .output()
-            .map_err(|e| DriveError::HardwareCommandFailed(
-                format!("Failed to get block device size: {}", e)
-            ))?;
+            .map_err(|e| {
+                DriveError::HardwareCommandFailed(format!("Failed to get block device size: {}", e))
+            })?;
 
         let size_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        size_str.parse::<u64>()
-            .map_err(|e| DriveError::HardwareCommandFailed(
-                format!("Failed to parse block device size: {}", e)
-            ))
+        size_str.parse::<u64>().map_err(|e| {
+            DriveError::HardwareCommandFailed(format!("Failed to parse block device size: {}", e))
+        })
     }
 
     /// Calculate actual usable space considering HPA and DCO
@@ -362,7 +389,9 @@ impl HPADCOManager {
     }
 
     /// Comprehensive check for hidden areas
-    pub fn check_hidden_areas(device_path: &str) -> DriveResult<(Option<HPAInfo>, Option<DCOInfo>)> {
+    pub fn check_hidden_areas(
+        device_path: &str,
+    ) -> DriveResult<(Option<HPAInfo>, Option<DCOInfo>)> {
         let hpa = Self::detect_hpa(device_path)?;
         let dco = Self::detect_dco(device_path)?;
 

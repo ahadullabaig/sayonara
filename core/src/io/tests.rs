@@ -1,10 +1,10 @@
 #[cfg(test)]
 mod tests {
-    use crate::io::*;
-    use tempfile::NamedTempFile;
-    use std::time::Instant;
     use crate::io::metrics::PerformanceTuner;
+    use crate::io::*;
     use serial_test::serial;
+    use std::time::Instant;
+    use tempfile::NamedTempFile;
 
     type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
@@ -20,7 +20,7 @@ mod tests {
         // Use buffered I/O for testing (Direct I/O requires block device)
         let mut config = IOConfig::default();
         config.use_direct_io = false;
-        config.initial_buffer_size = 1 * 1024 * 1024;  // 1MB for test
+        config.initial_buffer_size = 1 * 1024 * 1024; // 1MB for test
 
         let mut handle = OptimizedIO::open(path, config)?;
 
@@ -38,7 +38,10 @@ mod tests {
         let elapsed = start.elapsed();
         let throughput = test_size as f64 / elapsed.as_secs_f64();
 
-        println!("Test throughput: {:.2} MB/s", throughput / (1024.0 * 1024.0));
+        println!(
+            "Test throughput: {:.2} MB/s",
+            throughput / (1024.0 * 1024.0)
+        );
 
         // Check metrics
         let stats = handle.metrics().stats();
@@ -78,10 +81,7 @@ mod tests {
 
         // Record some operations
         for i in 1..=100 {
-            metrics.record_operation(
-                1024,
-                std::time::Duration::from_micros(i * 10)
-            );
+            metrics.record_operation(1024, std::time::Duration::from_micros(i * 10));
         }
 
         let stats = metrics.stats();
@@ -159,10 +159,7 @@ mod tests {
 
         // Record operations with varying latencies
         for i in 1..=1000 {
-            metrics.record_operation(
-                1024,
-                std::time::Duration::from_micros(i)
-            );
+            metrics.record_operation(1024, std::time::Duration::from_micros(i));
         }
 
         let p50 = metrics.latency_percentile(50.0);
@@ -208,7 +205,7 @@ mod tests {
             bytes_processed: 100 * 1024 * 1024,
             operations_count: 100,
             errors: 0,
-            throughput_bps: 10 * 1024 * 1024,  // 10 MB/s
+            throughput_bps: 10 * 1024 * 1024, // 10 MB/s
             iops: 10,
             avg_latency: std::time::Duration::from_millis(100),
             p50_latency: std::time::Duration::from_millis(90),

@@ -1,21 +1,21 @@
-use anyhow::{Result, anyhow};
 use crate::crypto::secure_rng::secure_random_bytes;
-use std::collections::HashMap;
-use std::time::Instant;
+use crate::error::{ErrorContext, Progress, RecoveryCoordinator};
+use crate::io::{IOConfig, IOHandle, OptimizedIO};
 use crate::ui::progress::ProgressBar;
-use crate::io::{OptimizedIO, IOConfig, IOHandle};
 use crate::DriveType;
 use crate::WipeConfig;
-use crate::error::{RecoveryCoordinator, Progress, ErrorContext};
+use anyhow::{anyhow, Result};
 use serde_json::json;
+use std::collections::HashMap;
+use std::time::Instant;
 
 /// Drive encoding types that affect pattern selection
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DriveEncoding {
-    MFM,      // Modified Frequency Modulation (older drives)
-    RLL,      // Run Length Limited (2,7)
-    PRML,     // Partial Response Maximum Likelihood (modern drives)
-    Unknown,  // Default to most comprehensive patterns
+    MFM,     // Modified Frequency Modulation (older drives)
+    RLL,     // Run Length Limited (2,7)
+    PRML,    // Partial Response Maximum Likelihood (modern drives)
+    Unknown, // Default to most comprehensive patterns
 }
 
 pub struct GutmannWipe;
@@ -30,36 +30,34 @@ impl GutmannWipe {
         (None, "Random Pass 2"),
         (None, "Random Pass 3"),
         (None, "Random Pass 4"),
-
         // Passes 5-31: Specific patterns for different encoding schemes
-        (Some(&[0x55]), "0x55 - MFM/RLL encoding"),                    // Pass 5
-        (Some(&[0xAA]), "0xAA - MFM/RLL encoding"),                    // Pass 6
+        (Some(&[0x55]), "0x55 - MFM/RLL encoding"), // Pass 5
+        (Some(&[0xAA]), "0xAA - MFM/RLL encoding"), // Pass 6
         (Some(&[0x92, 0x49, 0x24]), "0x92 0x49 0x24 - MFM specific"), // Pass 7
         (Some(&[0x49, 0x24, 0x92]), "0x49 0x24 0x92 - MFM specific"), // Pass 8
         (Some(&[0x24, 0x92, 0x49]), "0x24 0x92 0x49 - MFM specific"), // Pass 9
-        (Some(&[0x00]), "0x00 - All zeros"),                           // Pass 10
-        (Some(&[0x11]), "0x11 - Pattern"),                             // Pass 11
-        (Some(&[0x22]), "0x22 - Pattern"),                             // Pass 12
-        (Some(&[0x33]), "0x33 - Pattern"),                             // Pass 13
-        (Some(&[0x44]), "0x44 - Pattern"),                             // Pass 14
-        (Some(&[0x55]), "0x55 - Pattern"),                             // Pass 15
-        (Some(&[0x66]), "0x66 - Pattern"),                             // Pass 16
-        (Some(&[0x77]), "0x77 - Pattern"),                             // Pass 17
-        (Some(&[0x88]), "0x88 - Pattern"),                             // Pass 18
-        (Some(&[0x99]), "0x99 - Pattern"),                             // Pass 19
-        (Some(&[0xAA]), "0xAA - Pattern"),                             // Pass 20
-        (Some(&[0xBB]), "0xBB - Pattern"),                             // Pass 21
-        (Some(&[0xCC]), "0xCC - Pattern"),                             // Pass 22
-        (Some(&[0xDD]), "0xDD - Pattern"),                             // Pass 23
-        (Some(&[0xEE]), "0xEE - Pattern"),                             // Pass 24
-        (Some(&[0xFF]), "0xFF - All ones"),                            // Pass 25
-        (Some(&[0x92, 0x49, 0x24]), "RLL (2,7) pattern 1"),           // Pass 26
-        (Some(&[0x49, 0x24, 0x92]), "RLL (2,7) pattern 2"),           // Pass 27
-        (Some(&[0x24, 0x92, 0x49]), "RLL (2,7) pattern 3"),           // Pass 28
-        (Some(&[0x6D, 0xB6, 0xDB]), "RLL (2,7) pattern 4"),           // Pass 29
-        (Some(&[0xB6, 0xDB, 0x6D]), "RLL (2,7) pattern 5"),           // Pass 30
-        (Some(&[0xDB, 0x6D, 0xB6]), "RLL (2,7) pattern 6"),           // Pass 31
-
+        (Some(&[0x00]), "0x00 - All zeros"),        // Pass 10
+        (Some(&[0x11]), "0x11 - Pattern"),          // Pass 11
+        (Some(&[0x22]), "0x22 - Pattern"),          // Pass 12
+        (Some(&[0x33]), "0x33 - Pattern"),          // Pass 13
+        (Some(&[0x44]), "0x44 - Pattern"),          // Pass 14
+        (Some(&[0x55]), "0x55 - Pattern"),          // Pass 15
+        (Some(&[0x66]), "0x66 - Pattern"),          // Pass 16
+        (Some(&[0x77]), "0x77 - Pattern"),          // Pass 17
+        (Some(&[0x88]), "0x88 - Pattern"),          // Pass 18
+        (Some(&[0x99]), "0x99 - Pattern"),          // Pass 19
+        (Some(&[0xAA]), "0xAA - Pattern"),          // Pass 20
+        (Some(&[0xBB]), "0xBB - Pattern"),          // Pass 21
+        (Some(&[0xCC]), "0xCC - Pattern"),          // Pass 22
+        (Some(&[0xDD]), "0xDD - Pattern"),          // Pass 23
+        (Some(&[0xEE]), "0xEE - Pattern"),          // Pass 24
+        (Some(&[0xFF]), "0xFF - All ones"),         // Pass 25
+        (Some(&[0x92, 0x49, 0x24]), "RLL (2,7) pattern 1"), // Pass 26
+        (Some(&[0x49, 0x24, 0x92]), "RLL (2,7) pattern 2"), // Pass 27
+        (Some(&[0x24, 0x92, 0x49]), "RLL (2,7) pattern 3"), // Pass 28
+        (Some(&[0x6D, 0xB6, 0xDB]), "RLL (2,7) pattern 4"), // Pass 29
+        (Some(&[0xB6, 0xDB, 0x6D]), "RLL (2,7) pattern 5"), // Pass 30
+        (Some(&[0xDB, 0x6D, 0xB6]), "RLL (2,7) pattern 6"), // Pass 31
         // Last 4 passes: Cryptographically secure random data
         (None, "Random Pass 32"),
         (None, "Random Pass 33"),
@@ -74,8 +72,15 @@ impl GutmannWipe {
         drive_type: DriveType,
         config: &WipeConfig,
     ) -> Result<()> {
-        println!("Starting Gutmann 35-pass secure wipe with error recovery on {}", device_path);
-        println!("Drive size: {} bytes ({} GB)", size, size / (1024 * 1024 * 1024));
+        println!(
+            "Starting Gutmann 35-pass secure wipe with error recovery on {}",
+            device_path
+        );
+        println!(
+            "Drive size: {} bytes ({} GB)",
+            size,
+            size / (1024 * 1024 * 1024)
+        );
 
         // Detect drive encoding
         let encoding = Self::detect_drive_encoding(device_path)?;
@@ -86,7 +91,10 @@ impl GutmannWipe {
 
         // Check for existing checkpoint and resume if available
         let start_pass = if let Some(resume) = coordinator.resume_from_checkpoint("Gutmann")? {
-            println!("Resuming from pass {} (checkpoint found)", resume.current_pass + 1);
+            println!(
+                "Resuming from pass {} (checkpoint found)",
+                resume.current_pass + 1
+            );
             resume.current_pass
         } else {
             0
@@ -115,10 +123,7 @@ impl GutmannWipe {
             let pass_start = Instant::now();
 
             // Create error context for this pass
-            let context = ErrorContext::new(
-                format!("gutmann_pass_{}", pass_num + 1),
-                device_path,
-            );
+            let context = ErrorContext::new(format!("gutmann_pass_{}", pass_num + 1), device_path);
 
             // Execute pass with recovery
             coordinator.execute_with_recovery(
@@ -127,17 +132,25 @@ impl GutmannWipe {
                 || {
                     // Write the pattern
                     if let Some(pattern_bytes) = pattern {
-                        Self::write_pattern_with_verification(&mut io_handle, size, pattern_bytes, pass_num)?;
+                        Self::write_pattern_with_verification(
+                            &mut io_handle,
+                            size,
+                            pattern_bytes,
+                            pass_num,
+                        )?;
                     } else {
                         Self::write_random_with_verification(&mut io_handle, size, pass_num)?;
                     }
                     Ok(())
-                }
+                },
             )?;
 
             let pass_duration = pass_start.elapsed();
-            println!("  ✅ Pass {} completed and verified in {:.2}s",
-                     pass_num + 1, pass_duration.as_secs_f64());
+            println!(
+                "  ✅ Pass {} completed and verified in {:.2}s",
+                pass_num + 1,
+                pass_duration.as_secs_f64()
+            );
 
             // Save checkpoint using RecoveryCoordinator
             let bytes_written = (pass_num as u64 + 1) * size;
@@ -176,9 +189,7 @@ impl GutmannWipe {
         use std::process::Command;
 
         // Try to get drive information via smartctl
-        let output = Command::new("smartctl")
-            .args(["-i", device_path])
-            .output();
+        let output = Command::new("smartctl").args(["-i", device_path]).output();
 
         if let Ok(output) = output {
             let info = String::from_utf8_lossy(&output.stdout);
@@ -212,7 +223,7 @@ impl GutmannWipe {
         io_handle: &mut IOHandle,
         size: u64,
         pattern: &[u8],
-        pass_num: usize
+        pass_num: usize,
     ) -> Result<()> {
         let mut bytes_written = 0u64;
         let mut bar = ProgressBar::new(48);
@@ -248,7 +259,7 @@ impl GutmannWipe {
     fn write_random_with_verification(
         io_handle: &mut IOHandle,
         size: u64,
-        pass_num: usize
+        pass_num: usize,
     ) -> Result<()> {
         let mut bytes_written = 0u64;
         let mut bar = ProgressBar::new(48);
@@ -265,10 +276,7 @@ impl GutmannWipe {
             // Store sample for verification (first 4KB of every 100MB)
             if bytes_written % (100 * 1024 * 1024) == 0 {
                 let sample_size = std::cmp::min(4096, buf.len());
-                verification_samples.insert(
-                    bytes_written,
-                    buf[..sample_size].to_vec()
-                );
+                verification_samples.insert(bytes_written, buf[..sample_size].to_vec());
             }
 
             bytes_written += buf.len() as u64;
@@ -284,7 +292,12 @@ impl GutmannWipe {
 
         // Verification phase - verify random data has high entropy
         println!("\n  🔍 Verifying pass {} randomness...", pass_num + 1);
-        Self::verify_random_entropy_from_device(&io_handle.device_path, size, &verification_samples, &mut bar)?;
+        Self::verify_random_entropy_from_device(
+            &io_handle.device_path,
+            size,
+            &verification_samples,
+            &mut bar,
+        )?;
 
         bar.render(100.0, Some(size), Some(size));
         Ok(())
@@ -295,7 +308,7 @@ impl GutmannWipe {
         device_path: &str,
         size: u64,
         expected_pattern: &[u8],
-        bar: &mut ProgressBar
+        bar: &mut ProgressBar,
     ) -> Result<()> {
         const SAMPLE_SIZE: usize = 4096;
 
@@ -319,7 +332,9 @@ impl GutmannWipe {
                 if *byte != expected {
                     return Err(anyhow!(
                         "Verification failed at offset {}: expected 0x{:02x}, got 0x{:02x}",
-                        offset + j as u64, expected, byte
+                        offset + j as u64,
+                        expected,
+                        byte
                     ));
                 }
             }
@@ -337,7 +352,7 @@ impl GutmannWipe {
         device_path: &str,
         size: u64,
         samples: &HashMap<u64, Vec<u8>>,
-        bar: &mut ProgressBar
+        bar: &mut ProgressBar,
     ) -> Result<()> {
         // Open device for reading with optimized I/O
         let config = IOConfig::verification_optimized();
@@ -356,7 +371,8 @@ impl GutmannWipe {
                 if entropy < 7.5 {
                     return Err(anyhow!(
                         "Low entropy detected at offset {}: {:.2} bits/byte",
-                        offset, entropy
+                        offset,
+                        entropy
                     ));
                 }
             }
@@ -376,8 +392,10 @@ impl GutmannWipe {
             if let Ok(buffer) = OptimizedIO::read_range(&mut handle, offset, 4096) {
                 let entropy = Self::calculate_entropy(&buffer);
                 if entropy < 7.0 {
-                    println!("  ⚠️  Warning: Lower entropy at offset {}: {:.2} bits/byte",
-                             offset, entropy);
+                    println!(
+                        "  ⚠️  Warning: Lower entropy at offset {}: {:.2} bits/byte",
+                        offset, entropy
+                    );
                 }
             }
         }

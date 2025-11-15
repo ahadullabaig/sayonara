@@ -1,8 +1,8 @@
+use crate::ui::progress::ProgressBar;
 use anyhow::Result;
 use std::process::Command;
-use std::time::Duration;
 use std::thread;
-use crate::ui::progress::ProgressBar;
+use std::time::Duration;
 
 pub struct HDDWipe;
 
@@ -19,9 +19,7 @@ impl HDDWipe {
     }
 
     fn supports_secure_erase(device_path: &str) -> Result<bool> {
-        let output = Command::new("hdparm")
-            .args(["-I", device_path])
-            .output()?;
+        let output = Command::new("hdparm").args(["-I", device_path]).output()?;
 
         let output_str = String::from_utf8_lossy(&output.stdout);
         Ok(output_str.contains("supported: enhanced erase"))
@@ -33,11 +31,23 @@ impl HDDWipe {
         // set password (blocking)
         let mut bar = ProgressBar::new(48);
         let mut set_cmd = Command::new("hdparm");
-        set_cmd.args(["--user-master", "u", "--security-set-pass", "temp123", device_path]);
+        set_cmd.args([
+            "--user-master",
+            "u",
+            "--security-set-pass",
+            "temp123",
+            device_path,
+        ]);
         let _ = set_cmd.spawn()?.wait()?;
 
         let mut cmd = Command::new("hdparm");
-        cmd.args(["--user-master", "u", "--security-erase", "temp123", device_path]);
+        cmd.args([
+            "--user-master",
+            "u",
+            "--security-erase",
+            "temp123",
+            device_path,
+        ]);
         let mut process = cmd.spawn()?;
 
         // animate until process ends

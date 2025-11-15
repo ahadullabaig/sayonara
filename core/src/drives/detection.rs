@@ -1,18 +1,18 @@
 use crate::{
-    DriveInfo, DriveType, EncryptionStatus, DriveCapabilities,
-    FreezeStatus, SEDType, SanitizeOption
+    DriveCapabilities, DriveInfo, DriveType, EncryptionStatus, FreezeStatus, SEDType,
+    SanitizeOption,
 };
 use anyhow::Result;
-use std::process::Command;
 use std::fs;
 use std::path::Path;
+use std::process::Command;
 
 // Import submodules for capability detection
 use super::freeze::FreezeMitigation;
 use super::operations::hpa_dco::HPADCOManager;
 use super::operations::sed::SEDManager;
-use super::operations::trim::TrimOperations;
 use super::operations::smart::SMARTMonitor;
+use super::operations::trim::TrimOperations;
 
 pub struct DriveDetector;
 
@@ -180,7 +180,10 @@ impl DriveDetector {
     }
 
     /// Determine drive type from various indicators
-    pub(crate) fn determine_drive_type(device_path: &str, smartctl_output: &str) -> Result<DriveType> {
+    pub(crate) fn determine_drive_type(
+        device_path: &str,
+        smartctl_output: &str,
+    ) -> Result<DriveType> {
         // Check for NVMe
         if device_path.contains("nvme") {
             return Ok(DriveType::NVMe);
@@ -198,14 +201,12 @@ impl DriveDetector {
 
         // Check SMART output for rotation rate
         if smartctl_output.contains("Rotation Rate:") {
-            if smartctl_output.contains("Solid State Device") ||
-                smartctl_output.contains("0 rpm") {
+            if smartctl_output.contains("Solid State Device") || smartctl_output.contains("0 rpm") {
                 Ok(DriveType::SSD)
             } else {
                 Ok(DriveType::HDD)
             }
-        } else if smartctl_output.contains("SSD") ||
-            smartctl_output.contains("Solid State") {
+        } else if smartctl_output.contains("SSD") || smartctl_output.contains("Solid State") {
             Ok(DriveType::SSD)
         } else if smartctl_output.contains("rpm") {
             Ok(DriveType::HDD)
@@ -240,17 +241,14 @@ impl DriveDetector {
         if let Ok(output) = mdadm_output {
             if output.status.success() {
                 let output_str = String::from_utf8_lossy(&output.stdout);
-                if output_str.contains("Raid Level") ||
-                    output_str.contains("Array UUID") {
+                if output_str.contains("Raid Level") || output_str.contains("Array UUID") {
                     return Ok(true);
                 }
             }
         }
 
         // Check for hardware RAID via sg_inq
-        let sg_output = Command::new("sg_inq")
-            .args([device_path])
-            .output();
+        let sg_output = Command::new("sg_inq").args([device_path]).output();
 
         if let Ok(output) = sg_output {
             let output_str = String::from_utf8_lossy(&output.stdout);
@@ -303,7 +301,7 @@ impl DriveDetector {
     /// Check for BitLocker encryption
     fn check_bitlocker(device_path: &str) -> Result<bool> {
         // Read first sectors to check for BitLocker signature
-        use crate::io::{OptimizedIO, IOConfig};
+        use crate::io::{IOConfig, OptimizedIO};
 
         let config = IOConfig::small_read_optimized();
         let mut handle = OptimizedIO::open(device_path, config)?;
@@ -317,7 +315,7 @@ impl DriveDetector {
     /// Check for FileVault encryption
     fn check_filevault(device_path: &str) -> Result<bool> {
         // Check for Core Storage or APFS encryption
-        use crate::io::{OptimizedIO, IOConfig};
+        use crate::io::{IOConfig, OptimizedIO};
 
         let config = IOConfig::small_read_optimized();
         let mut handle = OptimizedIO::open(device_path, config)?;
@@ -326,14 +324,14 @@ impl DriveDetector {
         // Check for Core Storage or APFS signatures
         Ok(buffer.windows(8).any(|w| {
             w == b"CS\x00\x00\x00\x00\x00\x00" || // Core Storage
-                w == b"NXSB\x00\x00\x00\x00"          // APFS
+                w == b"NXSB\x00\x00\x00\x00" // APFS
         }))
     }
 
     /// Check for VeraCrypt encryption
     fn check_veracrypt(device_path: &str) -> Result<bool> {
         // VeraCrypt doesn't have a clear signature, but we can check for high entropy
-        use crate::io::{OptimizedIO, IOConfig};
+        use crate::io::{IOConfig, OptimizedIO};
 
         let config = IOConfig::small_read_optimized();
         let mut handle = OptimizedIO::open(device_path, config)?;
@@ -368,20 +366,16 @@ impl DriveDetector {
 
     /// Check secure erase support
     fn check_secure_erase_support(device_path: &str) -> Result<bool> {
-        let output = Command::new("hdparm")
-            .args(["-I", device_path])
-            .output()?;
+        let output = Command::new("hdparm").args(["-I", device_path]).output()?;
 
         let output_str = String::from_utf8_lossy(&output.stdout);
-        Ok(output_str.contains("supported: enhanced erase") ||
-            output_str.contains("SECURITY ERASE UNIT"))
+        Ok(output_str.contains("supported: enhanced erase")
+            || output_str.contains("SECURITY ERASE UNIT"))
     }
 
     /// Check enhanced secure erase support
     fn check_enhanced_erase_support(device_path: &str) -> Result<bool> {
-        let output = Command::new("hdparm")
-            .args(["-I", device_path])
-            .output()?;
+        let output = Command::new("hdparm").args(["-I", device_path]).output()?;
 
         let output_str = String::from_utf8_lossy(&output.stdout);
         Ok(output_str.contains("enhanced erase"))

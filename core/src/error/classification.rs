@@ -3,7 +3,6 @@
 /// This module categorizes errors to determine the appropriate recovery strategy.
 /// Each error is classified into one of five categories that dictate retry behavior,
 /// recovery mechanisms, and user feedback.
-
 use crate::DriveError;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -111,7 +110,8 @@ impl ErrorContext {
     /// Create context for a specific pass operation
     pub fn for_pass(device_path: impl Into<String>, algorithm: &str, pass: usize) -> Self {
         let mut ctx = Self::new(format!("{}_pass_{}", algorithm, pass), device_path);
-        ctx.metadata.insert("algorithm".to_string(), algorithm.to_string());
+        ctx.metadata
+            .insert("algorithm".to_string(), algorithm.to_string());
         ctx.metadata.insert("pass".to_string(), pass.to_string());
         ctx
     }
@@ -205,9 +205,18 @@ impl ErrorClassifier {
     /// Create a new error classifier with default retry limits
     pub fn new() -> Self {
         let mut retry_limits = HashMap::new();
-        retry_limits.insert(ErrorClass::Transient, ErrorClass::Transient.default_max_retries());
-        retry_limits.insert(ErrorClass::Recoverable, ErrorClass::Recoverable.default_max_retries());
-        retry_limits.insert(ErrorClass::Environmental, ErrorClass::Environmental.default_max_retries());
+        retry_limits.insert(
+            ErrorClass::Transient,
+            ErrorClass::Transient.default_max_retries(),
+        );
+        retry_limits.insert(
+            ErrorClass::Recoverable,
+            ErrorClass::Recoverable.default_max_retries(),
+        );
+        retry_limits.insert(
+            ErrorClass::Environmental,
+            ErrorClass::Environmental.default_max_retries(),
+        );
         retry_limits.insert(ErrorClass::Fatal, 0);
         retry_limits.insert(ErrorClass::UserInterrupted, 0);
 
@@ -253,9 +262,12 @@ impl ErrorClassifier {
             // Timeout - might be transient or hardware issue
             DriveError::Timeout(_msg) => {
                 // If multiple timeouts on same operation, might be fatal
-                if context.metadata.get("retry_count")
+                if context
+                    .metadata
+                    .get("retry_count")
                     .and_then(|s| s.parse::<u32>().ok())
-                    .unwrap_or(0) > 5
+                    .unwrap_or(0)
+                    > 5
                 {
                     ErrorClass::Fatal
                 } else {
@@ -471,7 +483,10 @@ mod tests {
         assert_eq!(ctx.offset, Some(1024));
         assert_eq!(ctx.metadata.get("algorithm"), Some(&"Gutmann".to_string()));
         assert_eq!(ctx.metadata.get("pass"), Some(&"5".to_string()));
-        assert_eq!(ctx.metadata.get("test_key"), Some(&"test_value".to_string()));
+        assert_eq!(
+            ctx.metadata.get("test_key"),
+            Some(&"test_value".to_string())
+        );
     }
 
     #[test]
@@ -482,7 +497,10 @@ mod tests {
 
         let classified = classifier.classify(error, context);
         assert!(!classified.recovery_suggestions.is_empty());
-        assert!(classified.recovery_suggestions.iter().any(|s| s.contains("freeze mitigation")));
+        assert!(classified
+            .recovery_suggestions
+            .iter()
+            .any(|s| s.contains("freeze mitigation")));
     }
 
     #[test]

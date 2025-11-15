@@ -1,20 +1,22 @@
 // Implementations for PCIe, ACPI, USB, and IPMI strategies
 
-use super::{UnfreezeStrategy, StrategyResult};
+use super::{StrategyResult, UnfreezeStrategy};
 use crate::drives::freeze::detection::FreezeReason;
-use anyhow::{Result, anyhow};
-use std::process::Command;
+use anyhow::{anyhow, Result};
 use std::fs;
+use std::path::Path;
+use std::process::Command;
 use std::thread;
 use std::time::Duration;
-use std::path::Path;
 
 // ===== PCIe Hot Reset =====
 
 pub struct PcieHotReset;
 
 impl PcieHotReset {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 
     /// Find the PCI address for the SATA/NVMe controller associated with this device
     fn find_controller_pci_address(&self, device_path: &str) -> Result<String> {
@@ -54,7 +56,8 @@ impl PcieHotReset {
 
         // Match PCI address pattern: 0000:00:1f.2 (hex digits)
         // Format: domain:bus:device.function (all in hex)
-        let re = Regex::new(r"([0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-9a-fA-F]+)").ok()?;
+        let re =
+            Regex::new(r"([0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-9a-fA-F]+)").ok()?;
         re.captures(path)
             .and_then(|cap| cap.get(1))
             .map(|m| m.as_str().to_string())
@@ -62,9 +65,7 @@ impl PcieHotReset {
 
     /// Find storage controller via lspci
     fn find_storage_controller_via_lspci(&self) -> Result<String> {
-        let output = Command::new("lspci")
-            .args(["-D", "-nn"])
-            .output()?;
+        let output = Command::new("lspci").args(["-D", "-nn"]).output()?;
 
         let output_str = String::from_utf8_lossy(&output.stdout);
 
@@ -72,13 +73,13 @@ impl PcieHotReset {
         for line in output_str.lines() {
             let line_lower = line.to_lowercase();
 
-            if (line_lower.contains("sata") ||
-                line_lower.contains("ahci") ||
-                line_lower.contains("raid") ||
-                line_lower.contains("nvme") ||
-                line_lower.contains("non-volatile memory")) &&
-               !line_lower.contains("usb") {
-
+            if (line_lower.contains("sata")
+                || line_lower.contains("ahci")
+                || line_lower.contains("raid")
+                || line_lower.contains("nvme")
+                || line_lower.contains("non-volatile memory"))
+                && !line_lower.contains("usb")
+            {
                 // Extract PCI address from start of line
                 if let Some(addr) = line.split_whitespace().next() {
                     // Verify it looks like a PCI address
@@ -104,8 +105,7 @@ impl PcieHotReset {
         println!("      Removing PCI device {}", pci_address);
 
         // Remove the device
-        fs::write(&remove_path, b"1")
-            .map_err(|e| anyhow!("Failed to remove PCI device: {}", e))?;
+        fs::write(&remove_path, b"1").map_err(|e| anyhow!("Failed to remove PCI device: {}", e))?;
 
         thread::sleep(Duration::from_secs(2));
 
@@ -130,17 +130,19 @@ impl PcieHotReset {
 }
 
 impl UnfreezeStrategy for PcieHotReset {
-    fn name(&self) -> &str { "PCIe Hot Reset" }
+    fn name(&self) -> &str {
+        "PCIe Hot Reset"
+    }
 
     fn description(&self) -> &str {
         "Triggers PCIe hot-reset of the storage controller through sysfs"
     }
 
     fn is_compatible_with(&self, reason: &FreezeReason) -> bool {
-        matches!(reason,
-            FreezeReason::ControllerPolicy |
-            FreezeReason::BiosSetFrozen |
-            FreezeReason::Unknown)
+        matches!(
+            reason,
+            FreezeReason::ControllerPolicy | FreezeReason::BiosSetFrozen | FreezeReason::Unknown
+        )
     }
 
     fn is_available(&self) -> bool {
@@ -170,12 +172,16 @@ impl UnfreezeStrategy for PcieHotReset {
 
         Ok(StrategyResult::success_with_warning(
             "PCIe hot-reset completed",
-            "Other devices on the same controller may have been affected"
+            "Other devices on the same controller may have been affected",
         ))
     }
 
-    fn estimated_duration(&self) -> u64 { 10 }
-    fn risk_level(&self) -> u8 { 7 }
+    fn estimated_duration(&self) -> u64 {
+        10
+    }
+    fn risk_level(&self) -> u8 {
+        7
+    }
 }
 
 // ===== ACPI Sleep =====
@@ -183,7 +189,9 @@ impl UnfreezeStrategy for PcieHotReset {
 pub struct AcpiSleep;
 
 impl AcpiSleep {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 
     /// Check if rtcwake is available for automatic wakeup
     fn is_rtcwake_available(&self) -> bool {
@@ -205,13 +213,18 @@ impl AcpiSleep {
 
     /// Perform S3 sleep with automatic wakeup using rtcwake
     fn sleep_with_rtcwake(&self, sleep_seconds: u64) -> Result<()> {
-        println!("      Using rtcwake for automatic wakeup in {} seconds", sleep_seconds);
+        println!(
+            "      Using rtcwake for automatic wakeup in {} seconds",
+            sleep_seconds
+        );
 
         // Use rtcwake to sleep and auto-wake
         let output = Command::new("rtcwake")
             .args([
-                "-m", "mem",           // Memory (S3) sleep
-                "-s", &sleep_seconds.to_string(),  // Sleep duration
+                "-m",
+                "mem", // Memory (S3) sleep
+                "-s",
+                &sleep_seconds.to_string(), // Sleep duration
             ])
             .output()?;
 
@@ -257,7 +270,9 @@ impl AcpiSleep {
 }
 
 impl UnfreezeStrategy for AcpiSleep {
-    fn name(&self) -> &str { "ACPI S3 Sleep" }
+    fn name(&self) -> &str {
+        "ACPI S3 Sleep"
+    }
 
     fn description(&self) -> &str {
         "Performs S3 sleep/wake cycle to reset BIOS-level drive freeze state"
@@ -265,10 +280,10 @@ impl UnfreezeStrategy for AcpiSleep {
 
     fn is_compatible_with(&self, reason: &FreezeReason) -> bool {
         // S3 sleep is most effective for BIOS-set freeze states
-        matches!(reason,
-            FreezeReason::BiosSetFrozen |
-            FreezeReason::ControllerPolicy |
-            FreezeReason::Unknown)
+        matches!(
+            reason,
+            FreezeReason::BiosSetFrozen | FreezeReason::ControllerPolicy | FreezeReason::Unknown
+        )
     }
 
     fn is_available(&self) -> bool {
@@ -288,17 +303,15 @@ impl UnfreezeStrategy for AcpiSleep {
 
             // Sleep for 10 seconds (long enough for BIOS reset, short enough to be practical)
             match self.sleep_with_rtcwake(10) {
-                Ok(_) => {
-                    Ok(StrategyResult::success(
-                        "S3 sleep/wake cycle completed with rtcwake"
-                    ))
-                },
+                Ok(_) => Ok(StrategyResult::success(
+                    "S3 sleep/wake cycle completed with rtcwake",
+                )),
                 Err(e) => {
                     println!("      rtcwake failed: {}, trying manual method", e);
                     self.sleep_manual()?;
                     Ok(StrategyResult::success_with_warning(
                         "S3 sleep/wake cycle completed (manual wakeup)",
-                        "rtcwake was not available, manual wakeup was required"
+                        "rtcwake was not available, manual wakeup was required",
                     ))
                 }
             }
@@ -310,7 +323,7 @@ impl UnfreezeStrategy for AcpiSleep {
 
             Ok(StrategyResult::success_with_warning(
                 "S3 sleep/wake cycle completed",
-                "Manual wakeup was required (rtcwake not available)"
+                "Manual wakeup was required (rtcwake not available)",
             ))
         }
     }
@@ -329,7 +342,9 @@ impl UnfreezeStrategy for AcpiSleep {
 pub struct UsbSuspend;
 
 impl UsbSuspend {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 
     fn find_usb_device(&self, device_path: &str) -> Result<String> {
         use std::path::Path;
@@ -360,7 +375,9 @@ impl UsbSuspend {
 }
 
 impl UnfreezeStrategy for UsbSuspend {
-    fn name(&self) -> &str { "USB Suspend/Resume" }
+    fn name(&self) -> &str {
+        "USB Suspend/Resume"
+    }
     fn description(&self) -> &str {
         "Power cycles USB device through sysfs authorization"
     }
@@ -385,7 +402,9 @@ impl UnfreezeStrategy for UsbSuspend {
 
         Ok(StrategyResult::success("USB power cycle completed"))
     }
-    fn risk_level(&self) -> u8 { 3 }
+    fn risk_level(&self) -> u8 {
+        3
+    }
 }
 
 // ===== IPMI Power =====
@@ -393,7 +412,9 @@ impl UnfreezeStrategy for UsbSuspend {
 pub struct IpmiPower;
 
 impl IpmiPower {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 
     /// Check if ipmitool is available and functional
     fn verify_ipmi_available(&self) -> Result<()> {
@@ -489,9 +510,7 @@ impl IpmiPower {
     fn clear_sel(&self) -> Result<()> {
         println!("      Clearing System Event Log");
 
-        let output = Command::new("ipmitool")
-            .args(["sel", "clear"])
-            .output()?;
+        let output = Command::new("ipmitool").args(["sel", "clear"]).output()?;
 
         if output.status.success() {
             println!("      ✅ SEL cleared");
@@ -504,7 +523,9 @@ impl IpmiPower {
 }
 
 impl UnfreezeStrategy for IpmiPower {
-    fn name(&self) -> &str { "IPMI Power Management" }
+    fn name(&self) -> &str {
+        "IPMI Power Management"
+    }
 
     fn description(&self) -> &str {
         "Uses IPMI to reset the system, clearing all hardware states including drive freeze (server environments)"
@@ -553,7 +574,7 @@ impl UnfreezeStrategy for IpmiPower {
 
                 return Ok(StrategyResult::success_with_warning(
                     "IPMI warm reset completed successfully",
-                    "System was reset - all running processes were terminated"
+                    "System was reset - all running processes were terminated",
                 ));
             }
             Err(e) => {
@@ -572,12 +593,10 @@ impl UnfreezeStrategy for IpmiPower {
 
                 Ok(StrategyResult::success_with_warning(
                     "IPMI cold power cycle completed",
-                    "System was fully power cycled - all hardware states reset"
+                    "System was fully power cycled - all hardware states reset",
                 ))
             }
-            Err(e) => {
-                Err(anyhow!("IPMI power operations failed: {}", e))
-            }
+            Err(e) => Err(anyhow!("IPMI power operations failed: {}", e)),
         }
     }
 

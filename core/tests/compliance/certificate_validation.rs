@@ -1,3 +1,5 @@
+use anyhow::Result;
+use chrono::Utc;
 /// Certificate Validation Tests
 ///
 /// These tests validate the cryptographic integrity and authenticity of
@@ -10,15 +12,11 @@
 /// - All required fields must be present
 /// - Timestamps must be valid
 /// - JSON serialization/deserialization must be lossless
-
 use sayonara_wipe::crypto::certificates::{
-    CertificateGenerator, WipeCertificate,
-    WipeDetails, VerificationResult
+    CertificateGenerator, VerificationResult, WipeCertificate, WipeDetails,
 };
 use sayonara_wipe::DriveInfo;
-use chrono::Utc;
 use tempfile::NamedTempFile;
-use anyhow::Result;
 
 // ==================== CERTIFICATE GENERATION TESTS ====================
 
@@ -30,12 +28,15 @@ fn test_certificate_has_unique_id() -> Result<()> {
     let verification = create_mock_verification();
 
     // Generate two certificates
-    let cert1 = generator.generate_certificate(&drive_info, wipe_details.clone(), verification.clone())?;
+    let cert1 =
+        generator.generate_certificate(&drive_info, wipe_details.clone(), verification.clone())?;
     let cert2 = generator.generate_certificate(&drive_info, wipe_details, verification)?;
 
     // IDs should be unique (UUIDs)
-    assert_ne!(cert1.certificate_id, cert2.certificate_id,
-        "Each certificate should have a unique ID");
+    assert_ne!(
+        cert1.certificate_id, cert2.certificate_id,
+        "Each certificate should have a unique ID"
+    );
 
     Ok(())
 }
@@ -51,12 +52,24 @@ fn test_certificate_contains_all_required_fields() -> Result<()> {
 
     // Verify all required fields are present and non-empty
     assert!(!cert.certificate_id.is_empty(), "Certificate ID required");
-    assert!(!cert.device_info.device_path.is_empty(), "Device path required");
+    assert!(
+        !cert.device_info.device_path.is_empty(),
+        "Device path required"
+    );
     assert!(!cert.device_info.model.is_empty(), "Device model required");
-    assert!(!cert.device_info.serial.is_empty(), "Device serial required");
+    assert!(
+        !cert.device_info.serial.is_empty(),
+        "Device serial required"
+    );
     assert!(cert.device_info.size > 0, "Device size must be positive");
-    assert!(!cert.device_info.device_hash.is_empty(), "Device hash required");
-    assert!(!cert.wipe_details.algorithm_used.is_empty(), "Algorithm required");
+    assert!(
+        !cert.device_info.device_hash.is_empty(),
+        "Device hash required"
+    );
+    assert!(
+        !cert.wipe_details.algorithm_used.is_empty(),
+        "Algorithm required"
+    );
     assert!(cert.wipe_details.passes_completed > 0, "Passes must be > 0");
     assert!(!cert.signature.is_empty(), "Signature required");
 
@@ -75,8 +88,14 @@ fn test_certificate_timestamp_is_valid() -> Result<()> {
     let after = Utc::now();
 
     // Certificate timestamp should be between before and after
-    assert!(cert.timestamp >= before, "Timestamp should not be in the past");
-    assert!(cert.timestamp <= after, "Timestamp should not be in the future");
+    assert!(
+        cert.timestamp >= before,
+        "Timestamp should not be in the past"
+    );
+    assert!(
+        cert.timestamp <= after,
+        "Timestamp should not be in the future"
+    );
 
     Ok(())
 }
@@ -135,7 +154,10 @@ fn test_tampered_device_info_invalidates_signature() -> Result<()> {
     // Signature should fail verification
     let is_valid = generator.verify_certificate(&cert)?;
 
-    assert!(!is_valid, "Certificate with tampered device info should not verify");
+    assert!(
+        !is_valid,
+        "Certificate with tampered device info should not verify"
+    );
 
     Ok(())
 }
@@ -155,7 +177,10 @@ fn test_tampered_verification_result_invalidates_signature() -> Result<()> {
     // Signature should fail
     let is_valid = generator.verify_certificate(&cert)?;
 
-    assert!(!is_valid, "Certificate with tampered verification should not verify");
+    assert!(
+        !is_valid,
+        "Certificate with tampered verification should not verify"
+    );
 
     Ok(())
 }
@@ -175,7 +200,10 @@ fn test_modified_signature_detected() -> Result<()> {
     // Verification should fail
     let is_valid = generator.verify_certificate(&cert)?;
 
-    assert!(!is_valid, "Certificate with invalid signature should not verify");
+    assert!(
+        !is_valid,
+        "Certificate with invalid signature should not verify"
+    );
 
     Ok(())
 }
@@ -220,10 +248,22 @@ fn test_certificate_json_roundtrip() -> Result<()> {
     let deserialized_cert: WipeCertificate = serde_json::from_str(&json)?;
 
     // All fields should match
-    assert_eq!(original_cert.certificate_id, deserialized_cert.certificate_id);
-    assert_eq!(original_cert.device_info.device_path, deserialized_cert.device_info.device_path);
-    assert_eq!(original_cert.device_info.model, deserialized_cert.device_info.model);
-    assert_eq!(original_cert.wipe_details.algorithm_used, deserialized_cert.wipe_details.algorithm_used);
+    assert_eq!(
+        original_cert.certificate_id,
+        deserialized_cert.certificate_id
+    );
+    assert_eq!(
+        original_cert.device_info.device_path,
+        deserialized_cert.device_info.device_path
+    );
+    assert_eq!(
+        original_cert.device_info.model,
+        deserialized_cert.device_info.model
+    );
+    assert_eq!(
+        original_cert.wipe_details.algorithm_used,
+        deserialized_cert.wipe_details.algorithm_used
+    );
     assert_eq!(original_cert.signature, deserialized_cert.signature);
 
     // Signature should still verify after roundtrip
@@ -273,12 +313,20 @@ fn test_device_hash_is_sha256() -> Result<()> {
     let cert = generator.generate_certificate(&drive_info, wipe_details, verification)?;
 
     // SHA256 hash should be 64 hex characters
-    assert_eq!(cert.device_info.device_hash.len(), 64,
-        "SHA256 hash should be 64 hex characters");
+    assert_eq!(
+        cert.device_info.device_hash.len(),
+        64,
+        "SHA256 hash should be 64 hex characters"
+    );
 
     // Should only contain hex characters
-    assert!(cert.device_info.device_hash.chars().all(|c| c.is_ascii_hexdigit()),
-        "Device hash should only contain hex digits");
+    assert!(
+        cert.device_info
+            .device_hash
+            .chars()
+            .all(|c| c.is_ascii_hexdigit()),
+        "Device hash should only contain hex digits"
+    );
 
     Ok(())
 }
@@ -293,12 +341,17 @@ fn test_signature_is_sha256() -> Result<()> {
     let cert = generator.generate_certificate(&drive_info, wipe_details, verification)?;
 
     // SHA256 signature should be 64 hex characters
-    assert_eq!(cert.signature.len(), 64,
-        "SHA256 signature should be 64 hex characters");
+    assert_eq!(
+        cert.signature.len(),
+        64,
+        "SHA256 signature should be 64 hex characters"
+    );
 
     // Should only contain hex characters
-    assert!(cert.signature.chars().all(|c| c.is_ascii_hexdigit()),
-        "Signature should only contain hex digits");
+    assert!(
+        cert.signature.chars().all(|c| c.is_ascii_hexdigit()),
+        "Signature should only contain hex digits"
+    );
 
     Ok(())
 }
@@ -313,12 +366,15 @@ fn test_device_hash_changes_with_different_device() -> Result<()> {
     let wipe_details = create_mock_wipe_details();
     let verification = create_mock_verification();
 
-    let cert1 = generator.generate_certificate(&drive_info1, wipe_details.clone(), verification.clone())?;
+    let cert1 =
+        generator.generate_certificate(&drive_info1, wipe_details.clone(), verification.clone())?;
     let cert2 = generator.generate_certificate(&drive_info2, wipe_details, verification)?;
 
     // Device hashes should be different
-    assert_ne!(cert1.device_info.device_hash, cert2.device_info.device_hash,
-        "Different devices should have different hashes");
+    assert_ne!(
+        cert1.device_info.device_hash, cert2.device_info.device_hash,
+        "Different devices should have different hashes"
+    );
 
     Ok(())
 }

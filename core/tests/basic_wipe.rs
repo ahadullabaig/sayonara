@@ -1,8 +1,7 @@
 /// Basic wipe operation integration tests
 ///
 /// Tests end-to-end wipe operations using mock drives
-
-use sayonara_wipe::io::{OptimizedIO, IOConfig};
+use sayonara_wipe::io::{IOConfig, OptimizedIO};
 
 // Import common test utilities
 // Note: In integration tests, common modules must be in tests/common/
@@ -24,21 +23,23 @@ fn test_basic_zero_wipe() {
     config.use_direct_io = false;
 
     // Open the mock drive
-    let mut handle = OptimizedIO::open(path, config)
-        .expect("Failed to open mock drive");
+    let mut handle = OptimizedIO::open(path, config).expect("Failed to open mock drive");
 
     // Write zeros using sequential_write
     OptimizedIO::sequential_write(&mut handle, size, |buffer| {
         buffer.as_mut_slice().fill(0x00);
         Ok(())
-    }).expect("Failed to write zeros");
+    })
+    .expect("Failed to write zeros");
 
     // Sync to ensure all data is written
     handle.sync().expect("Failed to sync");
 
     // Verify the drive is all zeros
-    assert!(verify_all_zeros(mock.path()).expect("Failed to verify zeros"),
-            "Drive should be completely zeroed");
+    assert!(
+        verify_all_zeros(mock.path()).expect("Failed to verify zeros"),
+        "Drive should be completely zeroed"
+    );
 }
 
 #[test]
@@ -53,8 +54,7 @@ fn test_pattern_wipe() {
     config.use_direct_io = false;
 
     // Open the mock drive
-    let mut handle = OptimizedIO::open(path, config)
-        .expect("Failed to open mock drive");
+    let mut handle = OptimizedIO::open(path, config).expect("Failed to open mock drive");
 
     // Write pattern
     let pattern = [0xAA, 0x55];
@@ -63,7 +63,8 @@ fn test_pattern_wipe() {
             *byte = pattern[i % pattern.len()];
         }
         Ok(())
-    }).expect("Failed to write pattern");
+    })
+    .expect("Failed to write pattern");
 
     // Sync
     handle.sync().expect("Failed to sync");

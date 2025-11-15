@@ -8,7 +8,6 @@
 /// - Number extraction from various formats
 /// - Structure creation and validation
 /// - Edge cases and error handling
-
 use super::hpa_dco::*;
 
 // ============================================================================
@@ -173,7 +172,10 @@ The following features can be selectively disabled via DCO:
     let (real_max, dco_max) = result.unwrap();
     assert_eq!(real_max, 1953525168);
     assert_eq!(dco_max, 1953525000);
-    assert!(real_max > dco_max, "Real max should be greater than DCO max");
+    assert!(
+        real_max > dco_max,
+        "Real max should be greater than DCO max"
+    );
 
     Ok(())
 }
@@ -312,7 +314,10 @@ fn test_hpa_detection_logic_invalid_state() {
     let current_max = 1953525168u64; // Current > native (impossible)
 
     let has_hpa = native_max > current_max;
-    assert!(!has_hpa, "Current > native is invalid, should not detect HPA");
+    assert!(
+        !has_hpa,
+        "Current > native is invalid, should not detect HPA"
+    );
 }
 
 // ============================================================================
@@ -381,7 +386,10 @@ fn test_capacity_calculation_with_dco() {
 
     assert!(true_capacity > reported_capacity);
     let hidden_gb = (true_capacity - reported_capacity) / (1024 * 1024 * 1024);
-    assert_eq!(hidden_gb, 93, "Should have ~93GB difference (integer division)");
+    assert_eq!(
+        hidden_gb, 93,
+        "Should have ~93GB difference (integer division)"
+    );
 }
 
 #[test]
@@ -566,11 +574,17 @@ fn test_forensic_recovery_partition_scenario() {
     };
 
     assert!(hpa.enabled);
-    assert_eq!(hpa.hidden_size_bytes / (1024 * 1024 * 1024), recovery_size_gb);
+    assert_eq!(
+        hpa.hidden_size_bytes / (1024 * 1024 * 1024),
+        recovery_size_gb
+    );
 
     // Verify this represents realistic recovery partition
     let hidden_gb = hpa.hidden_size_bytes / (1024 * 1024 * 1024);
-    assert!(hidden_gb >= 10 && hidden_gb <= 20, "Recovery partition should be 10-20GB");
+    assert!(
+        hidden_gb >= 10 && hidden_gb <= 20,
+        "Recovery partition should be 10-20GB"
+    );
 }
 
 #[test]
@@ -592,7 +606,10 @@ fn test_vendor_locked_dco_scenario() {
     assert!(dco.enabled);
     let hidden_gb = dco.hidden_size_bytes / (1024 * 1024 * 1024);
     // 931 GB - 900 GB = ~31 GB hidden
-    assert!(hidden_gb >= 30 && hidden_gb <= 32, "Should have ~31GB hidden (integer division)");
+    assert!(
+        hidden_gb >= 30 && hidden_gb <= 32,
+        "Should have ~31GB hidden (integer division)"
+    );
 }
 
 #[test]
@@ -600,7 +617,7 @@ fn test_combined_hpa_dco_security_scenario() {
     // Security-conscious system with both HPA and DCO hiding data
     let true_max = 1953525168u64;
     let dco_hidden = 195352516u64; // ~93GB via DCO
-    let hpa_hidden = 10485760u64;  // ~5GB via HPA
+    let hpa_hidden = 10485760u64; // ~5GB via HPA
 
     let dco_max = true_max - dco_hidden;
     let current_max = dco_max - hpa_hidden;
@@ -608,7 +625,10 @@ fn test_combined_hpa_dco_security_scenario() {
     let total_hidden = dco_hidden + hpa_hidden;
     let total_hidden_gb = (total_hidden * 512) / (1024 * 1024 * 1024);
 
-    assert_eq!(total_hidden_gb, 98, "Should have ~98GB total hidden (integer division)");
+    assert_eq!(
+        total_hidden_gb, 98,
+        "Should have ~98GB total hidden (integer division)"
+    );
 
     // Verify layering: Current < DCO Max < True Max
     assert!(current_max < dco_max);

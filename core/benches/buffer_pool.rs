@@ -1,8 +1,7 @@
 /// Buffer pool benchmarks
 ///
 /// Measures buffer allocation, reuse, and efficiency.
-
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId, Throughput};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use std::alloc::{alloc, dealloc, Layout};
 
 // Simulate aligned buffer allocation
@@ -129,7 +128,9 @@ fn bench_buffer_pool_recycling(c: &mut Criterion) {
         b.iter(|| {
             for _ in 0..num_operations {
                 let (ptr, layout) = allocate_aligned_buffer(buffer_size, alignment);
-                unsafe { std::ptr::write_bytes(ptr, 0xEF, buffer_size); }
+                unsafe {
+                    std::ptr::write_bytes(ptr, 0xEF, buffer_size);
+                }
                 deallocate_aligned_buffer(ptr, layout);
             }
         });
@@ -146,11 +147,13 @@ fn bench_buffer_pool_recycling(c: &mut Criterion) {
 
             // Use and recycle
             for _ in 0..num_operations {
-                let (ptr, layout) = pool.pop_front().unwrap_or_else(|| {
-                    allocate_aligned_buffer(buffer_size, alignment)
-                });
+                let (ptr, layout) = pool
+                    .pop_front()
+                    .unwrap_or_else(|| allocate_aligned_buffer(buffer_size, alignment));
 
-                unsafe { std::ptr::write_bytes(ptr, 0xEF, buffer_size); }
+                unsafe {
+                    std::ptr::write_bytes(ptr, 0xEF, buffer_size);
+                }
 
                 pool.push_back((ptr, layout));
             }
@@ -171,11 +174,7 @@ fn bench_alignment_overhead(c: &mut Criterion) {
 
     let size = 1024 * 1024; // 1MB
 
-    let alignments = vec![
-        ("512B", 512),
-        ("4KB", 4096),
-        ("2MB", 2 * 1024 * 1024),
-    ];
+    let alignments = vec![("512B", 512), ("4KB", 4096), ("2MB", 2 * 1024 * 1024)];
 
     for (name, alignment) in alignments {
         group.bench_with_input(

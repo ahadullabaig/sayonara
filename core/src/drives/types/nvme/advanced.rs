@@ -2,9 +2,9 @@
 //
 // This module extends basic NVMe support with modern advanced features
 
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
+use serde::{Deserialize, Serialize};
 use std::process::Command;
-use serde::{Serialize, Deserialize};
 
 /// NVMe namespace type
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -59,16 +59,15 @@ pub struct ZNSZone {
 impl ZNSZone {
     /// Check if zone needs reset before writing
     pub fn needs_reset(&self) -> bool {
-        matches!(self.zone_state,
-            ZNSZoneState::Full | ZNSZoneState::Closed)
+        matches!(self.zone_state, ZNSZoneState::Full | ZNSZoneState::Closed)
     }
 
     /// Check if zone is writable
     pub fn is_writable(&self) -> bool {
-        matches!(self.zone_state,
-            ZNSZoneState::Empty |
-            ZNSZoneState::ImplicitlyOpen |
-            ZNSZoneState::ExplicitlyOpen)
+        matches!(
+            self.zone_state,
+            ZNSZoneState::Empty | ZNSZoneState::ImplicitlyOpen | ZNSZoneState::ExplicitlyOpen
+        )
     }
 }
 
@@ -131,11 +130,12 @@ impl NVMeAdvanced {
         let info = Self::get_controller_info(device_path)?;
 
         // Check for ZNS, KV, or computational storage indicators
-        if info.contains("ZNS") ||
-           info.contains("Zoned") ||
-           info.contains("Key-Value") ||
-           info.contains("KV") ||
-           info.contains("Computational") {
+        if info.contains("ZNS")
+            || info.contains("Zoned")
+            || info.contains("Key-Value")
+            || info.contains("KV")
+            || info.contains("Computational")
+        {
             return Ok(true);
         }
 
@@ -170,11 +170,12 @@ impl NVMeAdvanced {
             .output()?;
 
         if !output.status.success() {
-            return Ok(1);  // Assume single namespace
+            return Ok(1); // Assume single namespace
         }
 
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let count = stdout.lines()
+        let count = stdout
+            .lines()
             .filter(|line| line.contains("[") && line.contains("]"))
             .count();
 
@@ -243,9 +244,9 @@ impl NVMeAdvanced {
 
     /// Detect computational storage
     fn detect_computational_storage(info: &str) -> bool {
-        info.contains("Computational") ||
-        info.contains("In-Storage Compute") ||
-        info.contains("SmartNIC")
+        info.contains("Computational")
+            || info.contains("In-Storage Compute")
+            || info.contains("SmartNIC")
     }
 
     /// Parse model name
@@ -277,7 +278,7 @@ impl NVMeAdvanced {
         let output = Command::new("nvme")
             .arg("list-ns")
             .arg(controller_path)
-            .arg("-a")  // All namespaces
+            .arg("-a") // All namespaces
             .output()?;
 
         if !output.status.success() {
@@ -369,7 +370,7 @@ impl NVMeAdvanced {
             if line.contains("nsze") && line.contains(":") {
                 if let Some(size_str) = line.split(':').nth(1) {
                     if let Ok(blocks) = size_str.trim().parse::<u64>() {
-                        return blocks * 512;  // Assume 512-byte blocks
+                        return blocks * 512; // Assume 512-byte blocks
                     }
                 }
             }
@@ -426,10 +427,10 @@ impl NVMeAdvanced {
 
                 let zone = ZNSZone {
                     zone_id,
-                    zone_start_lba: 0,  // Would parse from SLBA
-                    zone_capacity: 0,    // Would parse from Cap
-                    write_pointer: 0,    // Would parse from WP
-                    zone_state: ZNSZoneState::Empty,  // Would parse from State
+                    zone_start_lba: 0,               // Would parse from SLBA
+                    zone_capacity: 0,                // Would parse from Cap
+                    write_pointer: 0,                // Would parse from WP
+                    zone_state: ZNSZoneState::Empty, // Would parse from State
                     is_sequential: line.contains("SEQWRITE"),
                 };
 
@@ -556,7 +557,7 @@ impl NVMeAdvanced {
         let output = Command::new("nvme")
             .arg("format")
             .arg(&ns.device_path)
-            .arg("--ses=1")  // Secure erase
+            .arg("--ses=1") // Secure erase
             .arg("--force")
             .output()?;
 

@@ -1,8 +1,8 @@
 // Vendor-specific unfreeze commands for RAID controllers
 
-use super::{UnfreezeStrategy, StrategyResult};
+use super::{StrategyResult, UnfreezeStrategy};
 use crate::drives::freeze::detection::FreezeReason;
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use std::process::Command;
 use std::thread;
 use std::time::Duration;
@@ -142,11 +142,7 @@ impl VendorSpecific {
 
         // Method 1: Clear security (works for some frozen states)
         let clear_result = Command::new("hpssacli")
-            .args([
-                "ctrl", "slot=0",
-                "pd", &array_id,
-                "modify", "clearsecurity"
-            ])
+            .args(["ctrl", "slot=0", "pd", &array_id, "modify", "clearsecurity"])
             .output();
 
         if let Ok(output) = clear_result {
@@ -170,14 +166,28 @@ impl VendorSpecific {
 
         // Method 3: Disable and re-enable physical drive
         let disable_result = Command::new("hpssacli")
-            .args(["ctrl", "slot=0", "pd", &array_id, "modify", "ssdsmartpathstatus=disable"])
+            .args([
+                "ctrl",
+                "slot=0",
+                "pd",
+                &array_id,
+                "modify",
+                "ssdsmartpathstatus=disable",
+            ])
             .output();
 
         if disable_result.is_ok() {
             thread::sleep(Duration::from_secs(2));
 
             let _ = Command::new("hpssacli")
-                .args(["ctrl", "slot=0", "pd", &array_id, "modify", "ssdsmartpathstatus=enable"])
+                .args([
+                    "ctrl",
+                    "slot=0",
+                    "pd",
+                    &array_id,
+                    "modify",
+                    "ssdsmartpathstatus=enable",
+                ])
                 .output();
 
             println!("      ✅ HP SmartArray disable/enable cycle completed");
@@ -359,9 +369,13 @@ impl VendorSpecific {
         // Method 1: Set drive to non-RAID/HBA mode
         let nonraid_result = Command::new("arcconf")
             .args([
-                "setstate", "controller", "1",
-                "device", &disk_id,
-                "state", "non-raid"
+                "setstate",
+                "controller",
+                "1",
+                "device",
+                &disk_id,
+                "state",
+                "non-raid",
             ])
             .output();
 
@@ -376,7 +390,15 @@ impl VendorSpecific {
         // Method 2: Identify/blink drive (forces controller attention)
         println!("      Trying identify method");
         let _ = Command::new("arcconf")
-            .args(["identify", "controller", "1", "device", &disk_id, "time", "2"])
+            .args([
+                "identify",
+                "controller",
+                "1",
+                "device",
+                &disk_id,
+                "time",
+                "2",
+            ])
             .output();
 
         thread::sleep(Duration::from_secs(3));
@@ -453,12 +475,14 @@ impl VendorSpecific {
             .args(["-s", &pci_addr, "0x90.w"])
             .output()?;
 
-        let current_val = String::from_utf8_lossy(&current_map.stdout).trim().to_string();
+        let current_val = String::from_utf8_lossy(&current_map.stdout)
+            .trim()
+            .to_string();
         println!("      Current MAP register: 0x{}", current_val);
 
         // Method 2: Temporarily switch to AHCI mode
         let ahci_result = Command::new("setpci")
-            .args(["-s", &pci_addr, "0x90.w=0x00"])  // AHCI mode
+            .args(["-s", &pci_addr, "0x90.w=0x00"]) // AHCI mode
             .output();
 
         if let Ok(output) = ahci_result {
@@ -483,16 +507,12 @@ impl VendorSpecific {
             println!("      Trying Intel RST CLI");
 
             // Stop RST service temporarily
-            let _ = Command::new("rstcli64")
-                .args(["--stop-service"])
-                .output();
+            let _ = Command::new("rstcli64").args(["--stop-service"]).output();
 
             thread::sleep(Duration::from_secs(2));
 
             // Start service
-            let _ = Command::new("rstcli64")
-                .args(["--start-service"])
-                .output();
+            let _ = Command::new("rstcli64").args(["--start-service"]).output();
 
             return Ok(());
         }
@@ -512,16 +532,15 @@ impl VendorSpecific {
     }
 
     fn find_intel_sata_controller(&self) -> Result<String> {
-        let output = Command::new("lspci")
-            .args(["-D", "-nn"])
-            .output()?;
+        let output = Command::new("lspci").args(["-D", "-nn"]).output()?;
 
         let output_str = String::from_utf8_lossy(&output.stdout);
 
         // Look for Intel SATA controller
         for line in output_str.lines() {
-            if (line.contains("Intel") || line.contains("8086")) &&
-               (line.contains("SATA") || line.contains("RAID")) {
+            if (line.contains("Intel") || line.contains("8086"))
+                && (line.contains("SATA") || line.contains("RAID"))
+            {
                 // Extract PCI address (e.g., "0000:00:1f.2")
                 if let Some(addr) = line.split_whitespace().next() {
                     return Ok(addr.to_string());
@@ -596,9 +615,7 @@ impl VendorSpecific {
         }
 
         // Check via lspci
-        let output = Command::new("lspci")
-            .args(["-v"])
-            .output()?;
+        let output = Command::new("lspci").args(["-v"]).output()?;
 
         let output_str = String::from_utf8_lossy(&output.stdout);
 
@@ -628,22 +645,21 @@ impl UnfreezeStrategy for VendorSpecific {
     }
 
     fn is_compatible_with(&self, reason: &FreezeReason) -> bool {
-        matches!(reason,
-            FreezeReason::RaidController |
-            FreezeReason::ControllerPolicy |
-            FreezeReason::Unknown
+        matches!(
+            reason,
+            FreezeReason::RaidController | FreezeReason::ControllerPolicy | FreezeReason::Unknown
         )
     }
 
     fn is_available(&self) -> bool {
         // Check if any vendor tools are available
         let tools = vec![
-            "percli",      // Dell PERC
-            "hpssacli",    // HP SmartArray
-            "storcli64",   // LSI MegaRAID (newer)
-            "megacli",     // LSI MegaRAID (older)
-            "arcconf",     // Adaptec
-            "setpci",      // Intel RST (requires root)
+            "percli",    // Dell PERC
+            "hpssacli",  // HP SmartArray
+            "storcli64", // LSI MegaRAID (newer)
+            "megacli",   // LSI MegaRAID (older)
+            "arcconf",   // Adaptec
+            "setpci",    // Intel RST (requires root)
         ];
 
         tools.iter().any(|tool| {
@@ -671,9 +687,10 @@ impl UnfreezeStrategy for VendorSpecific {
         };
 
         match result {
-            Ok(_) => Ok(StrategyResult::success(
-                format!("Successfully unfrozen using {} commands", vendor)
-            )),
+            Ok(_) => Ok(StrategyResult::success(format!(
+                "Successfully unfrozen using {} commands",
+                vendor
+            ))),
             Err(e) => Err(anyhow!("Vendor-specific unfreeze failed: {}", e)),
         }
     }

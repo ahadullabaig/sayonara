@@ -1,9 +1,9 @@
 // Detect the reason why a drive is frozen
 
-use anyhow::{Result, anyhow};
-use std::process::Command;
+use anyhow::{anyhow, Result};
 use std::fs;
 use std::path::Path;
+use std::process::Command;
 
 /// Reasons why a drive might be frozen
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -62,9 +62,7 @@ impl FreezeDetector {
 
     /// Check if drive is BIOS frozen
     fn is_bios_frozen(device_path: &str) -> Result<bool> {
-        let output = Command::new("hdparm")
-            .args(["-I", device_path])
-            .output()?;
+        let output = Command::new("hdparm").args(["-I", device_path]).output()?;
 
         let output_str = String::from_utf8_lossy(&output.stdout);
 
@@ -97,11 +95,12 @@ impl FreezeDetector {
         let sysfs_path = format!("/sys/block/{}/device/vendor", device_name);
         if let Ok(vendor) = fs::read_to_string(&sysfs_path) {
             let vendor_lower = vendor.to_lowercase();
-            if vendor_lower.contains("lsi") ||
-                vendor_lower.contains("megaraid") ||
-                vendor_lower.contains("adaptec") ||
-                vendor_lower.contains("hp") ||
-                vendor_lower.contains("dell") {
+            if vendor_lower.contains("lsi")
+                || vendor_lower.contains("megaraid")
+                || vendor_lower.contains("adaptec")
+                || vendor_lower.contains("hp")
+                || vendor_lower.contains("dell")
+            {
                 return Ok(true);
             }
         }
@@ -138,9 +137,7 @@ impl FreezeDetector {
         }
 
         // Try lspci for more details
-        let lspci_output = Command::new("lspci")
-            .args(["-v"])
-            .output();
+        let lspci_output = Command::new("lspci").args(["-v"]).output();
 
         if let Ok(output) = lspci_output {
             let output_str = String::from_utf8_lossy(&output.stdout);
@@ -164,11 +161,9 @@ impl FreezeDetector {
     /// Check if controller has known freeze policy
     fn has_controller_freeze_policy(controller_type: &str) -> bool {
         // Known controllers that aggressively freeze drives
-        matches!(controller_type,
-            "Intel RST" |
-            "Dell PERC" |
-            "HP SmartArray" |
-            "LSI MegaRAID"
+        matches!(
+            controller_type,
+            "Intel RST" | "Dell PERC" | "HP SmartArray" | "LSI MegaRAID"
         )
     }
 
@@ -180,17 +175,13 @@ impl FreezeDetector {
             .ok_or_else(|| anyhow!("Invalid device path"))?;
 
         // Check udev rules that might freeze drives
-        let udev_rules_dirs = [
-            "/lib/udev/rules.d",
-            "/etc/udev/rules.d",
-        ];
+        let udev_rules_dirs = ["/lib/udev/rules.d", "/etc/udev/rules.d"];
 
         for rules_dir in &udev_rules_dirs {
             if let Ok(entries) = fs::read_dir(rules_dir) {
                 for entry in entries.flatten() {
                     if let Ok(content) = fs::read_to_string(entry.path()) {
-                        if content.contains("hdparm") &&
-                            content.contains("--security-freeze") {
+                        if content.contains("hdparm") && content.contains("--security-freeze") {
                             return Ok(true);
                         }
                     }
@@ -199,10 +190,7 @@ impl FreezeDetector {
         }
 
         // Check systemd services
-        let systemd_dirs = [
-            "/etc/systemd/system",
-            "/lib/systemd/system",
-        ];
+        let systemd_dirs = ["/etc/systemd/system", "/lib/systemd/system"];
 
         for systemd_dir in &systemd_dirs {
             if let Ok(entries) = fs::read_dir(systemd_dir) {
@@ -249,7 +237,8 @@ impl FreezeDetector {
                 "Freeze reason could not be determined. \
                  Try all available unfreeze methods in sequence."
             }
-        }.to_string()
+        }
+        .to_string()
     }
 }
 
@@ -271,6 +260,8 @@ mod tests {
     fn test_controller_freeze_policy() {
         assert!(FreezeDetector::has_controller_freeze_policy("Intel RST"));
         assert!(FreezeDetector::has_controller_freeze_policy("Dell PERC"));
-        assert!(!FreezeDetector::has_controller_freeze_policy("Generic AHCI"));
+        assert!(!FreezeDetector::has_controller_freeze_policy(
+            "Generic AHCI"
+        ));
     }
 }

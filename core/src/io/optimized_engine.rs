@@ -1,13 +1,13 @@
 // High-Performance Optimized I/O Engine
 
-use super::*;
 use super::buffer_pool::{BufferPool, PooledBuffer, PAGE_SIZE};
 use super::metrics::{IOMetrics, PerformanceTuner};
-use super::platform_specific::{PlatformIO, get_platform_io};
+use super::platform_specific::{get_platform_io, PlatformIO};
+use super::*;
+use crate::drives::operations::smart::SMARTMonitor;
 use std::fs::File;
 use std::sync::Arc;
 use std::time::Instant;
-use crate::drives::operations::smart::SMARTMonitor;
 
 /// I/O Configuration
 #[derive(Debug, Clone)]
@@ -44,12 +44,12 @@ impl Default for IOConfig {
     fn default() -> Self {
         Self {
             use_direct_io: true,
-            initial_buffer_size: 4 * 1024 * 1024,  // 4MB
-            max_buffer_size: 16 * 1024 * 1024,     // 16MB
+            initial_buffer_size: 4 * 1024 * 1024, // 4MB
+            max_buffer_size: 16 * 1024 * 1024,    // 16MB
             queue_depth: 4,
             max_buffers: 32,
             temperature_threshold: 65,
-            temperature_check_interval: 100 * 1024 * 1024,  // 100MB
+            temperature_check_interval: 100 * 1024 * 1024, // 100MB
             adaptive_tuning: true,
             target_efficiency: 95.0,
         }
@@ -69,12 +69,12 @@ impl IOConfig {
     pub fn nvme_optimized() -> Self {
         Self {
             use_direct_io: true,
-            initial_buffer_size: 16 * 1024 * 1024,  // 16MB
-            max_buffer_size: 32 * 1024 * 1024,      // 32MB
+            initial_buffer_size: 16 * 1024 * 1024, // 16MB
+            max_buffer_size: 32 * 1024 * 1024,     // 32MB
             queue_depth: 32,
             max_buffers: 64,
-            temperature_threshold: 75,  // NVMe can run hotter
-            temperature_check_interval: 500 * 1024 * 1024,  // 500MB
+            temperature_threshold: 75, // NVMe can run hotter
+            temperature_check_interval: 500 * 1024 * 1024, // 500MB
             adaptive_tuning: true,
             target_efficiency: 95.0,
         }
@@ -84,12 +84,12 @@ impl IOConfig {
     pub fn sata_ssd_optimized() -> Self {
         Self {
             use_direct_io: true,
-            initial_buffer_size: 8 * 1024 * 1024,   // 8MB
-            max_buffer_size: 16 * 1024 * 1024,      // 16MB
+            initial_buffer_size: 8 * 1024 * 1024, // 8MB
+            max_buffer_size: 16 * 1024 * 1024,    // 16MB
             queue_depth: 8,
             max_buffers: 32,
             temperature_threshold: 65,
-            temperature_check_interval: 200 * 1024 * 1024,  // 200MB
+            temperature_check_interval: 200 * 1024 * 1024, // 200MB
             adaptive_tuning: true,
             target_efficiency: 95.0,
         }
@@ -99,14 +99,14 @@ impl IOConfig {
     pub fn hdd_optimized() -> Self {
         Self {
             use_direct_io: true,
-            initial_buffer_size: 4 * 1024 * 1024,   // 4MB
-            max_buffer_size: 8 * 1024 * 1024,       // 8MB
+            initial_buffer_size: 4 * 1024 * 1024, // 4MB
+            max_buffer_size: 8 * 1024 * 1024,     // 8MB
             queue_depth: 2,
             max_buffers: 16,
-            temperature_threshold: 55,  // HDDs run cooler
-            temperature_check_interval: 50 * 1024 * 1024,   // 50MB
+            temperature_threshold: 55,                    // HDDs run cooler
+            temperature_check_interval: 50 * 1024 * 1024, // 50MB
             adaptive_tuning: true,
-            target_efficiency: 90.0,  // HDDs have more overhead
+            target_efficiency: 90.0, // HDDs have more overhead
         }
     }
 
@@ -114,12 +114,12 @@ impl IOConfig {
     pub fn verification_optimized() -> Self {
         Self {
             use_direct_io: true,
-            initial_buffer_size: 8 * 1024 * 1024,   // 8MB buffers for fast reads
-            max_buffer_size: 16 * 1024 * 1024,      // 16MB
-            queue_depth: 16,                        // Higher queue depth for reads
+            initial_buffer_size: 8 * 1024 * 1024, // 8MB buffers for fast reads
+            max_buffer_size: 16 * 1024 * 1024,    // 16MB
+            queue_depth: 16,                      // Higher queue depth for reads
             max_buffers: 32,
-            temperature_threshold: 70,              // Can tolerate higher temps for reads
-            temperature_check_interval: 500 * 1024 * 1024,  // 500MB
+            temperature_threshold: 70, // Can tolerate higher temps for reads
+            temperature_check_interval: 500 * 1024 * 1024, // 500MB
             adaptive_tuning: true,
             target_efficiency: 95.0,
         }
@@ -128,14 +128,14 @@ impl IOConfig {
     /// Create config for small random reads (detection, sampling)
     pub fn small_read_optimized() -> Self {
         Self {
-            use_direct_io: false,  // Don't use Direct I/O for small reads
-            initial_buffer_size: 64 * 1024,   // 64KB - small buffers
-            max_buffer_size: 256 * 1024,      // 256KB
+            use_direct_io: false,           // Don't use Direct I/O for small reads
+            initial_buffer_size: 64 * 1024, // 64KB - small buffers
+            max_buffer_size: 256 * 1024,    // 256KB
             queue_depth: 4,
             max_buffers: 16,
             temperature_threshold: 70,
-            temperature_check_interval: u64::MAX,  // No temp checks for small ops
-            adaptive_tuning: false,  // Fixed config for small reads
+            temperature_check_interval: u64::MAX, // No temp checks for small ops
+            adaptive_tuning: false,               // Fixed config for small reads
             target_efficiency: 80.0,
         }
     }
@@ -179,7 +179,9 @@ impl IOHandle {
     pub fn read_at(&mut self, buffer: &mut [u8], offset: u64) -> IOResult<usize> {
         let start = Instant::now();
 
-        let read = self.platform_io.read_optimized(&self.file, buffer, offset)?;
+        let read = self
+            .platform_io
+            .read_optimized(&self.file, buffer, offset)?;
 
         let latency = start.elapsed();
         self.metrics.record_operation(read as u64, latency);
@@ -210,7 +212,10 @@ impl IOHandle {
     /// Check temperature and throttle if needed
     fn check_temperature_if_needed(&mut self, bytes_written: u64) -> IOResult<()> {
         // Skip if temperature monitoring is disabled
-        if self.temperature_monitoring_disabled.load(std::sync::atomic::Ordering::Relaxed) {
+        if self
+            .temperature_monitoring_disabled
+            .load(std::sync::atomic::Ordering::Relaxed)
+        {
             return Ok(());
         }
 
@@ -232,7 +237,8 @@ impl IOHandle {
                     // Temperature monitoring failed - disable it and warn once
                     eprintln!("⚠️  WARNING: Could not read temperature sensor");
                     eprintln!("   Temperature monitoring will be disabled.");
-                    self.temperature_monitoring_disabled.store(true, std::sync::atomic::Ordering::Relaxed);
+                    self.temperature_monitoring_disabled
+                        .store(true, std::sync::atomic::Ordering::Relaxed);
                 }
             }
         }
@@ -264,15 +270,21 @@ impl IOHandle {
         match action {
             ThrottleAction::None => Ok(()),
             ThrottleAction::Slow(factor) => {
-                println!("🌡️  Temperature throttling: Reducing speed to {:.0}%", factor * 100.0);
+                println!(
+                    "🌡️  Temperature throttling: Reducing speed to {:.0}%",
+                    factor * 100.0
+                );
                 // Implement by adding delays between writes
                 std::thread::sleep(std::time::Duration::from_millis(
-                    ((1.0 - factor) * 100.0) as u64
+                    ((1.0 - factor) * 100.0) as u64,
                 ));
                 Ok(())
             }
             ThrottleAction::Pause(duration) => {
-                println!("🌡️  Temperature too high! Pausing for {:?} to cool down", duration);
+                println!(
+                    "🌡️  Temperature too high! Pausing for {:?} to cool down",
+                    duration
+                );
                 std::thread::sleep(duration);
                 Ok(())
             }
@@ -293,7 +305,10 @@ impl OptimizedIO {
             println!("🚀 Opening device with optimized I/O");
             println!("   Platform: {}", platform_io.platform_name());
             println!("   Direct I/O: {}", config.use_direct_io);
-            println!("   Buffer Size: {} MB", config.initial_buffer_size / (1024 * 1024));
+            println!(
+                "   Buffer Size: {} MB",
+                config.initial_buffer_size / (1024 * 1024)
+            );
             println!("   Queue Depth: {}", config.queue_depth);
         }
 
@@ -365,9 +380,10 @@ impl OptimizedIO {
             let written = handle.write_at(buffer_slice, offset)?;
 
             if written as u64 != write_size {
-                return Err(IOError::OperationFailed(
-                    format!("Partial write: {} of {} bytes", written, write_size)
-                ));
+                return Err(IOError::OperationFailed(format!(
+                    "Partial write: {} of {} bytes",
+                    written, write_size
+                )));
             }
 
             offset += written as u64;
@@ -377,10 +393,7 @@ impl OptimizedIO {
                 let stats = handle.metrics.stats();
                 if stats.elapsed.as_secs() > 0 && stats.throughput_bps > 0 {
                     // Tuner can adjust buffer size and queue depth
-                    let _ = tuner.record_and_tune(
-                        written as u64,
-                        stats.avg_latency
-                    );
+                    let _ = tuner.record_and_tune(written as u64, stats.avg_latency);
                 }
             }
         }
@@ -410,9 +423,10 @@ impl OptimizedIO {
             let bytes_read = handle.read_buffer(&mut buffer, offset)?;
 
             if bytes_read == 0 {
-                return Err(IOError::OperationFailed(
-                    format!("Unexpected EOF at offset {}", offset)
-                ));
+                return Err(IOError::OperationFailed(format!(
+                    "Unexpected EOF at offset {}",
+                    offset
+                )));
             }
 
             // Process the read data
@@ -424,10 +438,7 @@ impl OptimizedIO {
             if let Some(ref tuner) = handle.tuner {
                 let stats = handle.metrics.stats();
                 if stats.elapsed.as_secs() > 0 && stats.throughput_bps > 0 {
-                    let _ = tuner.record_and_tune(
-                        bytes_read as u64,
-                        stats.avg_latency
-                    );
+                    let _ = tuner.record_and_tune(bytes_read as u64, stats.avg_latency);
                 }
             }
         }
@@ -436,11 +447,7 @@ impl OptimizedIO {
     }
 
     /// Read a specific range into a single buffer
-    pub fn read_range(
-        handle: &mut IOHandle,
-        offset: u64,
-        size: usize,
-    ) -> IOResult<Vec<u8>> {
+    pub fn read_range(handle: &mut IOHandle, offset: u64, size: usize) -> IOResult<Vec<u8>> {
         let mut data = vec![0u8; size];
         let bytes_read = handle.read_at(&mut data, offset)?;
         data.truncate(bytes_read);
@@ -473,8 +480,10 @@ impl OptimizedIO {
         println!("\n📦 Buffer Pool Statistics:");
         println!("  Allocated Buffers: {}", pool_stats.allocated);
         println!("  Available Buffers: {}", pool_stats.available);
-        println!("  Total Memory: {:.2} MB",
-                 pool_stats.total_memory as f64 / (1024.0 * 1024.0));
+        println!(
+            "  Total Memory: {:.2} MB",
+            pool_stats.total_memory as f64 / (1024.0 * 1024.0)
+        );
 
         println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
     }

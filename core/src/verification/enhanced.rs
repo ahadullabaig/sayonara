@@ -1,10 +1,10 @@
+use crate::io::{IOConfig, IOHandle, OptimizedIO};
 use anyhow::Result;
-use rand::Rng;
-use serde::{Serialize, Deserialize};
 use chrono::{DateTime, Utc};
+use rand::Rng;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::process::Command;
-use crate::io::{OptimizedIO, IOConfig, IOHandle};
 
 /// Enhanced verification system with comprehensive forensic analysis
 pub struct EnhancedVerification;
@@ -144,25 +144,24 @@ pub struct MFMResults {
     pub flux_transition_anomalies: u64,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[derive(PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum RecoveryRisk {
-    None,       // 0% - No recovery possible
-    VeryLow,    // <1% - Virtually impossible
-    Low,        // 1-5% - Unlikely
-    Medium,     // 5-25% - Possible with advanced tools
-    High,       // 25-75% - Likely
-    Critical,   // >75% - Almost certain
+    None,     // 0% - No recovery possible
+    VeryLow,  // <1% - Virtually impossible
+    Low,      // 1-5% - Unlikely
+    Medium,   // 5-25% - Possible with advanced tools
+    High,     // 25-75% - Likely
+    Critical, // >75% - Almost certain
 }
 
 // ==================== NEW: MULTI-LEVEL VERIFICATION ====================
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum VerificationLevel {
-    Level1RandomSampling,      // 1% - Fast (minutes)
-    Level2SystematicSampling,  // Every Nth - Medium (tens of minutes)
-    Level3FullScan,            // 100% - Slow (hours)
-    Level4ForensicScan,        // Full + Hidden + MFM - Very slow (hours+)
+    Level1RandomSampling,     // 1% - Fast (minutes)
+    Level2SystematicSampling, // Every Nth - Medium (tens of minutes)
+    Level3FullScan,           // 100% - Slow (hours)
+    Level4ForensicScan,       // Full + Hidden + MFM - Very slow (hours+)
 }
 
 // ==================== NEW: HEAT MAP ====================
@@ -193,7 +192,7 @@ pub struct BadSectorTracker {
 pub struct FileSignature {
     pub name: &'static str,
     pub pattern: &'static [u8],
-    pub offset: usize,  // Offset in file where signature appears
+    pub offset: usize, // Offset in file where signature appears
     pub confidence: f64,
 }
 
@@ -201,71 +200,281 @@ impl EnhancedVerification {
     /// Comprehensive file signatures for PhotoRec simulation
     pub(crate) const FILE_SIGNATURES: &'static [FileSignature] = &[
         // Documents
-        FileSignature { name: "PDF", pattern: b"%PDF", offset: 0, confidence: 0.99 },
-        FileSignature { name: "MS Word (DOCX)", pattern: b"PK\x03\x04", offset: 0, confidence: 0.85 },
-        FileSignature { name: "MS Excel (old)", pattern: b"\xD0\xCF\x11\xE0", offset: 0, confidence: 0.90 },
-        FileSignature { name: "MS Office 2007+", pattern: b"PK\x03\x04\x14\x00\x06\x00", offset: 0, confidence: 0.95 },
-        FileSignature { name: "RTF", pattern: b"{\\rtf", offset: 0, confidence: 0.95 },
-        FileSignature { name: "OpenDocument", pattern: b"PK\x03\x04", offset: 0, confidence: 0.80 },
-
+        FileSignature {
+            name: "PDF",
+            pattern: b"%PDF",
+            offset: 0,
+            confidence: 0.99,
+        },
+        FileSignature {
+            name: "MS Word (DOCX)",
+            pattern: b"PK\x03\x04",
+            offset: 0,
+            confidence: 0.85,
+        },
+        FileSignature {
+            name: "MS Excel (old)",
+            pattern: b"\xD0\xCF\x11\xE0",
+            offset: 0,
+            confidence: 0.90,
+        },
+        FileSignature {
+            name: "MS Office 2007+",
+            pattern: b"PK\x03\x04\x14\x00\x06\x00",
+            offset: 0,
+            confidence: 0.95,
+        },
+        FileSignature {
+            name: "RTF",
+            pattern: b"{\\rtf",
+            offset: 0,
+            confidence: 0.95,
+        },
+        FileSignature {
+            name: "OpenDocument",
+            pattern: b"PK\x03\x04",
+            offset: 0,
+            confidence: 0.80,
+        },
         // Images
-        FileSignature { name: "JPEG", pattern: b"\xFF\xD8\xFF", offset: 0, confidence: 0.99 },
-        FileSignature { name: "PNG", pattern: b"\x89PNG\r\n\x1a\n", offset: 0, confidence: 0.99 },
-        FileSignature { name: "GIF89a", pattern: b"GIF89a", offset: 0, confidence: 0.99 },
-        FileSignature { name: "GIF87a", pattern: b"GIF87a", offset: 0, confidence: 0.99 },
-        FileSignature { name: "BMP", pattern: b"BM", offset: 0, confidence: 0.95 },
-        FileSignature { name: "TIFF (LE)", pattern: b"II*\x00", offset: 0, confidence: 0.95 },
-        FileSignature { name: "TIFF (BE)", pattern: b"MM\x00*", offset: 0, confidence: 0.95 },
-        FileSignature { name: "WebP", pattern: b"RIFF", offset: 0, confidence: 0.90 },
-        FileSignature { name: "ICO", pattern: b"\x00\x00\x01\x00", offset: 0, confidence: 0.85 },
-
+        FileSignature {
+            name: "JPEG",
+            pattern: b"\xFF\xD8\xFF",
+            offset: 0,
+            confidence: 0.99,
+        },
+        FileSignature {
+            name: "PNG",
+            pattern: b"\x89PNG\r\n\x1a\n",
+            offset: 0,
+            confidence: 0.99,
+        },
+        FileSignature {
+            name: "GIF89a",
+            pattern: b"GIF89a",
+            offset: 0,
+            confidence: 0.99,
+        },
+        FileSignature {
+            name: "GIF87a",
+            pattern: b"GIF87a",
+            offset: 0,
+            confidence: 0.99,
+        },
+        FileSignature {
+            name: "BMP",
+            pattern: b"BM",
+            offset: 0,
+            confidence: 0.95,
+        },
+        FileSignature {
+            name: "TIFF (LE)",
+            pattern: b"II*\x00",
+            offset: 0,
+            confidence: 0.95,
+        },
+        FileSignature {
+            name: "TIFF (BE)",
+            pattern: b"MM\x00*",
+            offset: 0,
+            confidence: 0.95,
+        },
+        FileSignature {
+            name: "WebP",
+            pattern: b"RIFF",
+            offset: 0,
+            confidence: 0.90,
+        },
+        FileSignature {
+            name: "ICO",
+            pattern: b"\x00\x00\x01\x00",
+            offset: 0,
+            confidence: 0.85,
+        },
         // Archives
-        FileSignature { name: "ZIP", pattern: b"PK\x03\x04", offset: 0, confidence: 0.95 },
-        FileSignature { name: "RAR", pattern: b"Rar!\x1A\x07", offset: 0, confidence: 0.99 },
-        FileSignature { name: "7-Zip", pattern: b"7z\xBC\xAF\x27\x1C", offset: 0, confidence: 0.99 },
-        FileSignature { name: "GZIP", pattern: b"\x1F\x8B", offset: 0, confidence: 0.95 },
-        FileSignature { name: "BZIP2", pattern: b"BZh", offset: 0, confidence: 0.95 },
-        FileSignature { name: "TAR", pattern: b"ustar", offset: 257, confidence: 0.90 },
-
+        FileSignature {
+            name: "ZIP",
+            pattern: b"PK\x03\x04",
+            offset: 0,
+            confidence: 0.95,
+        },
+        FileSignature {
+            name: "RAR",
+            pattern: b"Rar!\x1A\x07",
+            offset: 0,
+            confidence: 0.99,
+        },
+        FileSignature {
+            name: "7-Zip",
+            pattern: b"7z\xBC\xAF\x27\x1C",
+            offset: 0,
+            confidence: 0.99,
+        },
+        FileSignature {
+            name: "GZIP",
+            pattern: b"\x1F\x8B",
+            offset: 0,
+            confidence: 0.95,
+        },
+        FileSignature {
+            name: "BZIP2",
+            pattern: b"BZh",
+            offset: 0,
+            confidence: 0.95,
+        },
+        FileSignature {
+            name: "TAR",
+            pattern: b"ustar",
+            offset: 257,
+            confidence: 0.90,
+        },
         // Media
-        FileSignature { name: "MP3 (ID3v2)", pattern: b"ID3", offset: 0, confidence: 0.95 },
-        FileSignature { name: "MP3 (no ID3)", pattern: b"\xFF\xFB", offset: 0, confidence: 0.80 },
-        FileSignature { name: "MP4", pattern: b"ftyp", offset: 4, confidence: 0.90 },
-        FileSignature { name: "AVI", pattern: b"RIFF", offset: 0, confidence: 0.85 },
-        FileSignature { name: "WAV", pattern: b"RIFF", offset: 0, confidence: 0.85 },
-        FileSignature { name: "FLAC", pattern: b"fLaC", offset: 0, confidence: 0.99 },
-        FileSignature { name: "OGG", pattern: b"OggS", offset: 0, confidence: 0.95 },
-        FileSignature { name: "MKV", pattern: b"\x1A\x45\xDF\xA3", offset: 0, confidence: 0.95 },
-
+        FileSignature {
+            name: "MP3 (ID3v2)",
+            pattern: b"ID3",
+            offset: 0,
+            confidence: 0.95,
+        },
+        FileSignature {
+            name: "MP3 (no ID3)",
+            pattern: b"\xFF\xFB",
+            offset: 0,
+            confidence: 0.80,
+        },
+        FileSignature {
+            name: "MP4",
+            pattern: b"ftyp",
+            offset: 4,
+            confidence: 0.90,
+        },
+        FileSignature {
+            name: "AVI",
+            pattern: b"RIFF",
+            offset: 0,
+            confidence: 0.85,
+        },
+        FileSignature {
+            name: "WAV",
+            pattern: b"RIFF",
+            offset: 0,
+            confidence: 0.85,
+        },
+        FileSignature {
+            name: "FLAC",
+            pattern: b"fLaC",
+            offset: 0,
+            confidence: 0.99,
+        },
+        FileSignature {
+            name: "OGG",
+            pattern: b"OggS",
+            offset: 0,
+            confidence: 0.95,
+        },
+        FileSignature {
+            name: "MKV",
+            pattern: b"\x1A\x45\xDF\xA3",
+            offset: 0,
+            confidence: 0.95,
+        },
         // Executables
-        FileSignature { name: "Windows EXE", pattern: b"MZ", offset: 0, confidence: 0.90 },
-        FileSignature { name: "Linux ELF", pattern: b"\x7FELF", offset: 0, confidence: 0.99 },
-        FileSignature { name: "Mach-O", pattern: b"\xFE\xED\xFA", offset: 0, confidence: 0.95 },
-        FileSignature { name: "Java Class", pattern: b"\xCA\xFE\xBA\xBE", offset: 0, confidence: 0.99 },
-
+        FileSignature {
+            name: "Windows EXE",
+            pattern: b"MZ",
+            offset: 0,
+            confidence: 0.90,
+        },
+        FileSignature {
+            name: "Linux ELF",
+            pattern: b"\x7FELF",
+            offset: 0,
+            confidence: 0.99,
+        },
+        FileSignature {
+            name: "Mach-O",
+            pattern: b"\xFE\xED\xFA",
+            offset: 0,
+            confidence: 0.95,
+        },
+        FileSignature {
+            name: "Java Class",
+            pattern: b"\xCA\xFE\xBA\xBE",
+            offset: 0,
+            confidence: 0.99,
+        },
         // Databases
-        FileSignature { name: "SQLite", pattern: b"SQLite format 3\x00", offset: 0, confidence: 0.99 },
-        FileSignature { name: "MS Access", pattern: b"\x00\x01\x00\x00Standard Jet DB", offset: 0, confidence: 0.95 },
-
+        FileSignature {
+            name: "SQLite",
+            pattern: b"SQLite format 3\x00",
+            offset: 0,
+            confidence: 0.99,
+        },
+        FileSignature {
+            name: "MS Access",
+            pattern: b"\x00\x01\x00\x00Standard Jet DB",
+            offset: 0,
+            confidence: 0.95,
+        },
         // Encryption/Keys
-        FileSignature { name: "PGP Private Key", pattern: b"-----BEGIN PGP PRIVATE KEY BLOCK-----", offset: 0, confidence: 0.99 },
-        FileSignature { name: "SSH Private Key", pattern: b"-----BEGIN OPENSSH PRIVATE KEY-----", offset: 0, confidence: 0.99 },
-        FileSignature { name: "RSA Private Key", pattern: b"-----BEGIN RSA PRIVATE KEY-----", offset: 0, confidence: 0.99 },
-        FileSignature { name: "Certificate", pattern: b"-----BEGIN CERTIFICATE-----", offset: 0, confidence: 0.99 },
-
+        FileSignature {
+            name: "PGP Private Key",
+            pattern: b"-----BEGIN PGP PRIVATE KEY BLOCK-----",
+            offset: 0,
+            confidence: 0.99,
+        },
+        FileSignature {
+            name: "SSH Private Key",
+            pattern: b"-----BEGIN OPENSSH PRIVATE KEY-----",
+            offset: 0,
+            confidence: 0.99,
+        },
+        FileSignature {
+            name: "RSA Private Key",
+            pattern: b"-----BEGIN RSA PRIVATE KEY-----",
+            offset: 0,
+            confidence: 0.99,
+        },
+        FileSignature {
+            name: "Certificate",
+            pattern: b"-----BEGIN CERTIFICATE-----",
+            offset: 0,
+            confidence: 0.99,
+        },
         // Disk Images
-        FileSignature { name: "ISO 9660", pattern: b"CD001", offset: 0x8001, confidence: 0.95 },
-        FileSignature { name: "VDI (VirtualBox)", pattern: b"<<< Oracle VM VirtualBox Disk Image >>>", offset: 0x40, confidence: 0.99 },
-        FileSignature { name: "VMDK", pattern: b"KDMV", offset: 0, confidence: 0.95 },
-
+        FileSignature {
+            name: "ISO 9660",
+            pattern: b"CD001",
+            offset: 0x8001,
+            confidence: 0.95,
+        },
+        FileSignature {
+            name: "VDI (VirtualBox)",
+            pattern: b"<<< Oracle VM VirtualBox Disk Image >>>",
+            offset: 0x40,
+            confidence: 0.99,
+        },
+        FileSignature {
+            name: "VMDK",
+            pattern: b"KDMV",
+            offset: 0,
+            confidence: 0.95,
+        },
         // Bitcoin/Crypto
-        FileSignature { name: "Bitcoin Wallet", pattern: b"\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00", offset: 0, confidence: 0.70 },
+        FileSignature {
+            name: "Bitcoin Wallet",
+            pattern: b"\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00",
+            offset: 0,
+            confidence: 0.70,
+        },
     ];
 
     // ==================== MAIN VERIFICATION ENTRY POINTS ====================
 
     /// Stage 1: Pre-wipe verification capability testing
-    pub fn pre_wipe_capability_test(device_path: &str, test_size: u64) -> Result<PreWipeTestResults> {
+    pub fn pre_wipe_capability_test(
+        device_path: &str,
+        test_size: u64,
+    ) -> Result<PreWipeTestResults> {
         println!("🔬 Stage 1: Testing Verification Capabilities");
 
         let device_size = Self::get_device_size(device_path)?;
@@ -307,9 +516,7 @@ impl EnhancedVerification {
             VerificationLevel::Level2SystematicSampling => {
                 Self::level2_systematic_sampling(device_path, device_size, 100)
             }
-            VerificationLevel::Level3FullScan => {
-                Self::level3_full_scan(device_path, device_size)
-            }
+            VerificationLevel::Level3FullScan => Self::level3_full_scan(device_path, device_size),
             VerificationLevel::Level4ForensicScan => {
                 Self::level4_forensic_scan(device_path, device_size)
             }
@@ -342,13 +549,19 @@ impl EnhancedVerification {
         device_size: u64,
         every_nth: u64,
     ) -> Result<PostWipeAnalysis> {
-        println!("  📊 Level 2: Systematic Sampling (every {}th sector)", every_nth);
+        println!(
+            "  📊 Level 2: Systematic Sampling (every {}th sector)",
+            every_nth
+        );
 
         let sector_size = 512u64;
         let total_sectors = device_size / sector_size;
         let sectors_to_check = total_sectors / every_nth;
 
-        println!("  ├─ Checking {} sectors systematically...", sectors_to_check);
+        println!(
+            "  ├─ Checking {} sectors systematically...",
+            sectors_to_check
+        );
 
         let mut samples = Vec::new();
         let config = IOConfig::small_read_optimized();
@@ -396,7 +609,10 @@ impl EnhancedVerification {
             chunk_num += 1;
 
             if chunk_num % 100 == 0 {
-                println!("    Progress: {:.1}%", (bytes_read as f64 / device_size as f64) * 100.0);
+                println!(
+                    "    Progress: {:.1}%",
+                    (bytes_read as f64 / device_size as f64) * 100.0
+                );
             }
 
             Ok(())
@@ -510,9 +726,7 @@ impl EnhancedVerification {
 
     fn detect_hpa(device_path: &str) -> Result<Option<HPAInfo>> {
         // Use hdparm to detect HPA
-        let output = Command::new("hdparm")
-            .args(["-N", device_path])
-            .output()?;
+        let output = Command::new("hdparm").args(["-N", device_path]).output()?;
 
         let output_str = String::from_utf8_lossy(&output.stdout);
 
@@ -556,10 +770,11 @@ impl EnhancedVerification {
 
         // Parse SMART attributes 05, 196, 197, 198
         for line in output_str.lines() {
-            if line.contains("Reallocated_Sector_Ct") ||
-                line.contains("Reallocated_Event_Count") ||
-                line.contains("Current_Pending_Sector") ||
-                line.contains("Offline_Uncorrectable") {
+            if line.contains("Reallocated_Sector_Ct")
+                || line.contains("Reallocated_Event_Count")
+                || line.contains("Current_Pending_Sector")
+                || line.contains("Offline_Uncorrectable")
+            {
                 // Parse count from line
                 if let Some(count_str) = line.split_whitespace().nth(9) {
                     if let Ok(count) = count_str.parse::<u64>() {
@@ -577,9 +792,7 @@ impl EnhancedVerification {
 
     fn verify_controller_cache_flush(device_path: &str) -> Result<bool> {
         // Send FLUSH CACHE command
-        let output = Command::new("hdparm")
-            .args(["-f", device_path])
-            .output()?;
+        let output = Command::new("hdparm").args(["-f", device_path]).output()?;
 
         Ok(output.status.success())
     }
@@ -626,7 +839,10 @@ impl EnhancedVerification {
         Ok(detected)
     }
 
-    fn simulate_recovery_tools(device_path: &str, device_size: u64) -> Result<RecoverySimulationResults> {
+    fn simulate_recovery_tools(
+        device_path: &str,
+        device_size: u64,
+    ) -> Result<RecoverySimulationResults> {
         println!("  🔍 Simulating Recovery Tools...");
 
         // PhotoRec simulation
@@ -989,9 +1205,18 @@ impl EnhancedVerification {
     pub fn render_heat_map_ascii(heat_map: &EntropyHeatMap) -> String {
         let mut output = String::new();
 
-        output.push_str(&format!("\n📊 Entropy Heat Map ({}x{})\n", heat_map.width, heat_map.height));
-        output.push_str(&format!("Range: {:.2} - {:.2} bits/byte\n", heat_map.min_entropy, heat_map.max_entropy));
-        output.push_str(&format!("Suspicious blocks: {}\n\n", heat_map.suspicious_blocks.len()));
+        output.push_str(&format!(
+            "\n📊 Entropy Heat Map ({}x{})\n",
+            heat_map.width, heat_map.height
+        ));
+        output.push_str(&format!(
+            "Range: {:.2} - {:.2} bits/byte\n",
+            heat_map.min_entropy, heat_map.max_entropy
+        ));
+        output.push_str(&format!(
+            "Suspicious blocks: {}\n\n",
+            heat_map.suspicious_blocks.len()
+        ));
 
         for row in &heat_map.cells {
             for &entropy in row {
@@ -1032,7 +1257,8 @@ impl EnhancedVerification {
         let stats = Self::run_statistical_tests(&samples)?;
 
         println!("  ├─ Sector anomaly detection...");
-        let (sectors, bad_sectors) = Self::analyze_sectors_with_bad_tracking(device_path, device_size)?;
+        let (sectors, bad_sectors) =
+            Self::analyze_sectors_with_bad_tracking(device_path, device_size)?;
 
         println!("  ├─ Hidden area verification...");
         let hidden_areas = Self::verify_hidden_areas(device_path)?;
@@ -1169,7 +1395,9 @@ impl EnhancedVerification {
 
         for _ in 0..(remaining / chunk_size) {
             let random_offset = rng.gen_range(0..device_size.saturating_sub(chunk_size));
-            if let Ok(buffer) = OptimizedIO::read_range(&mut handle, random_offset, chunk_size as usize) {
+            if let Ok(buffer) =
+                OptimizedIO::read_range(&mut handle, random_offset, chunk_size as usize)
+            {
                 samples.extend_from_slice(&buffer);
             }
         }
@@ -1601,7 +1829,10 @@ impl EnhancedVerification {
             post_wipe.statistical_tests.poker_test_passed,
             post_wipe.statistical_tests.serial_test_passed,
             post_wipe.statistical_tests.autocorrelation_test_passed,
-        ].iter().filter(|&&x| x).count();
+        ]
+        .iter()
+        .filter(|&&x| x)
+        .count();
         score += (tests_passed as f64 / 5.0) * 15.0;
 
         // Pattern analysis (10%)
@@ -1637,14 +1868,18 @@ impl EnhancedVerification {
         }
 
         // Sector analysis (5%)
-        let clean_ratio = 1.0 - (post_wipe.sector_sampling.suspicious_sectors as f64
-            / post_wipe.sector_sampling.total_sectors_sampled as f64);
+        let clean_ratio = 1.0
+            - (post_wipe.sector_sampling.suspicious_sectors as f64
+                / post_wipe.sector_sampling.total_sectors_sampled as f64);
         score += clean_ratio * 5.0;
 
         score.min(100.0)
     }
 
-    pub(crate) fn determine_compliance(post_wipe: &PostWipeAnalysis, confidence: f64) -> Vec<String> {
+    pub(crate) fn determine_compliance(
+        post_wipe: &PostWipeAnalysis,
+        confidence: f64,
+    ) -> Vec<String> {
         let mut standards = Vec::new();
 
         if confidence >= 99.0 {
@@ -1666,7 +1901,10 @@ impl EnhancedVerification {
             standards.push("NSA Storage Device Sanitization".to_string());
         }
 
-        if matches!(post_wipe.recovery_simulation.overall_recovery_risk, RecoveryRisk::None | RecoveryRisk::VeryLow) {
+        if matches!(
+            post_wipe.recovery_simulation.overall_recovery_risk,
+            RecoveryRisk::None | RecoveryRisk::VeryLow
+        ) {
             standards.push("NIST SP 800-53 Media Sanitization".to_string());
         }
 
@@ -1677,17 +1915,26 @@ impl EnhancedVerification {
         let mut recommendations = Vec::new();
 
         if confidence >= 99.9 {
-            recommendations.push("✅ Drive is forensically clean with highest confidence".to_string());
-            recommendations.push("✅ Safe for disposal, resale, or redeployment in any environment".to_string());
+            recommendations
+                .push("✅ Drive is forensically clean with highest confidence".to_string());
+            recommendations.push(
+                "✅ Safe for disposal, resale, or redeployment in any environment".to_string(),
+            );
         } else if confidence >= 95.0 {
-            recommendations.push("✅ Drive sanitization successful with high confidence".to_string());
+            recommendations
+                .push("✅ Drive sanitization successful with high confidence".to_string());
             recommendations.push("ℹ️ Suitable for most compliance requirements".to_string());
         } else if confidence >= 90.0 {
-            recommendations.push("⚠️ Drive sanitization completed but with reduced confidence".to_string());
-            recommendations.push("⚠️ Consider physical destruction for highly sensitive data".to_string());
+            recommendations
+                .push("⚠️ Drive sanitization completed but with reduced confidence".to_string());
+            recommendations
+                .push("⚠️ Consider physical destruction for highly sensitive data".to_string());
         } else {
-            recommendations.push("❌ Sanitization confidence below acceptable threshold".to_string());
-            recommendations.push("❌ STRONGLY recommend physical destruction or additional wipe passes".to_string());
+            recommendations
+                .push("❌ Sanitization confidence below acceptable threshold".to_string());
+            recommendations.push(
+                "❌ STRONGLY recommend physical destruction or additional wipe passes".to_string(),
+            );
         }
 
         if post_wipe.sector_sampling.suspicious_sectors > 0 {
@@ -1698,7 +1945,9 @@ impl EnhancedVerification {
         }
 
         if post_wipe.entropy_score < 7.5 {
-            recommendations.push("⚠️ Entropy below optimal - consider additional random overwrite pass".to_string());
+            recommendations.push(
+                "⚠️ Entropy below optimal - consider additional random overwrite pass".to_string(),
+            );
         }
 
         if !post_wipe.pattern_analysis.detected_signatures.is_empty() {
@@ -1708,8 +1957,12 @@ impl EnhancedVerification {
             ));
         }
 
-        if matches!(post_wipe.recovery_simulation.overall_recovery_risk, RecoveryRisk::Medium | RecoveryRisk::High | RecoveryRisk::Critical) {
-            recommendations.push("❌ HIGH RECOVERY RISK: Consider re-wiping with more passes".to_string());
+        if matches!(
+            post_wipe.recovery_simulation.overall_recovery_risk,
+            RecoveryRisk::Medium | RecoveryRisk::High | RecoveryRisk::Critical
+        ) {
+            recommendations
+                .push("❌ HIGH RECOVERY RISK: Consider re-wiping with more passes".to_string());
         }
 
         if post_wipe.bad_sectors.percentage_unreadable > 5.0 {
@@ -1740,7 +1993,11 @@ impl EnhancedVerification {
             warnings.push("Controller cache flush verification failed".to_string());
         }
 
-        if post_wipe.recovery_simulation.testdisk_results.partition_table_recoverable {
+        if post_wipe
+            .recovery_simulation
+            .testdisk_results
+            .partition_table_recoverable
+        {
             warnings.push("Partition table may be recoverable".to_string());
         }
 
@@ -1773,10 +2030,7 @@ impl LiveUSBVerification {
         Ok(())
     }
 
-    pub fn send_verification_report(
-        report: &VerificationReport,
-        endpoint: &str,
-    ) -> Result<()> {
+    pub fn send_verification_report(report: &VerificationReport, endpoint: &str) -> Result<()> {
         println!("📤 Sending verification report to {}", endpoint);
         let json = serde_json::to_string_pretty(report)?;
         println!("Report size: {} bytes", json.len());

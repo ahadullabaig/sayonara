@@ -1,10 +1,9 @@
 /// Latency benchmarks for Sayonara I/O operations
 ///
 /// Measures operation latency (p50, p95, p99) for various I/O operations.
-
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::fs::{File, OpenOptions};
-use std::io::{Write, Read, Seek, SeekFrom};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::time::Duration;
 use tempfile::NamedTempFile;
 

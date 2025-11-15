@@ -3,9 +3,9 @@
 // 3D XPoint is a non-volatile memory technology different from NAND flash.
 // It requires different wipe strategies and supports instant secure erase.
 
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
+use serde::{Deserialize, Serialize};
 use std::process::Command;
-use serde::{Serialize, Deserialize};
 
 /// Optane operating mode
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -96,21 +96,21 @@ impl OptaneDrive {
 
     /// Check via smartctl
     fn check_via_smartctl(device_path: &str) -> Result<bool> {
-        let output = Command::new("smartctl")
-            .arg("-a")
-            .arg(device_path)
-            .output();
+        let output = Command::new("smartctl").arg("-a").arg(device_path).output();
 
         if let Ok(output) = output {
             let stdout = String::from_utf8_lossy(&output.stdout);
 
             // Look for Optane indicators
-            if stdout.contains("Intel") && (
-                stdout.contains("Optane") ||
+            if stdout.contains("Intel")
+                && (
+                    stdout.contains("Optane") ||
                 stdout.contains("3D XPoint") ||
                 stdout.contains("INTEL SSDPE") ||  // Optane P4800X series
-                stdout.contains("INTEL SSDPF")     // Optane P5800X series
-            ) {
+                stdout.contains("INTEL SSDPF")
+                    // Optane P5800X series
+                )
+            {
                 return Ok(true);
             }
         }
@@ -168,8 +168,9 @@ impl OptaneDrive {
                 let stdout = String::from_utf8_lossy(&output.stdout);
 
                 // Look for Format NVM support with crypto erase
-                if stdout.contains("Crypto Erase Supported") ||
-                   stdout.contains("Format NVM Supported") {
+                if stdout.contains("Crypto Erase Supported")
+                    || stdout.contains("Format NVM Supported")
+                {
                     return Ok(true);
                 }
             }
@@ -199,7 +200,7 @@ impl OptaneDrive {
                             if let Ok(nsid) = nsid_str.trim_start_matches("ns").parse::<u32>() {
                                 let ns = OptaneNamespace {
                                     nsid,
-                                    capacity: 0,  // Will be filled by get-ns
+                                    capacity: 0, // Will be filled by get-ns
                                     mode: OptaneMode::BlockMode,
                                     device_path: format!("{}n{}", device_path, nsid),
                                     is_healthy: true,
@@ -247,7 +248,7 @@ impl OptaneDrive {
 
         if let Ok(content) = fs::read_to_string(&size_path) {
             if let Ok(sectors) = content.trim().parse::<u64>() {
-                return Ok(sectors * 512);  // Convert sectors to bytes
+                return Ok(sectors * 512); // Convert sectors to bytes
             }
         }
 
@@ -261,10 +262,7 @@ impl OptaneDrive {
 
     /// Detect Optane generation
     fn detect_generation(device_path: &str) -> Result<String> {
-        let output = Command::new("smartctl")
-            .arg("-a")
-            .arg(device_path)
-            .output();
+        let output = Command::new("smartctl").arg("-a").arg(device_path).output();
 
         if let Ok(output) = output {
             let stdout = String::from_utf8_lossy(&output.stdout);
@@ -317,8 +315,8 @@ impl OptaneDrive {
         let output = Command::new("nvme")
             .arg("format")
             .arg(&self.device_path)
-            .arg("-s")  // Secure erase setting
-            .arg("2")   // Cryptographic erase
+            .arg("-s") // Secure erase setting
+            .arg("2") // Cryptographic erase
             .output()?;
 
         if output.status.success() {
@@ -333,8 +331,8 @@ impl OptaneDrive {
         let output = Command::new("nvme")
             .arg("sanitize")
             .arg(&self.device_path)
-            .arg("-a")  // Sanitize action
-            .arg("2")   // Cryptographic erase
+            .arg("-a") // Sanitize action
+            .arg("2") // Cryptographic erase
             .output()?;
 
         if output.status.success() {
@@ -349,9 +347,12 @@ impl OptaneDrive {
     /// Overwrite with 3D XPoint-specific patterns
     pub fn optane_overwrite<F>(&self, mut write_fn: F) -> Result<()>
     where
-        F: FnMut(&[u8], u64) -> Result<()>,  // (data, offset) -> Result
+        F: FnMut(&[u8], u64) -> Result<()>, // (data, offset) -> Result
     {
-        println!("Performing 3D XPoint-aware overwrite on {}", self.device_path);
+        println!(
+            "Performing 3D XPoint-aware overwrite on {}",
+            self.device_path
+        );
 
         // 3D XPoint specific patterns
         // Unlike NAND flash, 3D XPoint uses resistance change, not charge
@@ -451,7 +452,14 @@ impl OptaneDrive {
     pub fn wipe_optane_drive(&self) -> Result<()> {
         println!("Starting Optane drive wipe: {}", self.device_path);
         println!("Generation: {}", self.generation);
-        println!("Mode: {}", if self.is_pmem { "Persistent Memory" } else { "Block" });
+        println!(
+            "Mode: {}",
+            if self.is_pmem {
+                "Persistent Memory"
+            } else {
+                "Block"
+            }
+        );
 
         // Prefer Instant Secure Erase if available
         if self.supports_ise && !self.is_pmem {

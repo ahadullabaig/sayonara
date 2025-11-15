@@ -2,10 +2,12 @@
 
 #[cfg(test)]
 mod tests {
-    use tempfile::TempDir;
-    use crate::drives::{AdvancedFreezeMitigation, FreezeDetector, FreezeInfo,
-                        FreezeMitigationConfig, FreezeReason, UnfreezeResult};
     use crate::drives::freeze::advanced::SuccessHistory;
+    use crate::drives::{
+        AdvancedFreezeMitigation, FreezeDetector, FreezeInfo, FreezeMitigationConfig, FreezeReason,
+        UnfreezeResult,
+    };
+    use tempfile::TempDir;
 
     #[test]
     fn test_config_default_values() {
@@ -92,7 +94,8 @@ mod tests {
         let mitigation = AdvancedFreezeMitigation::new(config);
 
         // Strategies should be ordered by historical success
-        let strategy_names: Vec<String> = mitigation.strategies
+        let strategy_names: Vec<String> = mitigation
+            .strategies
             .iter()
             .map(|s| s.name().to_string())
             .collect();
@@ -112,10 +115,7 @@ mod tests {
         let info = FreezeInfo {
             status: crate::FreezeStatus::Frozen,
             reason: Some(FreezeReason::BiosSetFrozen),
-            compatible_strategies: vec![
-                "SATA Link Reset".to_string(),
-                "ACPI Sleep".to_string(),
-            ],
+            compatible_strategies: vec!["SATA Link Reset".to_string(), "ACPI Sleep".to_string()],
             estimated_success_rate: 0.85,
         };
 
@@ -231,15 +231,11 @@ mod tests {
         let mitigation = AdvancedFreezeMitigation::new(config);
 
         // Test with different freeze reasons
-        let bios_prob = mitigation.calculate_success_probability(
-            &Some(FreezeReason::BiosSetFrozen)
-        );
-        let raid_prob = mitigation.calculate_success_probability(
-            &Some(FreezeReason::RaidController)
-        );
-        let unknown_prob = mitigation.calculate_success_probability(
-            &Some(FreezeReason::Unknown)
-        );
+        let bios_prob =
+            mitigation.calculate_success_probability(&Some(FreezeReason::BiosSetFrozen));
+        let raid_prob =
+            mitigation.calculate_success_probability(&Some(FreezeReason::RaidController));
+        let unknown_prob = mitigation.calculate_success_probability(&Some(FreezeReason::Unknown));
 
         // All should be valid probabilities
         assert!(bios_prob >= 0.0 && bios_prob <= 1.0);
@@ -260,10 +256,7 @@ mod tests {
         assert_eq!(success.message, "Test passed");
         assert!(success.warning.is_none());
 
-        let warning = StrategyResult::success_with_warning(
-            "Completed",
-            "Minor issue"
-        );
+        let warning = StrategyResult::success_with_warning("Completed", "Minor issue");
         assert!(warning.success);
         assert_eq!(warning.warning.unwrap(), "Minor issue");
 

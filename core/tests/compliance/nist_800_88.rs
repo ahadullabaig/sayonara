@@ -1,19 +1,3 @@
-/// NIST 800-88 Rev. 1 Compliance Tests
-///
-/// These tests validate compliance with NIST Special Publication 800-88 Revision 1
-/// "Guidelines for Media Sanitization"
-///
-/// Key Requirements:
-/// - Confidence level ≥99% for full compliance
-/// - Entropy >7.5 for cryptographic quality
-/// - Recovery risk assessment (None/VeryLow acceptable)
-/// - Multi-standard compliance thresholds
-
-use sayonara_wipe::verification::EnhancedVerification;
-use sayonara_wipe::verification::VerificationLevel;
-use sayonara_wipe::{WipeConfig, Algorithm};
-use anyhow::Result;
-
 // ==================== CONFIDENCE THRESHOLD TESTS ====================
 
 #[test]
@@ -21,8 +5,10 @@ fn test_nist_requires_99_percent_confidence() {
     // NIST 800-88 requires ≥99% confidence for full compliance
     // Verify the constant is properly defined
     const MIN_NIST_CONFIDENCE: f64 = 99.0;
-    assert_eq!(MIN_NIST_CONFIDENCE, 99.0,
-        "NIST 800-88 requires minimum 99% confidence");
+    assert_eq!(
+        MIN_NIST_CONFIDENCE, 99.0,
+        "NIST 800-88 requires minimum 99% confidence"
+    );
 }
 
 #[test]
@@ -33,8 +19,10 @@ fn test_confidence_below_99_excludes_nist() {
     // Mock a report with 98% confidence
     let compliance_at_98 = determine_compliance_mock(98.0, 7.9);
 
-    assert!(!compliance_at_98.contains(&"NIST 800-88 Rev. 1".to_string()),
-        "98% confidence should not achieve NIST 800-88 compliance");
+    assert!(
+        !compliance_at_98.contains(&"NIST 800-88 Rev. 1".to_string()),
+        "98% confidence should not achieve NIST 800-88 compliance"
+    );
 }
 
 #[test]
@@ -42,8 +30,10 @@ fn test_confidence_at_99_includes_nist() {
     // Confidence ≥99% should include NIST compliance
     let compliance_at_99 = determine_compliance_mock(99.0, 7.9);
 
-    assert!(compliance_at_99.contains(&"NIST 800-88 Rev. 1".to_string()),
-        "99% confidence should achieve NIST 800-88 compliance");
+    assert!(
+        compliance_at_99.contains(&"NIST 800-88 Rev. 1".to_string()),
+        "99% confidence should achieve NIST 800-88 compliance"
+    );
 }
 
 #[test]
@@ -51,10 +41,14 @@ fn test_dod_and_nist_paired_at_99_percent() {
     // At 99% confidence, both DoD and NIST should be present
     let compliance = determine_compliance_mock(99.0, 7.9);
 
-    assert!(compliance.contains(&"DoD 5220.22-M".to_string()),
-        "99% confidence should include DoD 5220.22-M");
-    assert!(compliance.contains(&"NIST 800-88 Rev. 1".to_string()),
-        "99% confidence should include NIST 800-88");
+    assert!(
+        compliance.contains(&"DoD 5220.22-M".to_string()),
+        "99% confidence should include DoD 5220.22-M"
+    );
+    assert!(
+        compliance.contains(&"NIST 800-88 Rev. 1".to_string()),
+        "99% confidence should include NIST 800-88"
+    );
 }
 
 // ==================== ENTROPY REQUIREMENTS ====================
@@ -65,8 +59,10 @@ fn test_nist_entropy_threshold() {
     // for ISO/GDPR compliance which implies cryptographic quality
     const MIN_ENTROPY: f64 = 7.5;
 
-    assert_eq!(MIN_ENTROPY, 7.5,
-        "NIST-quality sanitization requires entropy >7.5");
+    assert_eq!(
+        MIN_ENTROPY, 7.5,
+        "NIST-quality sanitization requires entropy >7.5"
+    );
 }
 
 #[test]
@@ -74,8 +70,10 @@ fn test_low_entropy_affects_compliance() {
     // Low entropy (<7.5) should affect ISO/GDPR compliance
     let compliance_low_entropy = determine_compliance_mock(90.0, 7.0);
 
-    assert!(!compliance_low_entropy.contains(&"ISO/IEC 27001:2013".to_string()),
-        "Entropy 7.0 should not achieve ISO compliance");
+    assert!(
+        !compliance_low_entropy.contains(&"ISO/IEC 27001:2013".to_string()),
+        "Entropy 7.0 should not achieve ISO compliance"
+    );
 }
 
 #[test]
@@ -83,10 +81,14 @@ fn test_high_entropy_enables_iso_gdpr() {
     // High entropy (>7.5) with 90% confidence enables ISO/GDPR
     let compliance_high_entropy = determine_compliance_mock(90.0, 7.6);
 
-    assert!(compliance_high_entropy.contains(&"ISO/IEC 27001:2013".to_string()),
-        "Entropy 7.6 with 90% confidence should achieve ISO compliance");
-    assert!(compliance_high_entropy.contains(&"GDPR Article 32".to_string()),
-        "Entropy 7.6 with 90% confidence should achieve GDPR compliance");
+    assert!(
+        compliance_high_entropy.contains(&"ISO/IEC 27001:2013".to_string()),
+        "Entropy 7.6 with 90% confidence should achieve ISO compliance"
+    );
+    assert!(
+        compliance_high_entropy.contains(&"GDPR Article 32".to_string()),
+        "Entropy 7.6 with 90% confidence should achieve GDPR compliance"
+    );
 }
 
 // ==================== MULTI-STANDARD COMPLIANCE ====================
@@ -96,10 +98,14 @@ fn test_pci_dss_hipaa_at_95_percent() {
     // PCI DSS and HIPAA require ≥95% confidence
     let compliance = determine_compliance_mock(95.0, 7.5);
 
-    assert!(compliance.contains(&"PCI DSS v3.2.1".to_string()),
-        "95% confidence should achieve PCI DSS compliance");
-    assert!(compliance.contains(&"HIPAA Security Rule".to_string()),
-        "95% confidence should achieve HIPAA compliance");
+    assert!(
+        compliance.contains(&"PCI DSS v3.2.1".to_string()),
+        "95% confidence should achieve PCI DSS compliance"
+    );
+    assert!(
+        compliance.contains(&"HIPAA Security Rule".to_string()),
+        "95% confidence should achieve HIPAA compliance"
+    );
 }
 
 #[test]
@@ -107,10 +113,14 @@ fn test_pci_dss_hipaa_excluded_below_95() {
     // <95% confidence excludes PCI DSS and HIPAA
     let compliance = determine_compliance_mock(94.9, 7.5);
 
-    assert!(!compliance.contains(&"PCI DSS v3.2.1".to_string()),
-        "94.9% confidence should not achieve PCI DSS compliance");
-    assert!(!compliance.contains(&"HIPAA Security Rule".to_string()),
-        "94.9% confidence should not achieve HIPAA compliance");
+    assert!(
+        !compliance.contains(&"PCI DSS v3.2.1".to_string()),
+        "94.9% confidence should not achieve PCI DSS compliance"
+    );
+    assert!(
+        !compliance.contains(&"HIPAA Security Rule".to_string()),
+        "94.9% confidence should not achieve HIPAA compliance"
+    );
 }
 
 #[test]
@@ -146,8 +156,10 @@ fn test_nist_sp_800_53_requires_low_recovery_risk() {
     // Create mock with low recovery risk
     let compliance_low_risk = determine_compliance_with_recovery_mock(95.0, "None");
 
-    assert!(compliance_low_risk.contains(&"NIST SP 800-53 Media Sanitization".to_string()),
-        "None recovery risk should achieve NIST SP 800-53");
+    assert!(
+        compliance_low_risk.contains(&"NIST SP 800-53 Media Sanitization".to_string()),
+        "None recovery risk should achieve NIST SP 800-53"
+    );
 }
 
 // ==================== INTEGRATION TESTS ====================

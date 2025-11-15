@@ -1,3 +1,7 @@
+use sayonara_wipe::{
+    DriveCapabilities, DriveInfo, DriveType, EncryptionStatus, FreezeStatus, HealthStatus, SEDType,
+    SanitizeOption,
+};
 /// Enhanced Mock Drive Infrastructure v2
 ///
 /// Provides comprehensive mock drives for testing wipe operations without physical hardware.
@@ -10,17 +14,13 @@
 /// - Bad sector and error injection
 /// - Operation tracking and statistics
 /// - Post-wipe verification
-
-use std::io::{Write, Seek, SeekFrom, Read};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::sync::{Arc, Mutex};
 use tempfile::NamedTempFile;
-use sayonara_wipe::{
-    DriveInfo, DriveType, DriveCapabilities, EncryptionStatus,
-    HealthStatus, FreezeStatus, SEDType, SanitizeOption,
-};
 
 /// Zone model for SMR drives
 #[derive(Clone, Debug, PartialEq)]
+#[allow(dead_code)]
 pub enum ZoneModel {
     HostManaged,
     HostAware,
@@ -29,6 +29,7 @@ pub enum ZoneModel {
 
 /// Enhanced mock drive configuration
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct MockDriveConfig {
     // Basic properties
     pub drive_type: DriveType,
@@ -48,11 +49,11 @@ pub struct MockDriveConfig {
     // Temperature simulation
     pub initial_temperature: u32,
     pub max_temperature: u32,
-    pub temperature_rise_rate: f32,  // °C per GB written
+    pub temperature_rise_rate: f32, // °C per GB written
 
     // Error injection
-    pub bad_sector_positions: Vec<u64>,  // LBA positions
-    pub error_rate: f64,  // Probability of transient error (0.0-1.0)
+    pub bad_sector_positions: Vec<u64>, // LBA positions
+    pub error_rate: f64,                // Probability of transient error (0.0-1.0)
     pub fail_after_bytes: Option<u64>,  // Simulate catastrophic failure
 
     // Drive-specific config
@@ -68,7 +69,7 @@ impl Default for MockDriveConfig {
     fn default() -> Self {
         Self {
             drive_type: DriveType::HDD,
-            size: 10 * 1024 * 1024,  // 10MB for fast tests
+            size: 10 * 1024 * 1024, // 10MB for fast tests
             sector_size: 512,
             model: "Mock HDD 10MB".to_string(),
             serial: "MOCK12345678".to_string(),
@@ -80,7 +81,7 @@ impl Default for MockDriveConfig {
             sanitize_options: Vec::new(),
             initial_temperature: 35,
             max_temperature: 70,
-            temperature_rise_rate: 0.5,  // 0.5°C per GB written
+            temperature_rise_rate: 0.5, // 0.5°C per GB written
             bad_sector_positions: Vec::new(),
             error_rate: 0.0,
             fail_after_bytes: None,
@@ -96,15 +97,17 @@ impl Default for MockDriveConfig {
 
 /// SMR-specific configuration
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct SMRMockConfig {
     pub zone_model: ZoneModel,
-    pub zone_size: u64,  // bytes per zone
+    pub zone_size: u64, // bytes per zone
     pub conventional_zone_count: u32,
     pub sequential_zone_count: u32,
 }
 
 /// Optane-specific configuration
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct OptaneMockConfig {
     pub is_pmem: bool,
     pub supports_ise: bool,
@@ -114,6 +117,7 @@ pub struct OptaneMockConfig {
 
 /// Hybrid SSHD configuration
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct HybridMockConfig {
     pub hdd_capacity: u64,
     pub ssd_cache_size: u64,
@@ -121,6 +125,7 @@ pub struct HybridMockConfig {
 
 /// eMMC-specific configuration
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct EMMCMockConfig {
     pub boot_partition_size: u64,
     pub rpmb_size: u64,
@@ -129,6 +134,7 @@ pub struct EMMCMockConfig {
 
 /// NVMe-specific configuration
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct NVMeMockConfig {
     pub namespace_count: u32,
     pub supports_sanitize: bool,
@@ -139,14 +145,16 @@ pub struct NVMeMockConfig {
 
 /// RAID-specific configuration
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct RAIDMockConfig {
-    pub raid_level: String,  // "raid0", "raid1", "raid5", etc.
+    pub raid_level: String, // "raid0", "raid1", "raid5", etc.
     pub member_count: u32,
     pub array_uuid: String,
 }
 
 /// Runtime state of mock drive
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct MockDriveState {
     pub bytes_written: u64,
     pub bytes_read: u64,
@@ -200,7 +208,10 @@ impl MockDrive {
         // Initialize state
         let state = Arc::new(Mutex::new(MockDriveState {
             current_temperature: config.initial_temperature,
-            is_frozen: matches!(config.freeze_state, FreezeStatus::Frozen | FreezeStatus::FrozenByBIOS | FreezeStatus::SecurityLocked),
+            is_frozen: matches!(
+                config.freeze_state,
+                FreezeStatus::Frozen | FreezeStatus::FrozenByBIOS | FreezeStatus::SecurityLocked
+            ),
             ..Default::default()
         }));
 
@@ -240,7 +251,12 @@ impl MockDrive {
                 sed_type: self.config.sed_type.clone(),
                 sanitize_options: self.config.sanitize_options.clone(),
                 max_temperature: Some(self.config.max_temperature),
-                is_frozen: matches!(self.config.freeze_state, FreezeStatus::Frozen | FreezeStatus::FrozenByBIOS | FreezeStatus::SecurityLocked),
+                is_frozen: matches!(
+                    self.config.freeze_state,
+                    FreezeStatus::Frozen
+                        | FreezeStatus::FrozenByBIOS
+                        | FreezeStatus::SecurityLocked
+                ),
                 freeze_status: self.config.freeze_state,
             },
             health_status: Some(HealthStatus::Good),
@@ -276,13 +292,17 @@ impl MockDrive {
         // Update temperature based on writes
         let gb_written = state.bytes_written as f32 / (1024.0 * 1024.0 * 1024.0);
         let temp_increase = (gb_written * self.config.temperature_rise_rate) as u32;
-        state.current_temperature = (self.config.initial_temperature + temp_increase).min(self.config.max_temperature);
+        state.current_temperature =
+            (self.config.initial_temperature + temp_increase).min(self.config.max_temperature);
 
         Ok(())
     }
 
     /// Verify wipe completion
-    pub fn verify_wipe(&self, expected_pattern: Option<&[u8]>) -> std::io::Result<VerificationResult> {
+    pub fn verify_wipe(
+        &self,
+        expected_pattern: Option<&[u8]>,
+    ) -> std::io::Result<VerificationResult> {
         let mut file = std::fs::File::open(self.path())?;
         let mut buffer = vec![0u8; 4096];
         let mut total_checked = 0u64;
@@ -302,7 +322,8 @@ impl MockDrive {
                     }
                 } else {
                     // Check if wiped (not original pattern)
-                    if byte == 0xAB {  // Original pattern
+                    if byte == 0xAB {
+                        // Original pattern
                         mismatches += 1;
                     }
                 }

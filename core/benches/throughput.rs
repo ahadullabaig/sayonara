@@ -1,9 +1,7 @@
 /// Throughput benchmarks for Sayonara I/O engine
 ///
 /// Measures write throughput across different drive types and configurations.
-
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId, Throughput};
-use std::fs::{File, OpenOptions};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use std::io::Write;
 use tempfile::NamedTempFile;
 
@@ -44,24 +42,28 @@ fn bench_buffer_sizes(c: &mut Criterion) {
 
     for (name, buffer_size) in buffer_sizes {
         group.throughput(Throughput::Bytes((file_size_mb * 1024 * 1024) as u64));
-        group.bench_with_input(BenchmarkId::from_parameter(name), &buffer_size, |b, &size| {
-            b.iter(|| {
-                let mut file = create_temp_file(file_size_mb).unwrap();
-                let buffer = vec![0xAB; size];
-                let mut written = 0u64;
-                let total_size = file_size_mb * 1024 * 1024;
+        group.bench_with_input(
+            BenchmarkId::from_parameter(name),
+            &buffer_size,
+            |b, &size| {
+                b.iter(|| {
+                    let mut file = create_temp_file(file_size_mb).unwrap();
+                    let buffer = vec![0xAB; size];
+                    let mut written = 0u64;
+                    let total_size = file_size_mb * 1024 * 1024;
 
-                while written < total_size {
-                    let remaining = total_size - written;
-                    let write_size = remaining.min(size as u64);
-                    file.write_all(&buffer[..write_size as usize]).unwrap();
-                    written += write_size;
-                }
+                    while written < total_size {
+                        let remaining = total_size - written;
+                        let write_size = remaining.min(size as u64);
+                        file.write_all(&buffer[..write_size as usize]).unwrap();
+                        written += write_size;
+                    }
 
-                file.flush().unwrap();
-                black_box(file);
-            });
-        });
+                    file.flush().unwrap();
+                    black_box(file);
+                });
+            },
+        );
     }
 
     group.finish();

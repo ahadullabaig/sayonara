@@ -1,16 +1,16 @@
-use crate::algorithms::{gutmann::GutmannWipe};
+use crate::algorithms::gutmann::GutmannWipe;
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
     use super::*;
+    use std::collections::HashMap;
     type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
-    use tempfile::NamedTempFile;
-    use std::io::{Write, Read, Seek, SeekFrom};
     use crate::algorithms::gutmann::DriveEncoding;
+    use crate::error::checkpoint::{Checkpoint, CheckpointManager};
     use crate::ui::progress::ProgressBar;
-    use crate::error::checkpoint::{CheckpointManager, Checkpoint};
     use chrono::Utc;
+    use std::io::{Read, Seek, SeekFrom, Write};
+    use tempfile::NamedTempFile;
 
     /// Test that patterns match the original Gutmann specification
     #[test]
@@ -20,29 +20,53 @@ mod tests {
 
         // Verify first 4 and last 4 are random (None)
         for i in 0..4 {
-            assert!(GutmannWipe::GUTMANN_PATTERNS[i].0.is_none(),
-                    "Pass {} should be random", i + 1);
+            assert!(
+                GutmannWipe::GUTMANN_PATTERNS[i].0.is_none(),
+                "Pass {} should be random",
+                i + 1
+            );
         }
         for i in 31..35 {
-            assert!(GutmannWipe::GUTMANN_PATTERNS[i].0.is_none(),
-                    "Pass {} should be random", i + 1);
+            assert!(
+                GutmannWipe::GUTMANN_PATTERNS[i].0.is_none(),
+                "Pass {} should be random",
+                i + 1
+            );
         }
 
         // Verify specific patterns according to paper
         assert_eq!(GutmannWipe::GUTMANN_PATTERNS[4].0, Some(&[0x55][..]));
         assert_eq!(GutmannWipe::GUTMANN_PATTERNS[5].0, Some(&[0xAA][..]));
-        assert_eq!(GutmannWipe::GUTMANN_PATTERNS[6].0, Some(&[0x92, 0x49, 0x24][..]));
-        assert_eq!(GutmannWipe::GUTMANN_PATTERNS[7].0, Some(&[0x49, 0x24, 0x92][..]));
-        assert_eq!(GutmannWipe::GUTMANN_PATTERNS[8].0, Some(&[0x24, 0x92, 0x49][..]));
+        assert_eq!(
+            GutmannWipe::GUTMANN_PATTERNS[6].0,
+            Some(&[0x92, 0x49, 0x24][..])
+        );
+        assert_eq!(
+            GutmannWipe::GUTMANN_PATTERNS[7].0,
+            Some(&[0x49, 0x24, 0x92][..])
+        );
+        assert_eq!(
+            GutmannWipe::GUTMANN_PATTERNS[8].0,
+            Some(&[0x24, 0x92, 0x49][..])
+        );
 
         // Verify incrementing patterns 0x00 through 0xFF
         assert_eq!(GutmannWipe::GUTMANN_PATTERNS[9].0, Some(&[0x00][..]));
         assert_eq!(GutmannWipe::GUTMANN_PATTERNS[24].0, Some(&[0xFF][..]));
 
         // Verify RLL patterns
-        assert_eq!(GutmannWipe::GUTMANN_PATTERNS[28].0, Some(&[0x6D, 0xB6, 0xDB][..]));
-        assert_eq!(GutmannWipe::GUTMANN_PATTERNS[29].0, Some(&[0xB6, 0xDB, 0x6D][..]));
-        assert_eq!(GutmannWipe::GUTMANN_PATTERNS[30].0, Some(&[0xDB, 0x6D, 0xB6][..]));
+        assert_eq!(
+            GutmannWipe::GUTMANN_PATTERNS[28].0,
+            Some(&[0x6D, 0xB6, 0xDB][..])
+        );
+        assert_eq!(
+            GutmannWipe::GUTMANN_PATTERNS[29].0,
+            Some(&[0xB6, 0xDB, 0x6D][..])
+        );
+        assert_eq!(
+            GutmannWipe::GUTMANN_PATTERNS[30].0,
+            Some(&[0xDB, 0x6D, 0xB6][..])
+        );
     }
 
     /// Test pattern writing and verification
@@ -82,9 +106,11 @@ mod tests {
 
         for (i, &byte) in buffer.iter().enumerate() {
             let expected = pattern[i % pattern.len()];
-            assert_eq!(byte, expected,
-                       "Byte at position {} should be 0x{:02x}, got 0x{:02x}",
-                       i, expected, byte);
+            assert_eq!(
+                byte, expected,
+                "Byte at position {} should be 0x{:02x}, got 0x{:02x}",
+                i, expected, byte
+            );
         }
 
         Ok(())
@@ -109,7 +135,10 @@ mod tests {
             random_data[i] = i as u8;
         }
         let entropy = GutmannWipe::calculate_entropy(&random_data);
-        assert!(entropy > 7.9, "Perfect distribution should have max entropy");
+        assert!(
+            entropy > 7.9,
+            "Perfect distribution should have max entropy"
+        );
 
         // Test real random data
         use crate::crypto::secure_rng::secure_random_bytes;
@@ -137,7 +166,7 @@ mod tests {
             test_device,
             "Gutmann",
             "test-op-123",
-            35,  // total passes
+            35, // total passes
             test_size,
         );
         checkpoint.update_progress(test_pass, (test_pass as u64) * test_size / 35);
@@ -155,7 +184,10 @@ mod tests {
         assert_eq!(loaded_checkpoint.device_path, test_device);
         assert_eq!(loaded_checkpoint.current_pass, test_pass);
         assert_eq!(loaded_checkpoint.total_size, test_size);
-        assert_eq!(loaded_checkpoint.state["encoding"], format!("{:?}", encoding));
+        assert_eq!(
+            loaded_checkpoint.state["encoding"],
+            format!("{:?}", encoding)
+        );
 
         // Verify timestamp is recent
         let age = Utc::now() - loaded_checkpoint.updated_at;
@@ -180,10 +212,10 @@ mod tests {
 
         // Should return Unknown for /dev/null
         match encoding {
-            DriveEncoding::MFM |
-            DriveEncoding::RLL |
-            DriveEncoding::PRML |
-            DriveEncoding::Unknown => {
+            DriveEncoding::MFM
+            | DriveEncoding::RLL
+            | DriveEncoding::PRML
+            | DriveEncoding::Unknown => {
                 // Valid encoding returned
             }
         }
@@ -195,20 +227,33 @@ mod tests {
         // Test MFM optimization
         let mfm_patterns = GutmannWipe::get_optimized_patterns(DriveEncoding::MFM);
         assert!(mfm_patterns.len() < 35, "MFM should use subset of patterns");
-        assert!(mfm_patterns.contains(&6), "MFM should include MFM-specific patterns");
+        assert!(
+            mfm_patterns.contains(&6),
+            "MFM should include MFM-specific patterns"
+        );
 
         // Test RLL optimization
         let rll_patterns = GutmannWipe::get_optimized_patterns(DriveEncoding::RLL);
         assert!(rll_patterns.len() < 35, "RLL should use subset of patterns");
-        assert!(rll_patterns.contains(&26), "RLL should include RLL-specific patterns");
+        assert!(
+            rll_patterns.contains(&26),
+            "RLL should include RLL-specific patterns"
+        );
 
         // Test PRML optimization
         let prml_patterns = GutmannWipe::get_optimized_patterns(DriveEncoding::PRML);
-        assert!(prml_patterns.len() < 35, "PRML should use subset of patterns");
+        assert!(
+            prml_patterns.len() < 35,
+            "PRML should use subset of patterns"
+        );
 
         // Test Unknown - should use all patterns
         let unknown_patterns = GutmannWipe::get_optimized_patterns(DriveEncoding::Unknown);
-        assert_eq!(unknown_patterns.len(), 35, "Unknown should use all 35 patterns");
+        assert_eq!(
+            unknown_patterns.len(),
+            35,
+            "Unknown should use all 35 patterns"
+        );
     }
 
     /// Test random data verification
@@ -228,7 +273,10 @@ mod tests {
         // Create verification samples
         let mut samples = HashMap::new();
         samples.insert(0, random_data[..4096].to_vec());
-        samples.insert(100 * 1024, random_data[100*1024..100*1024+4096].to_vec());
+        samples.insert(
+            100 * 1024,
+            random_data[100 * 1024..100 * 1024 + 4096].to_vec(),
+        );
 
         // Note: verify_random_entropy now uses device path instead of file handle
         // Skip this test as it requires a real device path
@@ -294,10 +342,11 @@ mod tests {
 
         // Should complete 4MB pattern fill in under 10ms
 
-        assert!(duration.as_millis() < 100,
-                "Pattern generation took {}ms, should be <100ms",
-
-                duration.as_millis());
+        assert!(
+            duration.as_millis() < 100,
+            "Pattern generation took {}ms, should be <100ms",
+            duration.as_millis()
+        );
     }
 
     /// Integration test for resume functionality
@@ -313,13 +362,8 @@ mod tests {
         let mut manager = CheckpointManager::new(Some(db_path.to_str().unwrap()))?;
 
         // Simulate interruption at pass 10
-        let mut checkpoint = Checkpoint::new(
-            test_device,
-            "Gutmann",
-            "test-resume-op",
-            35,
-            test_size,
-        );
+        let mut checkpoint =
+            Checkpoint::new(test_device, "Gutmann", "test-resume-op", 35, test_size);
         checkpoint.update_progress(10, (10 * test_size) / 35);
         checkpoint.state = serde_json::json!({
             "encoding": format!("{:?}", encoding)
